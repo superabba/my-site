@@ -1,0 +1,6 @@
+.env
+fonts/
+output/
+data/
+__pycache__/
+*.pyc

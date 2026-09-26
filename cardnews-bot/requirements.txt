@@ -1,0 +1,6 @@
+anthropic>=1.8.0
+pydantic>=2.7
+pillow>=10.0
+requests>=2.31
+# 선택: S3/Cloudflare R2 업로드를 쓸 때만 필요
+# boto3>=1.34
