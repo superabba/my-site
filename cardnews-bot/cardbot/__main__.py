@@ -52,16 +52,25 @@ def cmd_make(s, a):
     print(f"\n생성 완료: {folder}\n확인 후 게시하려면:  python -m cardbot publish \"{folder}\"")
 
 
+def _exit_on_failures(p):
+    if p.failures:
+        for f in p.failures:
+            print(f"게시 실패: {f}", file=sys.stderr)
+        sys.exit(1)
+
+
 def cmd_publish(s, a):
-    meta = _pipeline(s).publish(Path(a.folder))
+    p = _pipeline(s)
+    meta = p.publish(Path(a.folder))
     for name, info in meta.get("posts", {}).items():
         print(f"{name}: {info.get('permalink') or info.get('media_id')}")
-    for name, err in meta.get("errors", {}).items():
-        print(f"{name} 실패: {err}", file=sys.stderr)
+    _exit_on_failures(p)
 
 
 def cmd_run(s, a):
-    _pipeline(s).run_once(publish=a.publish or s.auto_publish)
+    p = _pipeline(s)
+    p.run_once(publish=a.publish or s.auto_publish)
+    _exit_on_failures(p)
 
 
 def cmd_auto(s, a):
@@ -76,9 +85,13 @@ def cmd_auto(s, a):
             log.info("성과 지표 갱신: %d건", n)
             p.run_once(publish=publish)
         except Exception:
+            if a.once:  # cron/Actions에서는 실패를 종료 코드로 알림
+                raise
             log.exception("사이클 실패, 다음 주기에 재시도")
         if a.once:
+            _exit_on_failures(p)
             return
+        p.failures.clear()
         log.info("%d분 후 다음 사이클", s.interval_minutes)
         time.sleep(s.interval_minutes * 60)
 

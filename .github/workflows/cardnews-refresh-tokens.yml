@@ -1,0 +1,40 @@
+# Instagram / Threads 장기 토큰(60일 만료)을 매달 갱신해 Secrets에 다시 저장한다.
+# 필요: CARDBOT_ADMIN_TOKEN 시크릿 = 이 저장소의 "Secrets: Read and write" 권한을 가진 fine-grained PAT
+name: 카드뉴스 토큰 갱신
+
+on:
+  schedule:
+    - cron: "20 0 1 * *" # 매달 1일 KST 09:20
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cardnews-bot
+    env:
+      GH_TOKEN: ${{ secrets.CARDBOT_ADMIN_TOKEN }}
+      IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+      THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests
+      - name: 토큰 갱신
+        run: |
+          if [ -z "$GH_TOKEN" ]; then echo "::error::CARDBOT_ADMIN_TOKEN 시크릿이 없습니다"; exit 1; fi
+          refresh() {  # $1=플랫폼 $2=기존 토큰 $3=시크릿 이름
+            [ -n "$2" ] || { echo "$3 없음, 건너뜀"; return 0; }
+            NEW=$(OLD="$2" python -c "import os; from cardbot.publishers import refresh_token; print(refresh_token('$1', os.environ['OLD'])['access_token'])")
+            echo "::add-mask::$NEW"
+            printf '%s' "$NEW" | gh secret set "$3" --repo "$GITHUB_REPOSITORY"
+            echo "$3 갱신 완료"
+          }
+          refresh instagram "$IG_ACCESS_TOKEN" IG_ACCESS_TOKEN
+          refresh threads "$THREADS_ACCESS_TOKEN" THREADS_ACCESS_TOKEN

@@ -91,8 +91,8 @@ class Writer:
     def __init__(self, settings, client: anthropic.Anthropic | None = None):
         self.s = settings
         self.client = client or anthropic.Anthropic()
-        self.use_fallbacks = os.environ.get("CLAUDE_FALLBACKS", "default") != "off"
-        self.use_web_search = os.environ.get("CLAUDE_WEB_SEARCH", "true").lower() != "false"
+        self.use_fallbacks = (os.environ.get("CLAUDE_FALLBACKS") or "default") != "off"
+        self.use_web_search = (os.environ.get("CLAUDE_WEB_SEARCH") or "true").lower() != "false"
 
     # 공통 인자: 적응형 사고 + effort + (Claude API일 때) 거절 시 서버측 폴백
     def _common(self) -> dict:

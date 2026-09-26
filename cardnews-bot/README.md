@@ -51,6 +51,29 @@ python -m cardbot refresh-token instagram   # 장기 토큰(60일) 갱신
 10 8,12,19 * * * cd /path/cardnews-bot && .venv/bin/python -m cardbot auto --once --publish >> data/cron.log 2>&1
 ```
 
+### GitHub Actions로 자동 운영 (PC 없이)
+
+`.github/workflows/cardnews.yml`이 하루 3번(KST 08:10 / 12:10 / 19:10) 실행됩니다.
+발행 이력 DB·초안·게시용 이미지는 코드와 분리된 **`cardbot-data` 브랜치**에 자동 커밋되어 다음 실행에 이어집니다.
+
+1. 이 브랜치를 기본 브랜치(`main`)에 병합하세요. 예약 실행은 기본 브랜치에 있는 워크플로만 동작합니다.
+2. 저장소 **Settings → Secrets and variables → Actions** 에 등록:
+   - **Secrets**: `ANTHROPIC_API_KEY`, `IG_USER_ID`, `IG_ACCESS_TOKEN`, `THREADS_USER_ID`, `THREADS_ACCESS_TOKEN` (선택: `YOUTUBE_API_KEY`)
+   - **Variables** (선택, 비우면 기본값): `CARD_NICHE`, `CARD_TONE`, `BRAND_HANDLE`, `CARD_THEME`, `PLATFORMS`, `POSTS_PER_RUN`, `ANTHROPIC_MODEL`, `CARD_EFFORT`, `AUTO_PUBLISH`
+3. 처음엔 `AUTO_PUBLISH`를 설정하지 마세요. 예약 실행이 **초안만** 만들고, 실행 결과 화면(Summary)에 슬라이드 미리보기·캡션이 표시됩니다.
+   마음에 들면 **Actions → 카드뉴스 자동 발행 → Run workflow** 에서 `publish-draft`를 고르고 폴더 이름을 넣어 게시합니다.
+4. 품질이 안정되면 Variables에 `AUTO_PUBLISH=true`를 추가 → 예약 실행이 바로 게시까지 합니다.
+
+수동 실행(Run workflow) 옵션: `draft`(초안, 주제 직접 지정 가능) · `publish-now`(추천→제작→즉시 게시) · `publish-draft`(검토한 초안 게시)
+
+**이미지 호스팅**: 기본으로 이 저장소(공개)의 `cardbot-data` 브랜치 `images/`에 올리고 기본 제공 토큰을 씁니다. 저장소가 비공개라면 공개 저장소를 따로 만들어
+Variables에 `IMAGE_REPO=owner/repo`, Secrets에 `CARDBOT_GITHUB_TOKEN`(그 저장소 Contents 쓰기 권한 PAT)을 넣으세요.
+
+**토큰 자동 갱신**: `.github/workflows/cardnews-refresh-tokens.yml`이 매달 1일 인스타·스레드 토큰을 갱신해 Secrets에 다시 저장합니다.
+이 저장소에 대해 *Secrets: Read and write* 권한만 준 fine-grained PAT을 `CARDBOT_ADMIN_TOKEN` 시크릿으로 등록해야 동작합니다.
+
+참고: 공개 저장소는 60일간 활동이 없으면 예약 실행이 자동으로 꺼질 수 있습니다 (GitHub이 메일로 알려주며 Actions 탭에서 다시 켤 수 있음).
+
 ## 사전 준비 (Meta 쪽)
 
 1. **Instagram**: 프로페셔널(비즈니스/크리에이터) 계정 → [Meta for Developers](https://developers.facebook.com/)에서 앱 생성 → *Instagram API with Instagram Login* 추가 →

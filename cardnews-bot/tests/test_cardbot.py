@@ -187,3 +187,13 @@ def test_dotenv_inline_comments(tmp_path, monkeypatch):
     import os
     assert os.environ["A_X"] == "high" and os.environ["B_X"] == "a # b"
     assert os.environ["C_X"] == "https://x.com/#frag"
+
+
+def test_empty_env_falls_back_to_default(monkeypatch, tmp_path):
+    # GitHub Actions에서 설정하지 않은 vars는 빈 문자열로 들어온다
+    monkeypatch.setenv("ANTHROPIC_MODEL", "")
+    monkeypatch.setenv("SLIDES_MAX", "")
+    monkeypatch.setenv("CARDBOT_DATA_DIR", str(tmp_path / "d"))
+    s = Settings.load()
+    assert s.anthropic_model == "claude-opus-5" and s.slides_max == 8
+    assert s.data_dir == tmp_path / "d" and s.data_dir.exists()

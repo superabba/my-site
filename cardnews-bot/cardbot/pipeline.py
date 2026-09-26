@@ -28,6 +28,7 @@ class Pipeline:
         self.s = settings
         self.writer = writer or Writer(settings)
         self.store = store or Store(settings.data_dir / "cardbot.db")
+        self.failures: list[str] = []  # 이번 실행에서 실패한 게시 (CLI 종료 코드용)
 
     # ----- 추천 -----
     def recommend(self, n: int = 5) -> tuple[list[TopicIdea], list[trends.TrendSignal]]:
@@ -85,6 +86,7 @@ class Pipeline:
             except Exception as e:
                 log.error("%s 게시 실패: %s", pub.name, e)
                 meta.setdefault("errors", {})[pub.name] = str(e)
+                self.failures.append(f"{folder.name}/{pub.name}: {e}")
                 meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2))
                 continue
             log.info("%s 게시 완료: %s", pub.name, res.permalink or res.media_id)

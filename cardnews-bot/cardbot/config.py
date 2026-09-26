@@ -28,7 +28,8 @@ def load_dotenv(path: Path) -> None:
 
 
 def _env(name: str, default: str = "") -> str:
-    return os.environ.get(name, default).strip()
+    # 빈 문자열도 '미설정'으로 취급 (GitHub Actions에서 없는 변수는 ""로 들어옴)
+    return os.environ.get(name, "").strip() or default
 
 
 def _bool(name: str, default: bool = False) -> bool:
@@ -125,6 +126,8 @@ class Settings:
         s.auto_publish = _bool("AUTO_PUBLISH", False)
         s.interval_minutes = int(_env("INTERVAL_MINUTES", str(s.interval_minutes)))
         s.posts_per_run = int(_env("POSTS_PER_RUN", str(s.posts_per_run)))
+        s.output_dir = Path(_env("CARDBOT_OUTPUT_DIR", str(s.output_dir)))
+        s.data_dir = Path(_env("CARDBOT_DATA_DIR", str(s.data_dir)))
         for d in (s.output_dir, s.data_dir, s.fonts_dir):
             d.mkdir(parents=True, exist_ok=True)
         return s
