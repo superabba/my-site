@@ -1,9 +1,15 @@
-"""Instagram Graph API / Threads API 캐러셀 게시 및 인사이트 조회.
+"""Instagram Graph API / Threads API 게시(캐러셀·릴스) 및 인사이트 조회.
 
-두 API 모두 3단계로 동작한다.
+캐러셀은 3단계로 동작한다.
   1) 이미지마다 캐러셀 아이템 컨테이너 생성 (image_url, is_carousel_item=true)
   2) 캐러셀 컨테이너 생성 (children=아이템 ID들, 캡션/본문)
   3) 컨테이너 게시 (media_publish / threads_publish)
+릴스는 영상 컨테이너(media_type=REELS, video_url) 하나를 만들어 처리가 끝나면 게시한다.
+
+publish(assets, text)의 assets:
+  image_urls: 슬라이드 이미지 URL 목록
+  video_urls: 릴스 영상 URL 후보 목록 (앞쪽부터 시도)
+  reel_cover_url: 릴스 커버 이미지 URL
 """
 
 from __future__ import annotations
@@ -58,7 +64,12 @@ class GraphClient:
             if status == "FINISHED":
                 return
             if status in {"ERROR", "EXPIRED"}:
-                raise PublishError(f"컨테이너 {container_id} 상태 {status}")
+                detail = ""
+                try:  # 인스타그램은 status 필드에 오류 설명이 들어 있다
+                    detail = self.get(container_id, fields="status").get("status", "")
+                except PublishError:
+                    pass
+                raise PublishError(f"컨테이너 {container_id} 상태 {status} {detail}".strip())
             if time.monotonic() > deadline:
                 raise PublishError(f"컨테이너 {container_id} 준비 시간 초과 (상태 {status})")
             self.sleep(delay)
@@ -69,6 +80,7 @@ class InstagramPublisher:
     """Instagram API (Instagram 로그인 방식: graph.instagram.com, 비즈니스/크리에이터 계정)."""
 
     name = "instagram"
+    needs_video = False
     # 인사이트 지표 (API 버전에 따라 이름이 바뀌면 IG_METRICS로 조정)
     metrics = "views,reach,likes,comments,shares,saved"
 
@@ -78,7 +90,8 @@ class InstagramPublisher:
         self.user_id = user_id
         self.api = GraphClient(base, token, sleep)
 
-    def publish(self, image_urls: list[str], caption: str) -> PublishResult:
+    def publish(self, assets: dict, caption: str) -> PublishResult:
+        image_urls = assets["image_urls"]
         if not 2 <= len(image_urls) <= 10:
             raise PublishError("인스타그램 캐러셀은 2~10장이어야 합니다")
         children = []
@@ -107,10 +120,55 @@ class InstagramPublisher:
         return _flatten_insights(data)
 
 
+class ReelsPublisher:
+    """인스타그램 릴스 (같은 Instagram 계정·토큰 사용)."""
+
+    name = "reels"
+    needs_video = True
+    metrics = "views,reach,likes,comments,shares,saved"
+
+    def __init__(self, user_id: str, token: str, base: str, sleep=time.sleep):
+        if not user_id or not token:
+            raise ValueError("IG_USER_ID, IG_ACCESS_TOKEN이 필요합니다")
+        self.user_id = user_id
+        self.api = GraphClient(base, token, sleep)
+
+    def publish(self, assets: dict, caption: str) -> PublishResult:
+        urls = assets.get("video_urls") or []
+        if not urls:
+            raise PublishError("릴스 영상이 없습니다")
+        errors = []
+        for url in urls:  # 호스팅 URL 후보를 차례로 시도
+            params = {"media_type": "REELS", "video_url": url, "caption": caption, "share_to_feed": "true"}
+            if assets.get("reel_cover_url"):
+                params["cover_url"] = assets["reel_cover_url"]
+            try:
+                container = self.api.post(f"{self.user_id}/media", **params)
+                self.api.wait_ready(container["id"], "status_code", timeout_s=600)
+            except PublishError as e:
+                log.warning("릴스 영상 URL 실패, 다음 후보 시도: %s (%s)", url, e)
+                errors.append(f"{url}: {e}")
+                continue
+            media = self.api.post(f"{self.user_id}/media_publish", creation_id=container["id"])
+            link = ""
+            try:
+                link = self.api.get(media["id"], fields="permalink").get("permalink", "")
+            except PublishError as e:
+                log.warning("permalink 조회 실패: %s", e)
+            log.info("릴스 게시 성공 (영상 URL: %s)", url)
+            return PublishResult(self.name, media["id"], link)
+        raise PublishError("릴스 영상을 가져오지 못했습니다 — " + " | ".join(errors))
+
+    def insights(self, media_id: str) -> dict[str, int]:
+        data = self.api.get(f"{media_id}/insights", metric=self.metrics)
+        return _flatten_insights(data)
+
+
 class ThreadsPublisher:
     """Threads API (graph.threads.net)."""
 
     name = "threads"
+    needs_video = False
     metrics = "views,likes,replies,reposts,quotes,shares"
 
     def __init__(self, user_id: str, token: str, base: str, sleep=time.sleep):
@@ -119,7 +177,8 @@ class ThreadsPublisher:
         self.user_id = user_id
         self.api = GraphClient(base, token, sleep)
 
-    def publish(self, image_urls: list[str], text: str) -> PublishResult:
+    def publish(self, assets: dict, text: str) -> PublishResult:
+        image_urls = assets["image_urls"]
         if not 2 <= len(image_urls) <= 20:
             raise PublishError("스레드 캐러셀은 2~20장이어야 합니다")
         children = []
@@ -171,6 +230,8 @@ def make_publishers(s, sleep=time.sleep) -> list:
     for p in s.platforms:
         if p == "instagram":
             pubs.append(InstagramPublisher(s.ig_user_id, s.ig_access_token, s.ig_graph_base, sleep))
+        elif p == "reels":
+            pubs.append(ReelsPublisher(s.ig_user_id, s.ig_access_token, s.ig_graph_base, sleep))
         elif p == "threads":
             pubs.append(ThreadsPublisher(s.threads_user_id, s.threads_access_token, s.threads_graph_base, sleep))
         else:

@@ -1,4 +1,4 @@
-"""이미지 공개 URL 만들기.
+"""이미지·영상 공개 URL 만들기.
 
 Instagram / Threads 게시 API는 파일 업로드가 아니라 '공개 URL'에서 이미지를 가져간다.
 그래서 렌더링한 JPEG을 먼저 공개 저장소에 올려야 한다.
@@ -19,9 +19,16 @@ from pathlib import Path
 import requests
 
 
+CONTENT_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".mp4": "video/mp4"}
+
+
 class ImageHost:
     def upload(self, files: list[Path], folder: str) -> list[str]:
         raise NotImplementedError
+
+    def candidates(self, url: str) -> list[str]:
+        """같은 파일을 가리키는 URL 후보 (앞쪽부터 시도). 기본은 그 URL 하나."""
+        return [url]
 
 
 def public_folder(folder: str) -> str:
@@ -40,6 +47,7 @@ class GitHubHost(ImageHost):
         if not token or not repo:
             raise ValueError("github 호스팅에는 GITHUB_TOKEN, GITHUB_REPO가 필요합니다")
         self.token, self.repo, self.branch, self.base_dir = token, repo, branch, base_dir.strip("/")
+        self._commits: dict[str, str] = {}  # raw URL → 올린 커밋 sha
 
     def upload(self, files: list[Path], folder: str) -> list[str]:
         folder = public_folder(folder)
@@ -63,8 +71,21 @@ class GitHubHost(ImageHost):
             r = requests.put(api, headers=headers, json=body, timeout=60)
             if r.status_code not in (200, 201):
                 raise RuntimeError(f"GitHub 업로드 실패 {r.status_code}: {r.text[:300]}")
-            urls.append(f"https://raw.githubusercontent.com/{self.repo}/{self.branch}/{path}")
+            url = f"https://raw.githubusercontent.com/{self.repo}/{self.branch}/{path}"
+            sha = (r.json().get("commit") or {}).get("sha")
+            if sha:
+                self._commits[url] = sha
+            urls.append(url)
         return urls
+
+    def candidates(self, url: str) -> list[str]:
+        """raw.githubusercontent.com은 영상을 application/octet-stream으로 보내므로,
+        video/mp4로 내려주는 jsDelivr(커밋 고정 주소)를 먼저 쓰고 raw는 대안으로 남긴다."""
+        sha = self._commits.get(url)
+        prefix = f"https://raw.githubusercontent.com/{self.repo}/{self.branch}/"
+        if not sha or not url.startswith(prefix):
+            return [url]
+        return [f"https://cdn.jsdelivr.net/gh/{self.repo}@{sha}/{url[len(prefix):]}", url]
 
 
 class S3Host(ImageHost):
@@ -81,7 +102,8 @@ class S3Host(ImageHost):
         urls = []
         for f in files:
             key = f"{self.prefix}/{folder}/{f.name}"
-            self.s3.upload_file(str(f), self.bucket, key, ExtraArgs={"ContentType": "image/jpeg"})
+            ctype = CONTENT_TYPES.get(f.suffix.lower(), "application/octet-stream")
+            self.s3.upload_file(str(f), self.bucket, key, ExtraArgs={"ContentType": ctype})
             urls.append(f"{self.base}/{key}")
         return urls
 

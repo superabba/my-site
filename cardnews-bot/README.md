@@ -4,7 +4,7 @@
 게시 후 성과(조회수·저장·공유)를 다시 수집해 다음 주제 추천에 반영합니다.
 
 ```
-트렌드 수집 ─▶ 주제 추천 ─▶ 웹 검색 자료조사 ─▶ 원고 작성 ─▶ 이미지 렌더링 ─▶ 공개 URL 업로드 ─▶ IG/Threads 게시
+트렌드 수집 ─▶ 주제 추천 ─▶ 웹 검색 자료조사 ─▶ 원고 작성 ─▶ 이미지·릴스 렌더링 ─▶ 공개 URL 업로드 ─▶ IG/릴스/Threads 게시
  (Google Trends,   (Claude/Gemini, (Claude 웹검색 /      (Claude/Gemini,  (Pillow,          (GitHub/S3/     (Graph API
   Google News,      과거 성과 반영)  Google 검색)          구조화 출력)      Pretendard 폰트)   로컬)            캐러셀)
   YouTube, RSS)          ▲                                                                                     │
@@ -59,6 +59,15 @@ python -m cardbot refresh-token instagram   # 장기 토큰(60일) 갱신
 ```
 
 `output/<폴더>`에는 `slide_01.jpg…`, `card.json`(원고), `caption.txt`, `threads.txt`, `research.md`(출처 포함 팩트 시트), `published.json`(게시 결과)이 저장됩니다.
+
+### 인스타그램 릴스
+
+카드뉴스를 만들 때 같은 슬라이드로 **세로 영상(1080×1920, 약 20~35초)**도 만들어 `reel.mp4`로 저장하고, 게시할 때 인스타그램 릴스로 함께 올립니다 (피드에도 공유).
+장면마다 글자 수에 맞춰 3~6초씩 보여주고 부드럽게 넘어갑니다. `PLATFORMS`에서 `reels`를 빼면 끌 수 있습니다.
+
+- **배경음**: API로는 인스타그램 음악 라이브러리를 쓸 수 없어 기본은 무음입니다. 저작권 문제없는 음원(예: YouTube 오디오 보관함의 무료 음악)을 저장소에 올리고 `REELS_AUDIO=assets/bgm.mp3`처럼 지정하면 배경음으로 들어갑니다. 무음 릴스는 조회수가 덜 나올 수 있어서, 올린 뒤 앱에서 음악을 추가하는 것도 방법입니다.
+- **영상 호스팅**: GitHub raw 주소는 영상 형식을 알려주지 않아서, jsDelivr CDN 주소를 먼저 쓰고 실패하면 raw 주소로 다시 시도합니다.
+- 스레드에는 카드뉴스(이미지)만 올립니다.
 
 ### 블로그 글 초안 (네이버 블로그 · 티스토리)
 

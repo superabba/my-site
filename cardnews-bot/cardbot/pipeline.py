@@ -13,6 +13,7 @@ from .blog import has_blog, save_blog
 from .hosting import make_host
 from .llm import BaseWriter, CardNews, TopicIdea, instagram_caption, make_writer
 from .publishers import make_publishers
+from .reel import render_reel
 from .render import render_card
 from .store import Store
 
@@ -58,9 +59,33 @@ class Pipeline:
         log.info("이미지 렌더링")
         render_card(card, folder, self.s.fonts_dir, self.s.theme, self.s.brand_handle)
 
+        if self.s.reels_enabled:
+            self.try_make_reel(folder)
         if self.s.blog_enabled:
             self.try_make_blog(folder)
         return folder
+
+    # ----- 릴스 영상 -----
+    def make_reel(self, folder: Path) -> Path:
+        card = CardNews.model_validate_json((folder / "card.json").read_text(encoding="utf-8"))
+        slides = sorted(folder.glob("slide_*.jpg"))
+        log.info("릴스 영상 렌더링")
+        video, _ = render_reel(
+            card, slides, folder / "reel.mp4", self.s.fonts_dir, self.s.theme,
+            self.s.brand_handle, self.s.reels_audio, fps=self.s.reels_fps,
+        )
+        (folder / "reel_error.txt").unlink(missing_ok=True)
+        return video
+
+    def try_make_reel(self, folder: Path) -> bool:
+        """릴스 영상 실패가 카드뉴스 제작을 막지 않도록 오류는 기록만 한다."""
+        try:
+            self.make_reel(folder)
+            return True
+        except Exception as e:
+            log.error("릴스 영상 생성 실패: %s", e)
+            (folder / "reel_error.txt").write_text(str(e), encoding="utf-8")
+            return False
 
     # ----- 블로그 글 (네이버/티스토리 붙여넣기용) -----
     def make_blog(self, folder: Path) -> None:
@@ -103,13 +128,26 @@ class Pipeline:
             meta["image_urls"] = host.upload(images, folder.name)
             meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2))
 
-        for pub in publishers if publishers is not None else make_publishers(self.s):
+        pubs = publishers if publishers is not None else make_publishers(self.s)
+        pending = [p for p in pubs if p.name not in meta.get("posts", {})]
+        # 릴스: 영상이 없으면(이전 초안) 만들고, 아직 안 올렸으면 업로드
+        if any(getattr(p, "needs_video", False) for p in pending) and not meta.get("video_urls"):
+            reel = folder / "reel.mp4"
+            if reel.exists() or self.try_make_reel(folder):
+                host = host or make_host(self.s)
+                video_url, cover_url = host.upload([reel, folder / "reel_cover.jpg"], folder.name)
+                meta["video_urls"] = host.candidates(video_url)
+                meta["reel_cover_url"] = cover_url
+                meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2))
+        assets = {k: meta.get(k) for k in ("image_urls", "video_urls", "reel_cover_url")}
+
+        for pub in pubs:
             if pub.name in meta.get("posts", {}):
                 log.info("%s: 이미 게시됨, 건너뜀", pub.name)
                 continue
-            text = caption if pub.name == "instagram" else threads_text
+            text = threads_text if pub.name == "threads" else caption
             try:
-                res = pub.publish(meta["image_urls"], text)
+                res = pub.publish(assets, text)
             except Exception as e:
                 log.error("%s 게시 실패: %s", pub.name, e)
                 meta.setdefault("errors", {})[pub.name] = str(e)

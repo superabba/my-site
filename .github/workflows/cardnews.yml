@@ -55,11 +55,12 @@ jobs:
 
       # --- Variables (같은 화면의 Variables 탭, 비우면 기본값) ---
       AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH }} # 'true'면 예약 실행 때 바로 게시
-      PLATFORMS: ${{ vars.PLATFORMS }}
+      PLATFORMS: ${{ vars.PLATFORMS }} # 기본 instagram,reels,threads
       LLM_PROVIDER: ${{ vars.LLM_PROVIDER }} # claude(기본) | gemini
       GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
       WEB_SEARCH: ${{ vars.WEB_SEARCH }}
       BLOG_ENABLED: ${{ vars.BLOG_ENABLED }} # 기본 켜짐, 'false'면 블로그 글 생략
+      REELS_AUDIO: ${{ vars.REELS_AUDIO }} # 예: assets/bgm.mp3 (저장소에 올린 음원, 비우면 무음)
       ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
       CARD_EFFORT: ${{ vars.CARD_EFFORT }}
       CARD_NICHE: ${{ vars.CARD_NICHE }}

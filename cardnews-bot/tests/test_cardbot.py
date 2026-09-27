@@ -121,7 +121,7 @@ def test_instagram_carousel_flow(monkeypatch):
     monkeypatch.setattr("cardbot.publishers.requests.post", post)
     monkeypatch.setattr("cardbot.publishers.requests.get", get)
     pub = InstagramPublisher("123", "TOKEN", "https://graph.instagram.com/v23.0", sleep=lambda s: None)
-    res = pub.publish(["https://x/1.jpg", "https://x/2.jpg"], "캡션")
+    res = pub.publish({"image_urls": ["https://x/1.jpg", "https://x/2.jpg"]}, "캡션")
     assert res.media_id == "MEDIA1" and res.permalink.endswith("/p/x")
     posts = [c for c in calls if c[0] == "POST"]
     assert posts[0][2]["is_carousel_item"] == "true"
@@ -130,13 +130,13 @@ def test_instagram_carousel_flow(monkeypatch):
 
 
 def test_threads_waits_and_errors(monkeypatch):
-    states = iter(["IN_PROGRESS", "ERROR"])
+    states = iter(["IN_PROGRESS", "ERROR", "ERROR"])
     monkeypatch.setattr("cardbot.publishers.requests.post", lambda url, data, timeout: FakeResp({"id": "T1"}))
     monkeypatch.setattr("cardbot.publishers.requests.get",
                         lambda url, params, timeout: FakeResp({"status": next(states)}))
     pub = ThreadsPublisher("9", "TOK", "https://graph.threads.net/v1.0", sleep=lambda s: None)
     with pytest.raises(Exception, match="ERROR"):
-        pub.publish(["a", "b"], "text")
+        pub.publish({"image_urls": ["a", "b"]}, "text")
 
 
 class FakeWriter:
@@ -154,7 +154,10 @@ class FakeWriter:
         return sample_blog(images)
 
 
-class FakeHost:
+from cardbot.hosting import ImageHost
+
+
+class FakeHost(ImageHost):
     def upload(self, files, folder):
         return [f"https://cdn/{folder}/{f.name}" for f in files]
 
@@ -163,8 +166,11 @@ class FakePub:
     def __init__(self, name, fail=False):
         self.name, self.fail, self.calls = name, fail, 0
 
-    def publish(self, urls, text):
+    needs_video = False
+
+    def publish(self, assets, text):
         self.calls += 1
+        self.last = (assets, text)
         if self.fail:
             raise RuntimeError("boom")
         return PublishResult(self.name, f"{self.name}-id", f"https://{self.name}/p")
@@ -178,6 +184,7 @@ def test_pipeline_end_to_end(tmp_path, monkeypatch):
     s.output_dir, s.data_dir = tmp_path / "out", tmp_path
     s.fonts_dir = Path(__file__).parent.parent / "fonts"
     s.output_dir.mkdir()
+    s.platforms = ["instagram", "threads"]  # 릴스 렌더링은 전용 테스트에서
     monkeypatch.setattr("cardbot.pipeline.trends.collect", lambda s: [])
     p = Pipeline(s, writer=FakeWriter(), store=Store(tmp_path / "db.sqlite"))
     topics, sigs = p.recommend()
@@ -341,6 +348,7 @@ def test_publish_reuploads_non_ascii_urls(tmp_path, monkeypatch):
     s.output_dir, s.data_dir = tmp_path / "out", tmp_path
     s.fonts_dir = Path(__file__).parent.parent / "fonts"
     s.output_dir.mkdir()
+    s.platforms = ["instagram", "threads"]  # 릴스 렌더링은 전용 테스트에서
     monkeypatch.setattr("cardbot.pipeline.trends.collect", lambda s: [])
     p = Pipeline(s, writer=FakeWriter(), store=Store(tmp_path / "db.sqlite"))
     folder = p.make(p.recommend()[0][0], [])
@@ -388,6 +396,7 @@ def _pipeline(tmp_path, monkeypatch, writer):
     s.output_dir, s.data_dir = tmp_path / "out", tmp_path
     s.fonts_dir = Path(__file__).parent.parent / "fonts"
     s.output_dir.mkdir()
+    s.platforms = ["instagram", "threads"]  # 릴스 렌더링은 전용 테스트에서
     monkeypatch.setattr("cardbot.pipeline.trends.collect", lambda s: [])
     return Pipeline(s, writer=writer, store=Store(tmp_path / "db.sqlite"))
 
@@ -434,3 +443,102 @@ def test_gemini_write_blog_passes_slide_list():
     assert models.calls[0].config.response_schema is BlogPost
     assert "slide_02.jpg: [content]" in models.calls[0].contents
     assert out.sections[1].image == ""
+
+
+
+# ---------- 릴스 ----------
+from cardbot.hosting import GitHubHost as _GH
+from cardbot.publishers import ReelsPublisher
+from cardbot.reel import render_reel, slide_seconds
+
+
+def test_slide_seconds_range():
+    assert slide_seconds("짧음", "", "cover") == 3.0
+    assert slide_seconds("가" * 5, "", "content") == 3.0
+    assert slide_seconds("가" * 200, "", "content") == 6.0
+
+
+def test_render_reel_produces_vertical_mp4_with_audio(tmp_path):
+    import subprocess
+    import imageio_ffmpeg
+    card = sample_card()
+    slides = render_card(card, tmp_path, Path(__file__).parent.parent / "fonts", "cream", "me")
+    video, cover = render_reel(card, slides, tmp_path / "reel.mp4", Path(__file__).parent.parent / "fonts",
+                               "cream", "me", fps=4)
+    from PIL import Image
+    assert Image.open(cover).size == (1080, 1920)
+    info = subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-i", str(video)], capture_output=True, text=True).stderr
+    assert "1080x1920" in info and "Audio: aac" in info and "h264" in info
+
+
+def test_github_candidates_prefer_jsdelivr_for_video(monkeypatch, tmp_path):
+    f = tmp_path / "reel.mp4"
+    f.write_bytes(b"v")
+    monkeypatch.setattr("cardbot.hosting.requests.get", lambda url, headers, params, timeout: FakeResp({}, 404))
+    monkeypatch.setattr("cardbot.hosting.requests.put",
+                        lambda url, headers, json, timeout: FakeResp({"commit": {"sha": "abc123"}}, 201))
+    host = _GH("t", "o/r", "data", "images")
+    (url,) = host.upload([f], "20260927-091029-x")
+    cands = host.candidates(url)
+    assert cands[0].startswith("https://cdn.jsdelivr.net/gh/o/r@abc123/images/20260927-091029-")
+    assert cands[0].endswith("/reel.mp4") and cands[1] == url
+
+
+def test_reels_publisher_falls_back_to_next_url(monkeypatch):
+    posts = []
+    status = {"C1": "ERROR", "C2": "FINISHED"}
+
+    def post(url, data, timeout):
+        posts.append(dict(data))
+        if url.endswith("/media_publish"):
+            return FakeResp({"id": "REEL1"})
+        return FakeResp({"id": f"C{len([p for p in posts if 'video_url' in p])}"})
+
+    def get(url, params, timeout):
+        cid = url.rsplit("/", 1)[1]
+        if params.get("fields") == "permalink":
+            return FakeResp({"permalink": "https://instagram.com/reel/x"})
+        return FakeResp({"status_code": status.get(cid, "FINISHED"), "status": "Error: bad media"})
+
+    monkeypatch.setattr("cardbot.publishers.requests.post", post)
+    monkeypatch.setattr("cardbot.publishers.requests.get", get)
+    pub = ReelsPublisher("1", "T", "https://graph.instagram.com/v23.0", sleep=lambda s: None)
+    res = pub.publish({"video_urls": ["https://cdn/a.mp4", "https://raw/a.mp4"], "reel_cover_url": "https://c.jpg"}, "캡션")
+    assert res.media_id == "REEL1" and res.permalink.endswith("/reel/x")
+    tried = [p["video_url"] for p in posts if "video_url" in p]
+    assert tried == ["https://cdn/a.mp4", "https://raw/a.mp4"]
+    assert posts[0]["media_type"] == "REELS" and posts[0]["share_to_feed"] == "true" and posts[0]["cover_url"] == "https://c.jpg"
+
+
+def test_pipeline_renders_and_publishes_reel(tmp_path, monkeypatch):
+    p = _pipeline(tmp_path, monkeypatch, FakeWriter())
+    p.s.platforms = ["instagram", "reels", "threads"]
+    p.s.reels_fps = 4
+    folder = p.make(p.recommend()[0][0], [])
+    assert (folder / "reel.mp4").exists() and (folder / "reel_cover.jpg").exists()
+
+    class Host(FakeHost):
+        def candidates(self, url):
+            return ["https://cdn/" + url.rsplit("/", 1)[1], url]
+
+    reels = FakePub("reels")
+    reels.needs_video = True
+    ig, th = FakePub("instagram"), FakePub("threads")
+    meta = p.publish(folder, publishers=[ig, reels, th], host=Host())
+    assert set(meta["posts"]) == {"instagram", "reels", "threads"}
+    assets, text = reels.last
+    assert assets["video_urls"][0] == "https://cdn/reel.mp4" and assets["reel_cover_url"].endswith("reel_cover.jpg")
+    assert text == (folder / "caption.txt").read_text().strip()  # 릴스는 인스타 캡션 사용
+    assert th.last[1] == (folder / "threads.txt").read_text().strip()[:500]
+
+
+def test_publish_renders_reel_for_old_drafts(tmp_path, monkeypatch):
+    p = _pipeline(tmp_path, monkeypatch, FakeWriter())
+    folder = p.make(p.recommend()[0][0], [])  # 릴스 기능 이전 초안
+    assert not (folder / "reel.mp4").exists()
+    p.s.platforms = ["instagram", "reels"]
+    p.s.reels_fps = 4
+    reels = FakePub("reels")
+    reels.needs_video = True
+    meta = p.publish(folder, publishers=[reels], host=FakeHost())
+    assert (folder / "reel.mp4").exists() and "reels" in meta["posts"]

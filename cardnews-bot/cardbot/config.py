@@ -74,7 +74,9 @@ class Settings:
     public_dir: str = ""
 
     # 플랫폼
-    platforms: list[str] = field(default_factory=lambda: ["instagram", "threads"])
+    platforms: list[str] = field(default_factory=lambda: ["instagram", "reels", "threads"])
+    reels_audio: Path | None = None  # 저작권 문제없는 배경음 파일 (없으면 무음)
+    reels_fps: int = 30
     ig_user_id: str = ""
     ig_access_token: str = ""
     ig_graph_base: str = "https://graph.instagram.com/v23.0"
@@ -91,6 +93,10 @@ class Settings:
     output_dir: Path = ROOT / "output"
     data_dir: Path = ROOT / "data"
     fonts_dir: Path = ROOT / "fonts"
+
+    @property
+    def reels_enabled(self) -> bool:
+        return "reels" in self.platforms
 
     @classmethod
     def load(cls) -> "Settings":
@@ -123,6 +129,8 @@ class Settings:
         plats = _env("PLATFORMS")
         if plats:
             s.platforms = [p.strip().lower() for p in plats.split(",") if p.strip()]
+        audio = _env("REELS_AUDIO")
+        s.reels_audio = (ROOT / audio if not Path(audio).is_absolute() else Path(audio)) if audio else None
         s.ig_user_id = _env("IG_USER_ID")
         s.ig_access_token = _env("IG_ACCESS_TOKEN")
         s.ig_graph_base = _env("IG_GRAPH_BASE", s.ig_graph_base).rstrip("/")
