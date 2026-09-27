@@ -549,3 +549,40 @@ def test_publish_renders_reel_for_old_drafts(tmp_path, monkeypatch):
     reels.needs_video = True
     meta = p.publish(folder, publishers=[reels], host=FakeHost())
     assert (folder / "reel.mp4").exists() and "reels" in meta["posts"]
+
+
+# ---------- 릴스 배경음악 ----------
+from cardbot.music import compose, pick_user_track
+
+
+def test_compose_is_deterministic_and_varies_by_seed():
+    import numpy as np
+    a, b, c = compose(3, "20260927-a"), compose(3, "20260927-a"), compose(3, "20260928-b")
+    assert a.shape[1] == 2 and np.array_equal(a, b) and np.max(np.abs(a)) <= 0.71
+    assert a.shape != c.shape or not np.array_equal(a, c)
+
+
+def test_pick_user_track_from_folder(tmp_path):
+    for n in ("b.mp3", "a.m4a", "note.txt"):
+        (tmp_path / n).write_bytes(b"x")
+    picked = {pick_user_track(tmp_path, f"seed{i}").name for i in range(20)}
+    assert picked == {"a.m4a", "b.mp3"}
+    assert pick_user_track(tmp_path / "a.m4a", "s").name == "a.m4a"
+    assert pick_user_track(tmp_path / "missing", "s") is None
+
+
+def _mean_volume(video):
+    import re, subprocess, imageio_ffmpeg
+    out = subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-i", str(video), "-af", "volumedetect", "-f", "null", "-"],
+                         capture_output=True, text=True).stderr
+    return float(re.search(r"mean_volume: (-?[\d.]+|-inf) dB", out).group(1).replace("-inf", "-999"))
+
+
+def test_reel_audio_modes(tmp_path):
+    card = sample_card(5)
+    fonts = Path(__file__).parent.parent / "fonts"
+    slides = render_card(card, tmp_path, fonts, "midnight", "")
+    music, _ = render_reel(card, slides, tmp_path / "music.mp4", fonts, "midnight", "", audio="auto", fps=4)
+    silent, _ = render_reel(card, slides, tmp_path / "silent.mp4", fonts, "midnight", "", audio="none", fps=4)
+    assert _mean_volume(music) > -30 and _mean_volume(silent) < -80
+    assert not list(tmp_path.glob("*.wav"))  # 합성 임시 음원은 지운다
