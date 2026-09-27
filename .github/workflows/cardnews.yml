@@ -1,0 +1,165 @@
+# 트렌드 카드뉴스 자동 생성·발행 (cardnews-bot/)
+# 설정 방법은 cardnews-bot/README.md의 "GitHub Actions로 자동 운영" 참고.
+name: 카드뉴스 자동 발행
+
+on:
+  schedule:
+    # 시간은 UTC 기준 (KST = UTC+9). 정각은 몰려서 지연되기 쉬워 10분에 실행
+    - cron: "10 23 * * *" # KST 08:10
+    - cron: "10 3 * * *"  # KST 12:10
+    - cron: "10 10 * * *" # KST 19:10
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "draft=초안만 / publish-now=추천→제작→바로 게시 / publish-draft=검토한 초안 게시"
+        type: choice
+        default: draft
+        options: [draft, publish-now, publish-draft]
+      topic:
+        description: "(draft) 직접 정할 주제. 비우면 트렌드 추천 1순위"
+        required: false
+      folder:
+        description: "(publish-draft) 게시할 초안 폴더 이름"
+        required: false
+
+permissions:
+  contents: write # 상태 브랜치 커밋 + 이미지 호스팅
+
+concurrency:
+  group: cardbot
+  cancel-in-progress: false
+
+jobs:
+  cardnews:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: cardnews-bot
+    env:
+      STATE_BRANCH: cardbot-data # 발행 이력 DB와 초안이 쌓이는 브랜치
+      CARDBOT_OUTPUT_DIR: ${{ github.workspace }}/state/output
+      CARDBOT_DATA_DIR: ${{ github.workspace }}/state/data
+      REVIEW_DIR: ${{ github.workspace }}/review
+
+      # --- Secrets (Settings → Secrets and variables → Actions → Secrets) ---
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      IG_USER_ID: ${{ secrets.IG_USER_ID }}
+      IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+      THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
+      THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+      YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      # --- Variables (같은 화면의 Variables 탭, 비우면 기본값) ---
+      AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH }} # 'true'면 예약 실행 때 바로 게시
+      PLATFORMS: ${{ vars.PLATFORMS }}
+      ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
+      CARD_EFFORT: ${{ vars.CARD_EFFORT }}
+      CARD_NICHE: ${{ vars.CARD_NICHE }}
+      CARD_TONE: ${{ vars.CARD_TONE }}
+      BRAND_HANDLE: ${{ vars.BRAND_HANDLE }}
+      CARD_THEME: ${{ vars.CARD_THEME }}
+      SLIDES_MIN: ${{ vars.SLIDES_MIN }}
+      SLIDES_MAX: ${{ vars.SLIDES_MAX }}
+      POSTS_PER_RUN: ${{ vars.POSTS_PER_RUN }}
+      TREND_GEO: ${{ vars.TREND_GEO }}
+      EXTRA_RSS: ${{ vars.EXTRA_RSS }}
+      CLAUDE_WEB_SEARCH: ${{ vars.CLAUDE_WEB_SEARCH }}
+      CLAUDE_FALLBACKS: ${{ vars.CLAUDE_FALLBACKS }}
+
+      # --- 이미지 호스팅: 기본은 이 (공개) 저장소의 상태 브랜치 ---
+      IMAGE_HOSTING: ${{ vars.IMAGE_HOSTING || 'github' }}
+      GITHUB_TOKEN: ${{ secrets.CARDBOT_GITHUB_TOKEN || github.token }}
+      GITHUB_REPO: ${{ vars.IMAGE_REPO || github.repository }}
+      GITHUB_BRANCH: ${{ vars.IMAGE_BRANCH || (vars.IMAGE_REPO && 'main') || 'cardbot-data' }}
+      GITHUB_DIR: images
+      S3_BUCKET: ${{ vars.S3_BUCKET }}
+      S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
+      PUBLIC_BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: cardnews-bot/requirements.txt
+
+      - name: 의존성 설치
+        run: |
+          pip install -r requirements.txt
+          if [ "$IMAGE_HOSTING" = "s3" ]; then pip install boto3; fi
+
+      - name: 폰트 캐시
+        uses: actions/cache@v4
+        with:
+          path: cardnews-bot/fonts
+          key: pretendard-v1.3.9
+
+      - name: 상태 브랜치 준비
+        working-directory: .
+        run: |
+          git config --global user.name "cardbot"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch --depth=1 origin "$STATE_BRANCH:$STATE_BRANCH"; then
+            git worktree add state "$STATE_BRANCH"
+          else
+            # 첫 실행: 코드와 분리된 빈 브랜치를 만든다
+            git worktree add --orphan -b "$STATE_BRANCH" state
+            printf '# cardbot 상태 브랜치\n\n카드뉴스 초안(output/), 발행 이력 DB(data/), 게시용 이미지(images/)가 자동으로 쌓입니다.\n' > state/README.md
+            git -C state add README.md
+            git -C state commit -m "cardbot: 상태 브랜치 생성"
+            git -C state push origin "$STATE_BRANCH"
+          fi
+          mkdir -p state/output state/data
+          ls state/output > "$RUNNER_TEMP/before.txt"
+
+      - name: 카드뉴스 실행
+        env:
+          ACTION: ${{ github.event_name == 'schedule' && 'auto' || inputs.action }}
+          TOPIC: ${{ inputs.topic }}
+          FOLDER: ${{ inputs.folder }}
+        run: |
+          case "$ACTION" in
+            auto)          python -m cardbot auto --once ;; # AUTO_PUBLISH 변수에 따라 게시 여부 결정
+            draft)
+              if [ -n "$TOPIC" ]; then python -m cardbot make --topic "$TOPIC"
+              else python -m cardbot make; fi ;;
+            publish-now)   python -m cardbot run --publish ;;
+            publish-draft)
+              if [ -z "$FOLDER" ]; then echo "::error::folder 입력이 필요합니다"; exit 1; fi
+              python -m cardbot publish "$CARDBOT_OUTPUT_DIR/$(basename "$FOLDER")" ;;
+            *) echo "::error::알 수 없는 action: $ACTION"; exit 1 ;;
+          esac
+
+      - name: 상태 저장 (이력 DB·초안 커밋)
+        if: always()
+        working-directory: state
+        run: |
+          git add -A
+          if git diff --cached --quiet; then echo "변경 없음"; exit 0; fi
+          git commit -m "cardbot: ${{ github.event_name }} #${{ github.run_number }}"
+          # 실행 중 이미지 업로드로 브랜치가 앞서 나갔을 수 있으므로 리베이스 후 푸시
+          for i in 1 2 3; do
+            git fetch origin "$STATE_BRANCH" && git rebase FETCH_HEAD && git push origin "HEAD:$STATE_BRANCH" && exit 0
+            sleep $((i * 5))
+          done
+          echo "::error::상태 브랜치 푸시 실패"; exit 1
+
+      - name: 실행 요약
+        if: always()
+        env:
+          FOLDER: ${{ inputs.folder }}
+        run: python -m cardbot.gh_summary "$RUNNER_TEMP/before.txt" "$FOLDER"
+
+      - name: 초안 아티팩트
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cardnews-${{ github.run_number }}
+          path: ${{ github.workspace }}/review
+          if-no-files-found: ignore
+          retention-days: 14
