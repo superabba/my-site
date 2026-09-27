@@ -11,6 +11,8 @@ Instagram / Threads 게시 API는 파일 업로드가 아니라 '공개 URL'에�
 from __future__ import annotations
 
 import base64
+import hashlib
+import re
 import shutil
 from pathlib import Path
 
@@ -22,6 +24,17 @@ class ImageHost:
         raise NotImplementedError
 
 
+def public_folder(folder: str) -> str:
+    """공개 URL에 쓸 ASCII 전용 폴더 이름.
+
+    Meta의 이미지 다운로더는 한글 등 비ASCII 문자가 들어간 URL을 가져오지 못하므로
+    (error_subcode 2207052), 날짜-시각 접두어와 원래 이름의 해시로 바꾼다.
+    """
+    m = re.match(r"\d{8}-\d{6}", folder)
+    digest = hashlib.sha1(folder.encode("utf-8")).hexdigest()[:8]
+    return f"{m.group(0)}-{digest}" if m else digest
+
+
 class GitHubHost(ImageHost):
     def __init__(self, token: str, repo: str, branch: str, base_dir: str):
         if not token or not repo:
@@ -29,22 +42,25 @@ class GitHubHost(ImageHost):
         self.token, self.repo, self.branch, self.base_dir = token, repo, branch, base_dir.strip("/")
 
     def upload(self, files: list[Path], folder: str) -> list[str]:
+        folder = public_folder(folder)
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Accept": "application/vnd.github+json",
+        }
         urls = []
         for f in files:
             path = f"{self.base_dir}/{folder}/{f.name}"
-            r = requests.put(
-                f"https://api.github.com/repos/{self.repo}/contents/{path}",
-                headers={
-                    "Authorization": f"Bearer {self.token}",
-                    "Accept": "application/vnd.github+json",
-                },
-                json={
-                    "message": f"cardnews: {folder}/{f.name}",
-                    "content": base64.b64encode(f.read_bytes()).decode(),
-                    "branch": self.branch,
-                },
-                timeout=60,
-            )
+            api = f"https://api.github.com/repos/{self.repo}/contents/{path}"
+            body = {
+                "message": f"cardnews: {folder}/{f.name}",
+                "content": base64.b64encode(f.read_bytes()).decode(),
+                "branch": self.branch,
+            }
+            # 재시도로 같은 경로에 다시 올릴 때는 기존 파일의 sha가 있어야 덮어쓸 수 있다
+            existing = requests.get(api, headers=headers, params={"ref": self.branch}, timeout=30)
+            if existing.status_code == 200:
+                body["sha"] = existing.json().get("sha")
+            r = requests.put(api, headers=headers, json=body, timeout=60)
             if r.status_code not in (200, 201):
                 raise RuntimeError(f"GitHub 업로드 실패 {r.status_code}: {r.text[:300]}")
             urls.append(f"https://raw.githubusercontent.com/{self.repo}/{self.branch}/{path}")
@@ -61,6 +77,7 @@ class S3Host(ImageHost):
         self.bucket, self.prefix, self.base = bucket, prefix.strip("/"), public_base_url
 
     def upload(self, files: list[Path], folder: str) -> list[str]:
+        folder = public_folder(folder)
         urls = []
         for f in files:
             key = f"{self.prefix}/{folder}/{f.name}"
@@ -76,6 +93,7 @@ class LocalHost(ImageHost):
         self.dir, self.base = Path(public_dir), public_base_url
 
     def upload(self, files: list[Path], folder: str) -> list[str]:
+        folder = public_folder(folder)
         dest = self.dir / folder
         dest.mkdir(parents=True, exist_ok=True)
         urls = []

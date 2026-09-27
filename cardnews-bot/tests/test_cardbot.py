@@ -281,3 +281,58 @@ def test_gemini_write_normalizes_card():
     topic = TopicIdea(title="t", keyword="k", angle="a", hook="h", why_now="w", score=1, risk="")
     out = w.write(topic, "notes")
     assert len(out.threads_text) == 500 and out.hashtags[0] == "연말정산"
+
+
+# ---------- 이미지 호스팅 ----------
+from cardbot.hosting import GitHubHost, public_folder
+
+
+def test_public_folder_is_ascii_and_stable():
+    name = "20260927-091029-연휴-다음-날-통장"
+    out = public_folder(name)
+    assert out.isascii() and out.startswith("20260927-091029-") and out == public_folder(name)
+    assert public_folder("직접주제").isascii()
+    assert public_folder(name) != public_folder(name + "2")
+
+
+def test_github_host_ascii_urls_and_overwrite(monkeypatch, tmp_path):
+    img = tmp_path / "slide_01.jpg"
+    img.write_bytes(b"jpg")
+    puts = []
+
+    def get(url, headers, params, timeout):
+        return FakeResp({"sha": "abc"}, 200)  # 이미 있는 파일
+
+    def put(url, headers, json, timeout):
+        puts.append((url, json))
+        return FakeResp({}, 200)
+
+    monkeypatch.setattr("cardbot.hosting.requests.get", get)
+    monkeypatch.setattr("cardbot.hosting.requests.put", put)
+    urls = GitHubHost("t", "o/r", "data", "images").upload([img], "20260927-091029-한글-폴더")
+    assert urls[0].isascii() and urls[0].startswith("https://raw.githubusercontent.com/o/r/data/images/20260927-091029-")
+    assert puts[0][1]["sha"] == "abc" and puts[0][0].isascii()
+
+
+def test_publish_reuploads_non_ascii_urls(tmp_path, monkeypatch):
+    s = Settings()
+    s.output_dir, s.data_dir = tmp_path / "out", tmp_path
+    s.fonts_dir = Path(__file__).parent.parent / "fonts"
+    s.output_dir.mkdir()
+    monkeypatch.setattr("cardbot.pipeline.trends.collect", lambda s: [])
+    p = Pipeline(s, writer=FakeWriter(), store=Store(tmp_path / "db.sqlite"))
+    folder = p.make(p.recommend()[0][0], [])
+    # 이전 버전이 한글 URL을 저장해 두고 게시에 실패한 상태
+    (folder / "published.json").write_text(json.dumps({"image_urls": ["https://x/한글/1.jpg"]}))
+
+    class Host:
+        calls = 0
+
+        def upload(self, files, name):
+            Host.calls += 1
+            return [f"https://cdn/{public_folder(name)}/{f.name}" for f in files]
+
+    meta = p.publish(folder, publishers=[FakePub("instagram")], host=Host())
+    assert Host.calls == 1 and all(u.isascii() for u in meta["image_urls"])
+    p.publish(folder, publishers=[FakePub("instagram")], host=Host())  # ASCII면 다시 올리지 않음
+    assert Host.calls == 1

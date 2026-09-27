@@ -71,7 +71,9 @@ class Pipeline:
         threads_text = (folder / "threads.txt").read_text(encoding="utf-8").strip()[:500]
 
         images = sorted(folder.glob("slide_*.jpg"))
-        if "image_urls" not in meta:
+        # 비ASCII URL은 Meta가 가져오지 못하므로(이전 버전에서 올린 경우) 다시 올린다
+        urls = meta.get("image_urls") or []
+        if not urls or not all(u.isascii() for u in urls):
             host = host or make_host(self.s)
             meta["image_urls"] = host.upload(images, folder.name)
             meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2))
