@@ -2,8 +2,10 @@
 
 - 가운데에 카드뉴스 슬라이드, 위에 제목, 아래에 진행 바와 저장 유도 문구
 - 글자 수에 맞춰 한 장 2.5~4초(전체 약 20~25초) 보여주고, 장면 사이는 짧게 겹쳐 전환
-- 오디오: REELS_AUDIO에 저작권 문제없는 음원 파일을 지정하면 배경음으로 쓰고,
-  없으면 무음 트랙을 넣는다 (API로는 인스타그램 음악 라이브러리를 쓸 수 없음)
+- 오디오 (API로는 인스타그램 음악 라이브러리를 쓸 수 없으므로 직접 넣는다)
+  REELS_AUDIO=auto(기본): 잔잔한 배경음악을 게시물마다 새로 합성 (music.py)
+  REELS_AUDIO=음원 파일 또는 폴더: 그 음원(폴더면 그중 하나)을 사용
+  REELS_AUDIO=none: 무음
 - ffmpeg는 imageio-ffmpeg 패키지에 들어 있는 실행 파일을 쓴다 (별도 설치 불필요)
 """
 
@@ -15,7 +17,9 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter
 
+from .config import ROOT
 from .llm import CardNews
+from .music import pick_user_track, write_track
 from .render import THEMES, Fonts, draw_lines, ensure_fonts, fit, render_slide, text_w
 
 log = logging.getLogger(__name__)
@@ -93,6 +97,24 @@ def _progress(frame: Image.Image, theme_name: str, ratio: float) -> Image.Image:
     return out
 
 
+def _audio_input(audio, out_path: Path, total: float) -> tuple[Path | None, str]:
+    """(음원 경로, ffmpeg 오디오 필터). 무음이면 (None, "")."""
+    mode = str(audio or "auto").strip()
+    fade_out = f"afade=t=out:st={max(0.0, total - 1.8):.2f}:d=1.8"
+    if mode.lower() in {"none", "off", "silent", "false"}:
+        return None, ""
+    if mode.lower() not in {"auto", "generated"}:
+        src = Path(mode) if Path(mode).is_absolute() else ROOT / mode
+        track = pick_user_track(src, out_path.parent.name)
+        if track:
+            log.info("릴스 배경음: %s", track.name)
+            return track, f"afade=t=in:d=0.5,{fade_out}"
+        log.warning("REELS_AUDIO 음원을 찾지 못해 배경음악을 합성합니다: %s", src)
+    wav = write_track(out_path.with_name("reel_music.wav"), total + 1, out_path.parent.name)
+    # 은은한 공간감(에코) + 고음 살짝 깎기 + 자연스러운 시작·끝
+    return wav, f"lowpass=f=6000,aecho=0.8:0.5:70|150:0.22|0.12,afade=t=in:d=1.2,{fade_out},volume=2.0"
+
+
 def render_reel(
     card: CardNews,
     slide_paths: list[Path],
@@ -100,7 +122,7 @@ def render_reel(
     fonts_dir: Path,
     theme: str,
     handle: str,
-    audio: Path | None = None,
+    audio: str | Path | None = "auto",
     fps: int = 30,
     seconds_per_slide: float | None = None,
 ) -> tuple[Path, Path]:
@@ -124,10 +146,10 @@ def render_reel(
         imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error",
         "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{RW}x{RH}", "-r", str(fps), "-i", "-",
     ]
-    if audio and audio.exists():
-        # 영상 길이에 맞춰 자르고 끝부분을 부드럽게 줄인다
-        cmd += ["-stream_loop", "-1", "-i", str(audio),
-                "-af", f"afade=t=out:st={max(0.0, total - 1.5):.2f}:d=1.5"]
+    track, afilter = _audio_input(audio, out_path, total)
+    if track:
+        # 영상 길이에 맞춰 자르고(-shortest) 앞뒤를 부드럽게
+        cmd += ["-stream_loop", "-1", "-i", str(track), "-af", afilter]
     else:
         cmd += ["-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100"]
     cmd += [
@@ -154,6 +176,7 @@ def render_reel(
     except BrokenPipeError:
         pass
     err = proc.stderr.read().decode(errors="replace")
+    out_path.with_name("reel_music.wav").unlink(missing_ok=True)  # 합성한 임시 음원은 남기지 않음
     if proc.wait() != 0:
         raise RuntimeError(f"릴스 영상 인코딩 실패: {err[-500:]}")
     log.info("릴스 영상 생성: %s (%.1f초)", out_path.name, total)

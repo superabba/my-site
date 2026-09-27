@@ -4,5 +4,6 @@ pydantic>=2.7
 pillow>=10.0
 requests>=2.31
 imageio-ffmpeg>=0.5  # 릴스 영상 인코딩용 ffmpeg 포함
+numpy>=1.26  # 릴스 배경음악 합성
 # 선택: S3/Cloudflare R2 업로드를 쓸 때만 필요
 # boto3>=1.34
