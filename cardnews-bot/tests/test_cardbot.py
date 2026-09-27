@@ -197,3 +197,87 @@ def test_empty_env_falls_back_to_default(monkeypatch, tmp_path):
     s = Settings.load()
     assert s.anthropic_model == "claude-opus-5" and s.slides_max == 8
     assert s.data_dir == tmp_path / "d" and s.data_dir.exists()
+
+
+# ---------- LLM 제공자 ----------
+from types import SimpleNamespace
+
+from cardbot.llm import ClaudeWriter, GeminiWriter, TopicList, make_writer
+
+
+class FakeGeminiModels:
+    def __init__(self, responses):
+        self.responses, self.calls = list(responses), []
+
+    def generate_content(self, model, contents, config):
+        self.calls.append(SimpleNamespace(model=model, contents=contents, config=config))
+        return self.responses.pop(0)
+
+
+def gemini_resp(text, parsed=None, finish="STOP", chunks=None):
+    cand = SimpleNamespace(
+        finish_reason=finish,
+        grounding_metadata=SimpleNamespace(grounding_chunks=chunks) if chunks else None,
+    )
+    return SimpleNamespace(text=text, parsed=parsed, candidates=[cand], prompt_feedback=None)
+
+
+TOPICS_JSON = json.dumps({"topics": [
+    {"title": "낮은 점수", "keyword": "k1", "angle": "a", "hook": "h", "why_now": "w", "score": 40, "risk": ""},
+    {"title": "높은 점수", "keyword": "k2", "angle": "a", "hook": "h", "why_now": "w", "score": 90, "risk": ""},
+]}, ensure_ascii=False)
+
+
+def test_make_writer_selects_provider(monkeypatch):
+    s = Settings()
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "x")
+    assert isinstance(make_writer(s), ClaudeWriter)
+    s.llm_provider = "gemini"
+    monkeypatch.setenv("GEMINI_API_KEY", "x")
+    assert isinstance(make_writer(s), GeminiWriter)
+    s.llm_provider = "gpt"
+    with pytest.raises(ValueError):
+        make_writer(s)
+
+
+def test_gemini_recommend_structured_output():
+    s = Settings()
+    models = FakeGeminiModels([gemini_resp(TOPICS_JSON)])  # parsed 없음 → text에서 검증
+    w = GeminiWriter(s, client=SimpleNamespace(models=models))
+    topics = w.recommend([trends.TrendSignal("연말정산", "google_trends", 20000)], [], [], n=2)
+    assert [t.title for t in topics] == ["높은 점수", "낮은 점수"]
+    cfg = models.calls[0].config
+    assert models.calls[0].model == "gemini-flash-latest"
+    assert cfg.response_mime_type == "application/json" and cfg.response_schema is TopicList
+    assert "연말정산" in models.calls[0].contents
+
+
+def test_gemini_research_uses_google_search_and_lists_sources():
+    s = Settings()
+    chunk = SimpleNamespace(web=SimpleNamespace(uri="https://news.example/a", title="example.com", domain=None))
+    models = FakeGeminiModels([gemini_resp("팩트1 (출처)", chunks=[chunk, chunk])])
+    w = GeminiWriter(s, client=SimpleNamespace(models=models))
+    topic = TopicIdea(title="t", keyword="k", angle="a", hook="h", why_now="w", score=1, risk="")
+    notes = w.research(topic, [])
+    assert "팩트1" in notes and notes.count("https://news.example/a") == 1
+    assert models.calls[0].config.tools[0].google_search is not None
+
+
+def test_gemini_blocked_response_raises_and_research_degrades():
+    s = Settings()
+    w = GeminiWriter(s, client=SimpleNamespace(models=FakeGeminiModels([gemini_resp("", finish="SAFETY")])))
+    with pytest.raises(RuntimeError, match="차단"):
+        w._parse("sys", "user", TopicList)
+    w = GeminiWriter(s, client=SimpleNamespace(models=FakeGeminiModels([gemini_resp("", finish="SAFETY")])))
+    topic = TopicIdea(title="t", keyword="k", angle="a", hook="h", why_now="w", score=1, risk="")
+    assert "팩트 시트" not in w.research(topic, [])  # 헤드라인만으로 계속 진행
+
+
+def test_gemini_write_normalizes_card():
+    s = Settings()
+    card = sample_card()
+    models = FakeGeminiModels([gemini_resp(card.model_dump_json(), parsed=card)])
+    w = GeminiWriter(s, client=SimpleNamespace(models=models))
+    topic = TopicIdea(title="t", keyword="k", angle="a", hook="h", why_now="w", score=1, risk="")
+    out = w.write(topic, "notes")
+    assert len(out.threads_text) == 500 and out.hashtags[0] == "연말정산"

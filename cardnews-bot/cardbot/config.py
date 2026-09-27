@@ -41,8 +41,10 @@ def _bool(name: str, default: bool = False) -> bool:
 
 @dataclass
 class Settings:
-    # Claude
+    # LLM
+    llm_provider: str = "claude"  # claude | gemini
     anthropic_model: str = "claude-opus-5"
+    gemini_model: str = "gemini-flash-latest"
     effort: str = "high"
 
     # 콘텐츠 방향
@@ -93,7 +95,9 @@ class Settings:
     def load(cls) -> "Settings":
         load_dotenv(ROOT / ".env")
         s = cls()
+        s.llm_provider = _env("LLM_PROVIDER", s.llm_provider).lower()
         s.anthropic_model = _env("ANTHROPIC_MODEL", s.anthropic_model)
+        s.gemini_model = _env("GEMINI_MODEL", s.gemini_model)
         s.effort = _env("CARD_EFFORT", s.effort)
         s.niche = _env("CARD_NICHE", s.niche)
         s.tone = _env("CARD_TONE", s.tone)

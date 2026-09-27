@@ -44,6 +44,7 @@ jobs:
 
       # --- Secrets (Settings → Secrets and variables → Actions → Secrets) ---
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       IG_USER_ID: ${{ secrets.IG_USER_ID }}
       IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
       THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
@@ -55,6 +56,9 @@ jobs:
       # --- Variables (같은 화면의 Variables 탭, 비우면 기본값) ---
       AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH }} # 'true'면 예약 실행 때 바로 게시
       PLATFORMS: ${{ vars.PLATFORMS }}
+      LLM_PROVIDER: ${{ vars.LLM_PROVIDER }} # claude(기본) | gemini
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+      WEB_SEARCH: ${{ vars.WEB_SEARCH }}
       ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
       CARD_EFFORT: ${{ vars.CARD_EFFORT }}
       CARD_NICHE: ${{ vars.CARD_NICHE }}

@@ -5,8 +5,8 @@
 
 ```
 트렌드 수집 ─▶ 주제 추천 ─▶ 웹 검색 자료조사 ─▶ 원고 작성 ─▶ 이미지 렌더링 ─▶ 공개 URL 업로드 ─▶ IG/Threads 게시
- (Google Trends,   (Claude,        (Claude              (Claude,         (Pillow,          (GitHub/S3/     (Graph API
-  Google News,      과거 성과 반영)  web_search)          구조화 출력)      Pretendard 폰트)   로컬)            캐러셀)
+ (Google Trends,   (Claude/Gemini, (Claude 웹검색 /      (Claude/Gemini,  (Pillow,          (GitHub/S3/     (Graph API
+  Google News,      과거 성과 반영)  Google 검색)          구조화 출력)      Pretendard 폰트)   로컬)            캐러셀)
   YouTube, RSS)          ▲                                                                                     │
                          └──────────────────────── 성과 지표(views/saves/shares) 수집 ◀──────────────────────────┘
 ```
@@ -23,6 +23,24 @@ cp .env.example .env   # 값 채우기
 ```
 
 폰트(Pretendard, OFL 라이선스)는 처음 렌더링할 때 `fonts/`에 자동으로 받아집니다.
+
+### AI 모델 선택: Claude 또는 Gemini
+
+`LLM_PROVIDER`로 주제 추천·자료 조사·원고 작성에 쓸 모델을 고릅니다. 이미지 렌더링과 게시는 똑같이 동작합니다.
+
+| | `LLM_PROVIDER=claude` (기본) | `LLM_PROVIDER=gemini` |
+|---|---|---|
+| API 키 | `ANTHROPIC_API_KEY` ([console.anthropic.com](https://console.anthropic.com)) | `GEMINI_API_KEY` ([aistudio.google.com/apikey](https://aistudio.google.com/apikey)) |
+| 모델 | `ANTHROPIC_MODEL` (기본 `claude-opus-5`) | `GEMINI_MODEL` (기본 `gemini-flash-latest`) |
+| 자료 조사 | Claude 웹 검색 도구 | Google 검색 그라운딩 |
+| 비용 | 선불 충전 | 무료 등급 있음 (한도·조건은 AI Studio에서 확인) |
+
+두 모델을 비교하려면 같은 주제로 각각 초안을 만들어 보세요:
+```bash
+LLM_PROVIDER=claude python -m cardbot make --topic "연말정산 꿀팁"
+LLM_PROVIDER=gemini python -m cardbot make --topic "연말정산 꿀팁"
+```
+Gemini 무료 등급은 입력한 내용이 Google 제품 개선에 쓰일 수 있습니다. 민감한 내용은 넣지 마세요.
 
 ## 사용법
 
@@ -58,8 +76,8 @@ python -m cardbot refresh-token instagram   # 장기 토큰(60일) 갱신
 
 1. 이 브랜치를 기본 브랜치(`main`)에 병합하세요. 예약 실행은 기본 브랜치에 있는 워크플로만 동작합니다.
 2. 저장소 **Settings → Secrets and variables → Actions** 에 등록:
-   - **Secrets**: `ANTHROPIC_API_KEY`, `IG_USER_ID`, `IG_ACCESS_TOKEN`, `THREADS_USER_ID`, `THREADS_ACCESS_TOKEN` (선택: `YOUTUBE_API_KEY`)
-   - **Variables** (선택, 비우면 기본값): `CARD_NICHE`, `CARD_TONE`, `BRAND_HANDLE`, `CARD_THEME`, `PLATFORMS`, `POSTS_PER_RUN`, `ANTHROPIC_MODEL`, `CARD_EFFORT`, `AUTO_PUBLISH`
+   - **Secrets**: `ANTHROPIC_API_KEY`(또는 Gemini를 쓰면 `GEMINI_API_KEY`), `IG_USER_ID`, `IG_ACCESS_TOKEN`, `THREADS_USER_ID`, `THREADS_ACCESS_TOKEN` (선택: `YOUTUBE_API_KEY`)
+   - **Variables** (선택, 비우면 기본값): `CARD_NICHE`, `CARD_TONE`, `BRAND_HANDLE`, `CARD_THEME`, `PLATFORMS`, `POSTS_PER_RUN`, `LLM_PROVIDER`, `ANTHROPIC_MODEL`, `GEMINI_MODEL`, `CARD_EFFORT`, `AUTO_PUBLISH`
 3. 처음엔 `AUTO_PUBLISH`를 설정하지 마세요. 예약 실행이 **초안만** 만들고, 실행 결과 화면(Summary)에 슬라이드 미리보기·캡션이 표시됩니다.
    마음에 들면 **Actions → 카드뉴스 자동 발행 → Run workflow** 에서 `publish-draft`를 고르고 폴더 이름을 넣어 게시합니다.
 4. 품질이 안정되면 Variables에 `AUTO_PUBLISH=true`를 추가 → 예약 실행이 바로 게시까지 합니다.
@@ -89,12 +107,12 @@ Variables에 `IMAGE_REPO=owner/repo`, Secrets에 `CARDBOT_GITHUB_TOKEN`(그 저�
 ## 추천 로직
 
 - **신호**: Google Trends 실시간 인기 검색어(검색량 추정치 + 관련 기사), Google News 주요 기사, (선택) YouTube 인기 동영상 조회수, (선택) 원하는 RSS
-- **판단**: Claude가 계정 니치(`CARD_NICHE`), 신호 규모, 카드뉴스로 풀었을 때 저장·공유 가치, 과거 잘 된 게시물 패턴을 보고 0~100점으로 순위를 매깁니다. 최근 14일 안에 다룬 주제는 제외합니다.
+- **판단**: AI 모델(Claude/Gemini)이 계정 니치(`CARD_NICHE`), 신호 규모, 카드뉴스로 풀었을 때 저장·공유 가치, 과거 잘 된 게시물 패턴을 보고 0~100점으로 순위를 매깁니다. 최근 14일 안에 다룬 주제는 제외합니다.
 - **안전장치**: 참사·사건 피해자 소비, 개인 루머, 미확인 의혹, 정치 편가르기, 근거 없는 의료·투자 조언은 피하도록 지시하고, 주제마다 리스크를 표시합니다. 원고는 웹 검색 팩트 시트에 근거하고 출처를 `research.md`에 남깁니다.
 
 ## 비용과 설정
 
-- Claude API 호출은 게시물 1건당 3회(추천·조사·원고)입니다. `CARD_EFFORT=medium`이나 `ANTHROPIC_MODEL=claude-sonnet-5`로 비용을 줄일 수 있습니다.
+- AI 호출은 게시물 1건당 3회(추천·조사·원고)입니다. Claude는 `CARD_EFFORT=medium`이나 `ANTHROPIC_MODEL=claude-sonnet-5`로, 또는 `LLM_PROVIDER=gemini`로 비용을 줄일 수 있습니다. (`CARD_EFFORT`는 Claude에만 적용)
 - `CLAUDE_FALLBACKS=default`는 Claude가 요청을 거절할 경우 Anthropic 서버에서 다른 모델로 자동 재시도하는 옵션입니다 (Claude API 전용, Bedrock/Vertex에서는 `off`).
 - 인스타그램 API 게시 한도는 24시간에 게시물 50개입니다.
 
@@ -105,4 +123,4 @@ pip install pytest
 python -m pytest -q tests
 ```
 
-외부 API(Claude, Google, Meta)는 테스트에서 모두 모킹되어 있어 키 없이 실행됩니다.
+외부 API(Claude, Gemini, Google, Meta)는 테스트에서 모두 모킹되어 있어 키 없이 실행됩니다.

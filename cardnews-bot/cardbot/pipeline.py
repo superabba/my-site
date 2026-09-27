@@ -10,7 +10,7 @@ from pathlib import Path
 
 from . import trends
 from .hosting import make_host
-from .llm import CardNews, TopicIdea, Writer, instagram_caption
+from .llm import BaseWriter, CardNews, TopicIdea, instagram_caption, make_writer
 from .publishers import make_publishers
 from .render import render_card
 from .store import Store
@@ -24,9 +24,9 @@ def slugify(text: str, n: int = 30) -> str:
 
 
 class Pipeline:
-    def __init__(self, settings, writer: Writer | None = None, store: Store | None = None):
+    def __init__(self, settings, writer: BaseWriter | None = None, store: Store | None = None):
         self.s = settings
-        self.writer = writer or Writer(settings)
+        self.writer = writer or make_writer(settings)
         self.store = store or Store(settings.data_dir / "cardbot.db")
         self.failures: list[str] = []  # 이번 실행에서 실패한 게시 (CLI 종료 코드용)
 

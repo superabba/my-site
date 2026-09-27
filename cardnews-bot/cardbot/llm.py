@@ -1,4 +1,4 @@
-"""Claude로 주제 추천 / 자료 조사 / 카드뉴스 원고 작성."""
+"""LLM(Claude 또는 Gemini)으로 주제 추천 / 자료 조사 / 카드뉴스 원고 작성."""
 
 from __future__ import annotations
 
@@ -87,38 +87,23 @@ WRITER_SYSTEM = """당신은 조회수와 저장 수가 높은 카드뉴스를 �
 - sources: 참고한 출처"""
 
 
-class Writer:
-    def __init__(self, settings, client: anthropic.Anthropic | None = None):
-        self.s = settings
-        self.client = client or anthropic.Anthropic()
-        self.use_fallbacks = (os.environ.get("CLAUDE_FALLBACKS") or "default") != "off"
-        self.use_web_search = (os.environ.get("CLAUDE_WEB_SEARCH") or "true").lower() != "false"
+class BaseWriter:
+    """주제 추천 → 자료 조사 → 원고 작성. 모델 호출(_parse, _search)만 제공자별로 다르다."""
 
-    # 공통 인자: 적응형 사고 + effort + (Claude API일 때) 거절 시 서버측 폴백
-    def _common(self) -> dict:
-        kw: dict = {
-            "model": self.s.anthropic_model,
-            "max_tokens": MAX_TOKENS,
-            "thinking": {"type": "adaptive"},
-            "output_config": {"effort": self.s.effort},
-        }
-        if self.use_fallbacks:
-            kw["betas"] = [FALLBACK_BETA]
-            kw["fallbacks"] = "default"
-        return kw
+    provider = "base"
+
+    def __init__(self, settings):
+        self.s = settings
+        flag = os.environ.get("WEB_SEARCH") or os.environ.get("CLAUDE_WEB_SEARCH") or "true"
+        self.use_web_search = flag.lower() != "false"
 
     def _parse(self, system: str, user: str, schema: type[T]) -> T:
-        resp = self.client.beta.messages.parse(
-            **self._common(),
-            system=system,
-            messages=[{"role": "user", "content": user}],
-            output_format=schema,
-        )
-        if resp.stop_reason == "refusal":
-            raise RuntimeError(f"Claude가 요청을 거절했습니다: {resp.stop_details}")
-        if resp.stop_reason == "max_tokens" or resp.parsed_output is None:
-            raise RuntimeError(f"구조화 출력 파싱 실패 (stop_reason={resp.stop_reason})")
-        return resp.parsed_output
+        """스키마에 맞는 구조화 출력을 받아 검증된 객체로 반환."""
+        raise NotImplementedError
+
+    def _search(self, system: str, user: str) -> str | None:
+        """웹 검색을 곁들여 자유 형식 텍스트를 반환 (실패하면 None)."""
+        raise NotImplementedError
 
     # ---------- 1) 주제 추천 ----------
 
@@ -161,20 +146,10 @@ class Writer:
         if not self.use_web_search:
             return base
 
-        messages: list = [{"role": "user", "content": base + "\n\n이 주제의 팩트 시트를 만들어 주세요."}]
-        tools = [{"type": "web_search_20260209", "name": "web_search", "max_uses": 6}]
-        resp = None
-        for _ in range(4):  # 서버 도구가 길어지면 pause_turn으로 끊겨 오므로 이어서 요청
-            resp = self.client.beta.messages.create(
-                **self._common(), system=RESEARCH_SYSTEM, messages=messages, tools=tools
-            )
-            if resp.stop_reason != "pause_turn":
-                break
-            messages = [*messages, {"role": "assistant", "content": resp.content}]
-        if resp is None or resp.stop_reason == "refusal":
+        notes = self._search(RESEARCH_SYSTEM, base + "\n\n이 주제의 팩트 시트를 만들어 주세요.")
+        if not notes:
             log.warning("자료 조사가 거절/실패하여 헤드라인만 사용합니다")
             return base
-        notes = "".join(b.text for b in resp.content if b.type == "text").strip()
         return f"{base}\n\n## 팩트 시트\n{notes}"
 
     # ---------- 3) 원고 작성 ----------
@@ -194,6 +169,141 @@ class Writer:
 위 주제로 카드뉴스 원고를 작성하세요."""
         card = self._parse(WRITER_SYSTEM, user, CardNews)
         return normalize(card, self.s.slides_min, self.s.slides_max)
+
+
+class ClaudeWriter(BaseWriter):
+    provider = "claude"
+
+    def __init__(self, settings, client: anthropic.Anthropic | None = None):
+        super().__init__(settings)
+        self.client = client or anthropic.Anthropic()
+        self.use_fallbacks = (os.environ.get("CLAUDE_FALLBACKS") or "default") != "off"
+
+    # 공통 인자: 적응형 사고 + effort + (Claude API일 때) 거절 시 서버측 폴백
+    def _common(self) -> dict:
+        kw: dict = {
+            "model": self.s.anthropic_model,
+            "max_tokens": MAX_TOKENS,
+            "thinking": {"type": "adaptive"},
+            "output_config": {"effort": self.s.effort},
+        }
+        if self.use_fallbacks:
+            kw["betas"] = [FALLBACK_BETA]
+            kw["fallbacks"] = "default"
+        return kw
+
+    def _parse(self, system: str, user: str, schema: type[T]) -> T:
+        resp = self.client.beta.messages.parse(
+            **self._common(),
+            system=system,
+            messages=[{"role": "user", "content": user}],
+            output_format=schema,
+        )
+        if resp.stop_reason == "refusal":
+            raise RuntimeError(f"Claude가 요청을 거절했습니다: {resp.stop_details}")
+        if resp.stop_reason == "max_tokens" or resp.parsed_output is None:
+            raise RuntimeError(f"구조화 출력 파싱 실패 (stop_reason={resp.stop_reason})")
+        return resp.parsed_output
+
+    def _search(self, system: str, user: str) -> str | None:
+        messages: list = [{"role": "user", "content": user}]
+        tools = [{"type": "web_search_20260209", "name": "web_search", "max_uses": 6}]
+        resp = None
+        for _ in range(4):  # 서버 도구가 길어지면 pause_turn으로 끊겨 오므로 이어서 요청
+            resp = self.client.beta.messages.create(
+                **self._common(), system=system, messages=messages, tools=tools
+            )
+            if resp.stop_reason != "pause_turn":
+                break
+            messages = [*messages, {"role": "assistant", "content": resp.content}]
+        if resp is None or resp.stop_reason == "refusal":
+            return None
+        return "".join(b.text for b in resp.content if b.type == "text").strip() or None
+
+
+class GeminiWriter(BaseWriter):
+    """Google Gemini API (google-genai). 웹 검색은 Google 검색 그라운딩을 사용."""
+
+    provider = "gemini"
+
+    def __init__(self, settings, client=None):
+        super().__init__(settings)
+        if client is None:
+            from google import genai  # 선택 의존성: LLM_PROVIDER=gemini일 때만 필요
+
+            client = genai.Client()  # GEMINI_API_KEY 환경변수 사용
+        self.client = client
+
+    def _generate(self, system: str, user: str, **config):
+        from google.genai import types
+
+        resp = self.client.models.generate_content(
+            model=self.s.gemini_model,
+            contents=user,
+            config=types.GenerateContentConfig(
+                system_instruction=system,
+                # 함수 도구를 쓰지 않으므로 자동 함수 호출은 끈다
+                automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+                **config,
+            ),
+        )
+        cand = (resp.candidates or [None])[0]
+        reason = str(getattr(cand, "finish_reason", "") or "")
+        if cand is None or any(r in reason for r in ("SAFETY", "BLOCKLIST", "PROHIBITED", "RECITATION")):
+            feedback = getattr(resp, "prompt_feedback", None)
+            raise RuntimeError(f"Gemini가 응답을 차단했습니다: {reason or feedback}")
+        return resp, cand, reason
+
+    def _parse(self, system: str, user: str, schema: type[T]) -> T:
+        resp, _, reason = self._generate(
+            system, user, response_mime_type="application/json", response_schema=schema
+        )
+        parsed = resp.parsed
+        if isinstance(parsed, schema):
+            return parsed
+        try:
+            return schema.model_validate_json(resp.text or "")
+        except ValueError as e:
+            raise RuntimeError(f"구조화 출력 파싱 실패 (finish_reason={reason}): {e}") from e
+
+    def _search(self, system: str, user: str) -> str | None:
+        from google.genai import types
+
+        try:
+            resp, cand, _ = self._generate(
+                system, user, tools=[types.Tool(google_search=types.GoogleSearch())]
+            )
+        except RuntimeError as e:
+            log.warning("%s", e)
+            return None
+        text = (resp.text or "").strip()
+        if not text:
+            return None
+        # 그라운딩에 쓰인 웹 출처를 덧붙인다
+        chunks = getattr(getattr(cand, "grounding_metadata", None), "grounding_chunks", None) or []
+        sources = []
+        for ch in chunks:
+            web = getattr(ch, "web", None)
+            if web and web.uri:
+                line = f"- {web.title or web.domain or ''} {web.uri}".strip()
+                if line not in sources:
+                    sources.append(line)
+        if sources:
+            text += "\n\n### 검색 출처\n" + "\n".join(sources)
+        return text
+
+
+# 기존 코드 호환용 별칭
+Writer = ClaudeWriter
+
+
+def make_writer(settings) -> BaseWriter:
+    provider = settings.llm_provider
+    if provider == "claude":
+        return ClaudeWriter(settings)
+    if provider == "gemini":
+        return GeminiWriter(settings)
+    raise ValueError(f"알 수 없는 LLM_PROVIDER: {provider} (claude | gemini)")
 
 
 def normalize(card: CardNews, lo: int, hi: int) -> CardNews:
