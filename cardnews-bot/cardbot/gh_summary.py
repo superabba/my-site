@@ -16,6 +16,9 @@ import sys
 from pathlib import Path
 
 
+LABELS = {"instagram": "인스타그램 카드뉴스", "reels": "인스타그램 릴스", "threads": "스레드"}
+
+
 def main() -> None:
     out_dir = Path(os.environ["CARDBOT_OUTPUT_DIR"])
     before = set(Path(sys.argv[1]).read_text().split()) if Path(sys.argv[1]).exists() else set()
@@ -42,13 +45,29 @@ def main() -> None:
             for s in slides
         ))
         for name, info in meta.get("posts", {}).items():
-            md.append(f"- ✅ **{name}** 게시: {info.get('permalink') or info.get('media_id')}")
+            md.append(f"- ✅ **{LABELS.get(name, name)}** 게시: {info.get('permalink') or info.get('media_id')}")
         for name, err in meta.get("errors", {}).items():
-            md.append(f"- ❌ **{name}** 실패: `{err[:300]}`")
+            md.append(f"- ❌ **{LABELS.get(name, name)}** 실패: `{err[:300]}`")
         if not meta.get("posts") and not meta.get("errors"):
             md.append(
                 f"- 📝 초안만 생성됨 → Actions에서 **publish-draft** 실행, folder에 `{d.name}` 입력"
             )
+        tree = f"https://github.com/{repo}/blob/{branch}/output/{d.name}"
+        if (d / "reel.mp4").exists():
+            md.append(f"\n**🎬 릴스 영상**: [reel.mp4 보기]({tree}/reel.mp4)")
+        elif (d / "reel_error.txt").exists():
+            err = (d / "reel_error.txt").read_text(encoding="utf-8")[:300]
+            md.append(f"- ⚠️ 릴스 영상 생성 실패: `{err}`")
+        blog = _json(d / "blog.json")
+        if blog:
+            md.append(f"\n**📝 블로그 글 초안** — {blog.get('titles', [''])[0]}")
+            md.append(
+                f"[네이버용 텍스트]({tree}/blog_naver.txt) · [티스토리용 HTML]({tree}/blog_tistory.html)"
+                f" · [게시 가이드(제목·태그)]({tree}/blog_guide.md) · 핵심 키워드: `{blog.get('main_keyword', '')}`"
+            )
+        elif (d / "blog_error.txt").exists():
+            err = (d / "blog_error.txt").read_text(encoding="utf-8")[:300]
+            md.append(f"- ⚠️ 블로그 글 생성 실패: `{err}` → Run workflow에서 action `blog`로 다시 만들 수 있어요")
         cap = d / "caption.txt"
         if cap.exists():
             md.append("\n<details><summary>인스타 캡션</summary>\n\n```\n" + cap.read_text(encoding="utf-8") + "\n```\n</details>")

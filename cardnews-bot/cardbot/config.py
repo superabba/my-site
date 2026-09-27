@@ -54,6 +54,7 @@ class Settings:
     slides_min: int = 5
     slides_max: int = 8
     theme: str = "midnight"
+    blog_enabled: bool = True  # 카드뉴스와 같은 주제로 블로그 글 초안도 생성
 
     # 트렌드 소스
     geo: str = "KR"
@@ -73,7 +74,10 @@ class Settings:
     public_dir: str = ""
 
     # 플랫폼
-    platforms: list[str] = field(default_factory=lambda: ["instagram", "threads"])
+    platforms: list[str] = field(default_factory=lambda: ["instagram", "reels", "threads"])
+    reels_audio: Path | None = None  # 저작권 문제없는 배경음 파일 (없으면 무음)
+    reels_fps: int = 30
+    reels_seconds_per_slide: float | None = None  # None이면 글자 수 기준 자동
     ig_user_id: str = ""
     ig_access_token: str = ""
     ig_graph_base: str = "https://graph.instagram.com/v23.0"
@@ -91,6 +95,10 @@ class Settings:
     data_dir: Path = ROOT / "data"
     fonts_dir: Path = ROOT / "fonts"
 
+    @property
+    def reels_enabled(self) -> bool:
+        return "reels" in self.platforms
+
     @classmethod
     def load(cls) -> "Settings":
         load_dotenv(ROOT / ".env")
@@ -105,6 +113,7 @@ class Settings:
         s.slides_min = int(_env("SLIDES_MIN", str(s.slides_min)))
         s.slides_max = min(10, int(_env("SLIDES_MAX", str(s.slides_max))))
         s.theme = _env("CARD_THEME", s.theme)
+        s.blog_enabled = _bool("BLOG_ENABLED", s.blog_enabled)
         s.geo = _env("TREND_GEO", s.geo)
         s.youtube_api_key = _env("YOUTUBE_API_KEY")
         s.extra_rss = [u for u in _env("EXTRA_RSS").split(",") if u.strip()]
@@ -121,6 +130,10 @@ class Settings:
         plats = _env("PLATFORMS")
         if plats:
             s.platforms = [p.strip().lower() for p in plats.split(",") if p.strip()]
+        fixed = _env("REELS_SECONDS_PER_SLIDE", "auto").lower()
+        s.reels_seconds_per_slide = None if fixed == "auto" else max(0.5, float(fixed))
+        audio = _env("REELS_AUDIO")
+        s.reels_audio = (ROOT / audio if not Path(audio).is_absolute() else Path(audio)) if audio else None
         s.ig_user_id = _env("IG_USER_ID")
         s.ig_access_token = _env("IG_ACCESS_TOKEN")
         s.ig_graph_base = _env("IG_GRAPH_BASE", s.ig_graph_base).rstrip("/")

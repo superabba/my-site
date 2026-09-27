@@ -162,7 +162,9 @@ def _mix(a, b, t):
     return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
 
 
-def render_slide(slide: Slide, idx: int, total: int, fonts: Fonts, theme_name: str, handle: str) -> Image.Image:
+def render_slide(
+    slide: Slide, idx: int, total: int, fonts: Fonts, theme_name: str, handle: str, swipe_hint: bool = True
+) -> Image.Image:
     theme = THEMES.get(theme_name, THEMES["midnight"])
     img = _background(theme)
     d = ImageDraw.Draw(img)
@@ -182,9 +184,10 @@ def render_slide(slide: Slide, idx: int, total: int, fonts: Fonts, theme_name: s
         for f, lines, lh, color, gap in blocks:
             y = draw_lines(d, (PAD, y), lines, f, lh, color) + gap
         d.rectangle((PAD, PAD + 40, PAD + 120, PAD + 52), fill=theme["accent"])
-        hint = "옆으로 넘겨보세요 →"
-        hf = fonts.get("Bold", 34)
-        d.text((W - PAD - text_w(d, hint, hf), bottom_limit - 10), hint, font=hf, fill=theme["accent"])
+        if swipe_hint:  # 캐러셀용 안내 (릴스 영상에서는 생략)
+            hint = "옆으로 넘겨보세요 →"
+            hf = fonts.get("Bold", 34)
+            d.text((W - PAD - text_w(d, hint, hf), bottom_limit - 10), hint, font=hf, fill=theme["accent"])
     else:
         # 상단 번호 배지
         badge = {"summary": "요약", "cta": "SAVE"}.get(slide.kind, f"{idx - 1:02d}")

@@ -53,6 +53,31 @@ class CardNews(BaseModel):
     sources: list[str]  # 참고한 출처 URL/매체명
 
 
+class BlogSection(BaseModel):
+    heading: str  # 소제목
+    body: str  # 문단은 빈 줄(\n\n)로 구분
+    image: str  # 넣을 카드뉴스 이미지 파일명 (예: slide_02.jpg), 없으면 빈 문자열
+    experience_hint: str  # 글쓴이가 직접 덧붙이면 좋을 경험/의견 안내 (없으면 빈 문자열)
+
+
+class BlogFAQ(BaseModel):
+    question: str
+    answer: str
+
+
+class BlogPost(BaseModel):
+    titles: list[str]  # 제목 후보 (첫 번째가 추천)
+    main_keyword: str
+    sub_keywords: list[str]
+    meta_description: str  # 검색 결과 요약문 (티스토리 요약/설명용)
+    intro: str
+    sections: list[BlogSection]
+    faq: list[BlogFAQ]
+    conclusion: str
+    tags: list[str]  # '#' 없이
+    sources: list[str]
+
+
 # ---------- 프롬프트 ----------
 
 TOPIC_SYSTEM = """당신은 인스타그램·스레드 카드뉴스 계정의 편집장입니다.
@@ -85,6 +110,23 @@ WRITER_SYSTEM = """당신은 조회수와 저장 수가 높은 카드뉴스를 �
 - hashtags: 검색 수요가 있는 한국어 해시태그 8~15개 ('#' 제외)
 - threads_text: 스레드는 텍스트가 먼저 읽히므로 첫 문장에 궁금증을 만들고, 450자 이내로
 - sources: 참고한 출처"""
+
+
+BLOG_SYSTEM = """당신은 네이버 블로그·티스토리에서 검색 유입이 꾸준한 정보성 글을 쓰는 블로그 에디터입니다.
+같은 주제로 이미 만든 카드뉴스와 자료 조사 결과를 바탕으로, 검색하는 사람의 궁금증을 끝까지 해결해 주는 블로그 글 초안을 씁니다.
+
+검색 노출을 위한 원칙:
+- 핵심 키워드는 사람들이 검색창에 실제로 입력할 2~4단어 구문으로 정하세요 (예: '잔액'처럼 한 단어로 된 너무 넓은 말 대신 '연휴 카드값 출금일'처럼 구체적인 롱테일). 제목 앞쪽과 도입부 첫 문단, 소제목 1~2곳에 자연스럽게 넣고, 억지로 반복하지 마세요
+- 제목 후보 3~5개: 30자 안팎, 구체적 숫자나 대상이 드러나게. 낚시성·과장 표현 금지
+- 본문(도입~결론, FAQ 포함)은 공백 포함 2,500~4,000자를 넘지 않게, 소제목 4~6개. 한 문단 2~4문장으로 짧게, 모바일에서 읽기 쉽게. 같은 내용을 다른 말로 되풀이하지 마세요
+- 카드뉴스를 그대로 옮기지 말고, 왜 그런지·어떻게 하면 되는지·주의할 점을 더 깊게 풀어 쓰세요
+- 자료에 있는 사실만 구체적 숫자로 쓰고, 불확실한 내용은 단정하지 마세요. 날짜가 중요한 정보는 기준 시점을 밝히세요
+- 각 소제목마다 어울리는 카드뉴스 이미지 파일명을 image에 지정하세요 (제공된 파일명만 사용, 없으면 빈 문자열)
+- experience_hint: 검색엔진과 독자는 직접 겪은 경험을 높게 평가합니다. 글쓴이가 자기 경험·사진·의견을 덧붙이면 좋을 소제목에 무엇을 쓰면 되는지 한 문장으로 안내하세요 (본문에 가짜 경험을 지어내지 마세요)
+- faq: 검색에서 자주 나올 질문 3~5개와 짧은 답
+- 결론: 핵심 요약 + 행동 제안. 과도한 광고 문구나 '구독/공감 부탁' 반복은 피하세요
+- tags: 검색 수요가 있는 한국어 태그 10~20개 ('#' 제외)
+- 의료·법률·투자처럼 전문 판단이 필요한 내용은 전문가 상담을 권하는 문장을 포함하세요"""
 
 
 class BaseWriter:
@@ -169,6 +211,29 @@ class BaseWriter:
 위 주제로 카드뉴스 원고를 작성하세요."""
         card = self._parse(WRITER_SYSTEM, user, CardNews)
         return normalize(card, self.s.slides_min, self.s.slides_max)
+
+    # ---------- 4) 블로그 글 ----------
+
+    def write_blog(self, topic: TopicIdea, research_notes: str, card: CardNews, images: list[str]) -> BlogPost:
+        slides = "\n".join(
+            f"- {img}: [{sl.kind}] {sl.heading.replace(chr(10), ' ')} — {sl.body.replace(chr(10), ' ')}"
+            for img, sl in zip(images, card.slides)
+        )
+        user = f"""계정 니치: {self.s.niche}
+말투: {self.s.tone}
+
+## 주제
+{json.dumps(topic.model_dump(), ensure_ascii=False, indent=2)}
+
+## 이미 만든 카드뉴스 (이미지 파일명: 내용)
+{slides}
+
+## 자료
+{research_notes}
+
+위 주제로 블로그 글 초안을 작성하세요."""
+        post = self._parse(BLOG_SYSTEM, user, BlogPost)
+        return normalize_blog(post, images)
 
 
 class ClaudeWriter(BaseWriter):
@@ -322,6 +387,23 @@ def normalize(card: CardNews, lo: int, hi: int) -> CardNews:
     if len(threads) > 500:
         threads = threads[:499].rstrip() + "…"
     return card.model_copy(update={"slides": slides, "hashtags": tags[:30], "threads_text": threads})
+
+
+def normalize_blog(post: BlogPost, images: list[str]) -> BlogPost:
+    """존재하지 않는 이미지 참조 제거, 태그 정리 (네이버 최대 30개)."""
+    allowed = set(images)
+    sections = [
+        sec.model_copy(update={"image": sec.image if sec.image in allowed else ""})
+        for sec in post.sections
+    ]
+    tags = []
+    for t in post.tags:
+        t = t.strip().lstrip("#").replace(" ", "")
+        if t and t not in tags:
+            tags.append(t)
+    if not post.titles or not sections:
+        raise ValueError("블로그 글에 제목이나 본문이 없습니다")
+    return post.model_copy(update={"sections": sections, "tags": tags[:30]})
 
 
 def instagram_caption(card: CardNews) -> str:

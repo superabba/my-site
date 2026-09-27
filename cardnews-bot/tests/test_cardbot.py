@@ -32,6 +32,25 @@ def sample_card(n=6):
                     threads_text="가" * 600, sources=["https://example.com/a"])
 
 
+def sample_blog(images=("slide_01.jpg", "slide_02.jpg")):
+    from cardbot.llm import BlogFAQ, BlogPost, BlogSection
+    return BlogPost(
+        titles=["연말정산 환급 늘리는 5가지 방법", "13월의 월급 챙기는 법"],
+        main_keyword="연말정산",
+        sub_keywords=["연말정산 환급", "카드 공제"],
+        meta_description="연말정산 환급액을 늘리는 방법 정리",
+        intro="연말정산 시즌입니다.\n\n미리 챙기면 환급이 늘어요.",
+        sections=[
+            BlogSection(heading="카드 공제 한도", body="체크카드 공제율이 <높아요> & 좋아요.", image=images[1], experience_hint="내 카드 사용 비율"),
+            BlogSection(heading="월세 공제", body="월세도 공제됩니다.", image="없는파일.jpg", experience_hint=""),
+        ],
+        faq=[BlogFAQ(question="언제 하나요?", answer="1월입니다.")],
+        conclusion="미리 준비하세요.",
+        tags=["#연말정산", "절세", "절세", "직장인 팁"],
+        sources=["https://example.com/a", "국세청"],
+    )
+
+
 def test_parse_traffic():
     assert trends.parse_traffic("20,000+") == 20000
     assert trends.parse_traffic("5K+") == 5000
@@ -102,7 +121,7 @@ def test_instagram_carousel_flow(monkeypatch):
     monkeypatch.setattr("cardbot.publishers.requests.post", post)
     monkeypatch.setattr("cardbot.publishers.requests.get", get)
     pub = InstagramPublisher("123", "TOKEN", "https://graph.instagram.com/v23.0", sleep=lambda s: None)
-    res = pub.publish(["https://x/1.jpg", "https://x/2.jpg"], "캡션")
+    res = pub.publish({"image_urls": ["https://x/1.jpg", "https://x/2.jpg"]}, "캡션")
     assert res.media_id == "MEDIA1" and res.permalink.endswith("/p/x")
     posts = [c for c in calls if c[0] == "POST"]
     assert posts[0][2]["is_carousel_item"] == "true"
@@ -111,13 +130,13 @@ def test_instagram_carousel_flow(monkeypatch):
 
 
 def test_threads_waits_and_errors(monkeypatch):
-    states = iter(["IN_PROGRESS", "ERROR"])
+    states = iter(["IN_PROGRESS", "ERROR", "ERROR"])
     monkeypatch.setattr("cardbot.publishers.requests.post", lambda url, data, timeout: FakeResp({"id": "T1"}))
     monkeypatch.setattr("cardbot.publishers.requests.get",
                         lambda url, params, timeout: FakeResp({"status": next(states)}))
     pub = ThreadsPublisher("9", "TOK", "https://graph.threads.net/v1.0", sleep=lambda s: None)
     with pytest.raises(Exception, match="ERROR"):
-        pub.publish(["a", "b"], "text")
+        pub.publish({"image_urls": ["a", "b"]}, "text")
 
 
 class FakeWriter:
@@ -131,8 +150,14 @@ class FakeWriter:
     def write(self, topic, notes):
         return normalize(sample_card(), 5, 8)
 
+    def write_blog(self, topic, notes, card, images):
+        return sample_blog(images)
 
-class FakeHost:
+
+from cardbot.hosting import ImageHost
+
+
+class FakeHost(ImageHost):
     def upload(self, files, folder):
         return [f"https://cdn/{folder}/{f.name}" for f in files]
 
@@ -141,8 +166,11 @@ class FakePub:
     def __init__(self, name, fail=False):
         self.name, self.fail, self.calls = name, fail, 0
 
-    def publish(self, urls, text):
+    needs_video = False
+
+    def publish(self, assets, text):
         self.calls += 1
+        self.last = (assets, text)
         if self.fail:
             raise RuntimeError("boom")
         return PublishResult(self.name, f"{self.name}-id", f"https://{self.name}/p")
@@ -156,6 +184,7 @@ def test_pipeline_end_to_end(tmp_path, monkeypatch):
     s.output_dir, s.data_dir = tmp_path / "out", tmp_path
     s.fonts_dir = Path(__file__).parent.parent / "fonts"
     s.output_dir.mkdir()
+    s.platforms = ["instagram", "threads"]  # 릴스 렌더링은 전용 테스트에서
     monkeypatch.setattr("cardbot.pipeline.trends.collect", lambda s: [])
     p = Pipeline(s, writer=FakeWriter(), store=Store(tmp_path / "db.sqlite"))
     topics, sigs = p.recommend()
@@ -281,3 +310,242 @@ def test_gemini_write_normalizes_card():
     topic = TopicIdea(title="t", keyword="k", angle="a", hook="h", why_now="w", score=1, risk="")
     out = w.write(topic, "notes")
     assert len(out.threads_text) == 500 and out.hashtags[0] == "연말정산"
+
+
+# ---------- 이미지 호스팅 ----------
+from cardbot.hosting import GitHubHost, public_folder
+
+
+def test_public_folder_is_ascii_and_stable():
+    name = "20260927-091029-연휴-다음-날-통장"
+    out = public_folder(name)
+    assert out.isascii() and out.startswith("20260927-091029-") and out == public_folder(name)
+    assert public_folder("직접주제").isascii()
+    assert public_folder(name) != public_folder(name + "2")
+
+
+def test_github_host_ascii_urls_and_overwrite(monkeypatch, tmp_path):
+    img = tmp_path / "slide_01.jpg"
+    img.write_bytes(b"jpg")
+    puts = []
+
+    def get(url, headers, params, timeout):
+        return FakeResp({"sha": "abc"}, 200)  # 이미 있는 파일
+
+    def put(url, headers, json, timeout):
+        puts.append((url, json))
+        return FakeResp({}, 200)
+
+    monkeypatch.setattr("cardbot.hosting.requests.get", get)
+    monkeypatch.setattr("cardbot.hosting.requests.put", put)
+    urls = GitHubHost("t", "o/r", "data", "images").upload([img], "20260927-091029-한글-폴더")
+    assert urls[0].isascii() and urls[0].startswith("https://raw.githubusercontent.com/o/r/data/images/20260927-091029-")
+    assert puts[0][1]["sha"] == "abc" and puts[0][0].isascii()
+
+
+def test_publish_reuploads_non_ascii_urls(tmp_path, monkeypatch):
+    s = Settings()
+    s.output_dir, s.data_dir = tmp_path / "out", tmp_path
+    s.fonts_dir = Path(__file__).parent.parent / "fonts"
+    s.output_dir.mkdir()
+    s.platforms = ["instagram", "threads"]  # 릴스 렌더링은 전용 테스트에서
+    monkeypatch.setattr("cardbot.pipeline.trends.collect", lambda s: [])
+    p = Pipeline(s, writer=FakeWriter(), store=Store(tmp_path / "db.sqlite"))
+    folder = p.make(p.recommend()[0][0], [])
+    # 이전 버전이 한글 URL을 저장해 두고 게시에 실패한 상태
+    (folder / "published.json").write_text(json.dumps({"image_urls": ["https://x/한글/1.jpg"]}))
+
+    class Host:
+        calls = 0
+
+        def upload(self, files, name):
+            Host.calls += 1
+            return [f"https://cdn/{public_folder(name)}/{f.name}" for f in files]
+
+    meta = p.publish(folder, publishers=[FakePub("instagram")], host=Host())
+    assert Host.calls == 1 and all(u.isascii() for u in meta["image_urls"])
+    p.publish(folder, publishers=[FakePub("instagram")], host=Host())  # ASCII면 다시 올리지 않음
+    assert Host.calls == 1
+
+
+
+# ---------- 블로그 ----------
+from cardbot.blog import BLOG_FILES, naver_text, tistory_html
+from cardbot.llm import normalize_blog
+
+
+def test_normalize_blog_drops_unknown_images_and_dedupes_tags():
+    post = normalize_blog(sample_blog(), ["slide_01.jpg", "slide_02.jpg"])
+    assert [s.image for s in post.sections] == ["slide_02.jpg", ""]
+    assert post.tags == ["연말정산", "절세", "직장인팁"]
+
+
+def test_blog_formats():
+    post = normalize_blog(sample_blog(), ["slide_01.jpg", "slide_02.jpg"])
+    txt = naver_text(post)
+    assert "■ 카드 공제 한도" in txt and "slide_02.jpg" in txt and "Q. 언제 하나요?" in txt
+    assert "✍️" in txt and "- 국세청" in txt
+    html = tistory_html(post)
+    assert "<h2>카드 공제 한도</h2>" in html and "&lt;높아요&gt; &amp; 좋아요" in html  # 이스케이프
+    assert '<a href="https://example.com/a">' in html and "<li>국세청</li>" in html
+    assert html.count("<p>") >= 3  # 문단 분리
+
+
+def _pipeline(tmp_path, monkeypatch, writer):
+    s = Settings()
+    s.output_dir, s.data_dir = tmp_path / "out", tmp_path
+    s.fonts_dir = Path(__file__).parent.parent / "fonts"
+    s.output_dir.mkdir()
+    s.platforms = ["instagram", "threads"]  # 릴스 렌더링은 전용 테스트에서
+    monkeypatch.setattr("cardbot.pipeline.trends.collect", lambda s: [])
+    return Pipeline(s, writer=writer, store=Store(tmp_path / "db.sqlite"))
+
+
+def test_make_creates_blog_files(tmp_path, monkeypatch):
+    p = _pipeline(tmp_path, monkeypatch, FakeWriter())
+    folder = p.make(p.recommend()[0][0], [])
+    for f in BLOG_FILES:
+        assert (folder / f).exists(), f
+    assert "연말정산 환급 늘리는 5가지 방법" in (folder / "blog_guide.md").read_text()
+
+
+def test_blog_failure_does_not_block_card_or_publish(tmp_path, monkeypatch):
+    class BrokenBlog(FakeWriter):
+        def write_blog(self, *a):
+            raise RuntimeError("quota")
+
+    p = _pipeline(tmp_path, monkeypatch, BrokenBlog())
+    folder = p.make(p.recommend()[0][0], [])
+    assert len(list(folder.glob("slide_*.jpg"))) == 6
+    assert (folder / "blog_error.txt").read_text() == "quota" and not (folder / "blog.json").exists()
+    meta = p.publish(folder, publishers=[FakePub("instagram")], host=FakeHost())
+    assert "instagram" in meta["posts"] and not p.failures
+
+
+def test_publish_backfills_blog_for_old_drafts(tmp_path, monkeypatch):
+    p = _pipeline(tmp_path, monkeypatch, FakeWriter())
+    p.s.blog_enabled = False
+    folder = p.make(p.recommend()[0][0], [])  # 블로그 기능 이전 초안
+    assert not (folder / "blog.json").exists()
+    p.s.blog_enabled = True
+    p.publish(folder, publishers=[FakePub("instagram")], host=FakeHost())
+    assert (folder / "blog_naver.txt").exists() and not (folder / "blog_error.txt").exists()
+
+
+def test_gemini_write_blog_passes_slide_list():
+    from cardbot.llm import BlogPost
+    s = Settings()
+    post = sample_blog()
+    models = FakeGeminiModels([gemini_resp(post.model_dump_json(), parsed=post)])
+    w = GeminiWriter(s, client=SimpleNamespace(models=models))
+    topic = TopicIdea(title="t", keyword="k", angle="a", hook="h", why_now="w", score=1, risk="")
+    out = w.write_blog(topic, "notes", sample_card(), ["slide_01.jpg", "slide_02.jpg"])
+    assert models.calls[0].config.response_schema is BlogPost
+    assert "slide_02.jpg: [content]" in models.calls[0].contents
+    assert out.sections[1].image == ""
+
+
+
+# ---------- 릴스 ----------
+from cardbot.hosting import GitHubHost as _GH
+from cardbot.publishers import ReelsPublisher
+from cardbot.reel import render_reel, slide_seconds
+
+
+def test_slide_seconds_reading_time():
+    assert slide_seconds(Slide(kind="cover", heading="짧은 제목", body="", highlight="")) == 2.5
+    assert slide_seconds(Slide(kind="cta", heading="저장", body="가" * 80, highlight="")) == 2.0
+    assert slide_seconds(Slide(kind="content", heading="짧음", body="", highlight="")) == 2.5
+    assert slide_seconds(Slide(kind="content", heading="가" * 15, body="나" * 65, highlight="다" * 8)) == 3.51
+    assert slide_seconds(Slide(kind="summary", heading="가" * 200, body="", highlight="")) == 4.0
+
+
+def test_render_reel_produces_vertical_mp4_with_audio(tmp_path):
+    import subprocess
+    import imageio_ffmpeg
+    card = sample_card()
+    slides = render_card(card, tmp_path, Path(__file__).parent.parent / "fonts", "cream", "me")
+    video, cover = render_reel(card, slides, tmp_path / "reel.mp4", Path(__file__).parent.parent / "fonts",
+                               "cream", "me", fps=4)
+    from PIL import Image
+    assert Image.open(cover).size == (1080, 1920)
+    info = subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-i", str(video)], capture_output=True, text=True).stderr
+    assert "1080x1920" in info and "Audio: aac" in info and "h264" in info
+    # 표지 2.5 + 본문 3장 + 요약 + 저장 유도 2.0
+    import re
+    expected = sum(slide_seconds(sl) for sl in card.slides)
+    m = re.search(r"Duration: 00:00:(\d+\.\d+)", info)
+    assert 12 < expected < 22 and abs(float(m.group(1)) - expected) < 0.5  # 프레임 반올림 오차 허용
+
+
+def test_github_candidates_prefer_jsdelivr_for_video(monkeypatch, tmp_path):
+    f = tmp_path / "reel.mp4"
+    f.write_bytes(b"v")
+    monkeypatch.setattr("cardbot.hosting.requests.get", lambda url, headers, params, timeout: FakeResp({}, 404))
+    monkeypatch.setattr("cardbot.hosting.requests.put",
+                        lambda url, headers, json, timeout: FakeResp({"commit": {"sha": "abc123"}}, 201))
+    host = _GH("t", "o/r", "data", "images")
+    (url,) = host.upload([f], "20260927-091029-x")
+    cands = host.candidates(url)
+    assert cands[0].startswith("https://cdn.jsdelivr.net/gh/o/r@abc123/images/20260927-091029-")
+    assert cands[0].endswith("/reel.mp4") and cands[1] == url
+
+
+def test_reels_publisher_falls_back_to_next_url(monkeypatch):
+    posts = []
+    status = {"C1": "ERROR", "C2": "FINISHED"}
+
+    def post(url, data, timeout):
+        posts.append(dict(data))
+        if url.endswith("/media_publish"):
+            return FakeResp({"id": "REEL1"})
+        return FakeResp({"id": f"C{len([p for p in posts if 'video_url' in p])}"})
+
+    def get(url, params, timeout):
+        cid = url.rsplit("/", 1)[1]
+        if params.get("fields") == "permalink":
+            return FakeResp({"permalink": "https://instagram.com/reel/x"})
+        return FakeResp({"status_code": status.get(cid, "FINISHED"), "status": "Error: bad media"})
+
+    monkeypatch.setattr("cardbot.publishers.requests.post", post)
+    monkeypatch.setattr("cardbot.publishers.requests.get", get)
+    pub = ReelsPublisher("1", "T", "https://graph.instagram.com/v23.0", sleep=lambda s: None)
+    res = pub.publish({"video_urls": ["https://cdn/a.mp4", "https://raw/a.mp4"], "reel_cover_url": "https://c.jpg"}, "캡션")
+    assert res.media_id == "REEL1" and res.permalink.endswith("/reel/x")
+    tried = [p["video_url"] for p in posts if "video_url" in p]
+    assert tried == ["https://cdn/a.mp4", "https://raw/a.mp4"]
+    assert posts[0]["media_type"] == "REELS" and posts[0]["share_to_feed"] == "true" and posts[0]["cover_url"] == "https://c.jpg"
+
+
+def test_pipeline_renders_and_publishes_reel(tmp_path, monkeypatch):
+    p = _pipeline(tmp_path, monkeypatch, FakeWriter())
+    p.s.platforms = ["instagram", "reels", "threads"]
+    p.s.reels_fps = 4
+    folder = p.make(p.recommend()[0][0], [])
+    assert (folder / "reel.mp4").exists() and (folder / "reel_cover.jpg").exists()
+
+    class Host(FakeHost):
+        def candidates(self, url):
+            return ["https://cdn/" + url.rsplit("/", 1)[1], url]
+
+    reels = FakePub("reels")
+    reels.needs_video = True
+    ig, th = FakePub("instagram"), FakePub("threads")
+    meta = p.publish(folder, publishers=[ig, reels, th], host=Host())
+    assert set(meta["posts"]) == {"instagram", "reels", "threads"}
+    assets, text = reels.last
+    assert assets["video_urls"][0] == "https://cdn/reel.mp4" and assets["reel_cover_url"].endswith("reel_cover.jpg")
+    assert text == (folder / "caption.txt").read_text().strip()  # 릴스는 인스타 캡션 사용
+    assert th.last[1] == (folder / "threads.txt").read_text().strip()[:500]
+
+
+def test_publish_renders_reel_for_old_drafts(tmp_path, monkeypatch):
+    p = _pipeline(tmp_path, monkeypatch, FakeWriter())
+    folder = p.make(p.recommend()[0][0], [])  # 릴스 기능 이전 초안
+    assert not (folder / "reel.mp4").exists()
+    p.s.platforms = ["instagram", "reels"]
+    p.s.reels_fps = 4
+    reels = FakePub("reels")
+    reels.needs_video = True
+    meta = p.publish(folder, publishers=[reels], host=FakeHost())
+    assert (folder / "reel.mp4").exists() and "reels" in meta["posts"]

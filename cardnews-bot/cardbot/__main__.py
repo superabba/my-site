@@ -67,6 +67,13 @@ def cmd_publish(s, a):
     _exit_on_failures(p)
 
 
+def cmd_blog(s, a):
+    p = _pipeline(s)
+    folder = Path(a.folder)
+    p.make_blog(folder)
+    print(f"블로그 글 생성: {folder}/blog_naver.txt, blog_tistory.html, blog_guide.md")
+
+
 def cmd_run(s, a):
     p = _pipeline(s)
     p.run_once(publish=a.publish or s.auto_publish)
@@ -133,6 +140,10 @@ def main(argv=None):
     x = sub.add_parser("publish", help="생성된 폴더를 업로드하고 게시")
     x.add_argument("folder")
     x.set_defaults(fn=cmd_publish)
+
+    x = sub.add_parser("blog", help="초안 폴더로 네이버/티스토리 블로그 글 (재)생성")
+    x.add_argument("folder")
+    x.set_defaults(fn=cmd_blog)
 
     x = sub.add_parser("run", help="추천→제작(→게시) 1회 실행")
     x.add_argument("--publish", action="store_true", help="실제로 게시")
