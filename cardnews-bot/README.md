@@ -51,6 +51,7 @@ python -m cardbot make                 # 1순위 주제로 카드뉴스 초안 �
 python -m cardbot make --pick 2        # 2순위 주제로
 python -m cardbot make --topic "청년도약계좌 해지 조건" --angle "오해와 진실"
 python -m cardbot publish output/<폴더>  # 검토 후 게시 (caption.txt / threads.txt 수정 가능)
+python -m cardbot blog output/<폴더>     # 블로그 글 초안 다시 만들기
 python -m cardbot run --publish        # 추천→제작→게시 한 번에
 python -m cardbot auto --publish       # INTERVAL_MINUTES마다 반복 (성과 수집 포함)
 python -m cardbot insights             # 성과 지표 갱신 + 상위 게시물 보기
@@ -58,6 +59,21 @@ python -m cardbot refresh-token instagram   # 장기 토큰(60일) 갱신
 ```
 
 `output/<폴더>`에는 `slide_01.jpg…`, `card.json`(원고), `caption.txt`, `threads.txt`, `research.md`(출처 포함 팩트 시트), `published.json`(게시 결과)이 저장됩니다.
+
+### 블로그 글 초안 (네이버 블로그 · 티스토리)
+
+카드뉴스를 만들 때마다 **같은 주제의 검색용 블로그 글 초안**도 함께 만듭니다 (`BLOG_ENABLED=false`로 끌 수 있음).
+블로그 기능 이전에 만든 초안은 게시할 때 자동으로 채워지고, `python -m cardbot blog output/<폴더>`로 다시 만들 수 있습니다.
+
+| 파일 | 용도 |
+|---|---|
+| `blog_naver.txt` | 네이버 스마트에디터에 붙여넣기 ('■'는 소제목) |
+| `blog_tistory.html` | 티스토리 에디터 **HTML 모드**에 붙여넣기 |
+| `blog_guide.md` | 제목 후보, 핵심·보조 키워드, 요약문, 태그, 게시 체크리스트 |
+
+두 플랫폼 모두 공식 글쓰기 API가 없어서(티스토리 오픈 API는 2024년 종료) **자동 게시는 하지 않습니다.**
+📷 표시에 카드뉴스 이미지를 넣고, ✍️ 표시에 **직접 겪은 경험·의견**을 덧붙인 뒤 게시하거나 임시저장하세요.
+검색엔진은 사람이 직접 쓴 경험을 높게 평가하므로, AI 초안을 그대로 올리는 것보다 노출과 수익화에 유리합니다. 상위노출이나 홈판 노출은 보장되지 않습니다.
 게시가 한 플랫폼에서만 실패하면 같은 `publish` 명령을 다시 실행하면 실패한 쪽만 재시도합니다.
 
 ### 완전 자동 운영
@@ -82,7 +98,9 @@ python -m cardbot refresh-token instagram   # 장기 토큰(60일) 갱신
    마음에 들면 **Actions → 카드뉴스 자동 발행 → Run workflow** 에서 `publish-draft`를 고르고 폴더 이름을 넣어 게시합니다.
 4. 품질이 안정되면 Variables에 `AUTO_PUBLISH=true`를 추가 → 예약 실행이 바로 게시까지 합니다.
 
-수동 실행(Run workflow) 옵션: `draft`(초안, 주제 직접 지정 가능) · `publish-now`(추천→제작→즉시 게시) · `publish-draft`(검토한 초안 게시)
+수동 실행(Run workflow) 옵션: `draft`(초안, 주제 직접 지정 가능) · `publish-now`(추천→제작→즉시 게시) · `publish-draft`(검토한 초안 게시) · `blog`(초안의 블로그 글 다시 만들기)
+
+실행 결과 화면(Summary)에 블로그 글 초안 링크(네이버용·티스토리용·게시 가이드)가 함께 표시되고, 아티팩트 zip에도 들어 있습니다.
 
 **이미지 호스팅**: 기본으로 이 저장소(공개)의 `cardbot-data` 브랜치 `images/`에 올리고 기본 제공 토큰을 씁니다. 저장소가 비공개라면 공개 저장소를 따로 만들어
 Variables에 `IMAGE_REPO=owner/repo`, Secrets에 `CARDBOT_GITHUB_TOKEN`(그 저장소 Contents 쓰기 권한 PAT)을 넣으세요.
@@ -112,7 +130,7 @@ Variables에 `IMAGE_REPO=owner/repo`, Secrets에 `CARDBOT_GITHUB_TOKEN`(그 저�
 
 ## 비용과 설정
 
-- AI 호출은 게시물 1건당 3회(추천·조사·원고)입니다. Claude는 `CARD_EFFORT=medium`이나 `ANTHROPIC_MODEL=claude-sonnet-5`로, 또는 `LLM_PROVIDER=gemini`로 비용을 줄일 수 있습니다. (`CARD_EFFORT`는 Claude에만 적용)
+- AI 호출은 게시물 1건당 4회(추천·조사·카드뉴스 원고·블로그 글)입니다. Claude는 `CARD_EFFORT=medium`이나 `ANTHROPIC_MODEL=claude-sonnet-5`로, 또는 `LLM_PROVIDER=gemini`로 비용을 줄일 수 있습니다. (`CARD_EFFORT`는 Claude에만 적용)
 - `CLAUDE_FALLBACKS=default`는 Claude가 요청을 거절할 경우 Anthropic 서버에서 다른 모델로 자동 재시도하는 옵션입니다 (Claude API 전용, Bedrock/Vertex에서는 `off`).
 - 인스타그램 API 게시 한도는 24시간에 게시물 50개입니다.
 

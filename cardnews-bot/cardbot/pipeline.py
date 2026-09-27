@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 from . import trends
+from .blog import has_blog, save_blog
 from .hosting import make_host
 from .llm import BaseWriter, CardNews, TopicIdea, instagram_caption, make_writer
 from .publishers import make_publishers
@@ -56,7 +57,31 @@ class Pipeline:
 
         log.info("이미지 렌더링")
         render_card(card, folder, self.s.fonts_dir, self.s.theme, self.s.brand_handle)
+
+        if self.s.blog_enabled:
+            self.try_make_blog(folder)
         return folder
+
+    # ----- 블로그 글 (네이버/티스토리 붙여넣기용) -----
+    def make_blog(self, folder: Path) -> None:
+        topic = TopicIdea.model_validate_json((folder / "topic.json").read_text(encoding="utf-8"))
+        card = CardNews.model_validate_json((folder / "card.json").read_text(encoding="utf-8"))
+        research = folder / "research.md"
+        notes = research.read_text(encoding="utf-8") if research.exists() else ""
+        images = [p.name for p in sorted(folder.glob("slide_*.jpg"))]
+        log.info("블로그 글 작성: %s", topic.title)
+        save_blog(folder, self.writer.write_blog(topic, notes, card, images))
+        (folder / "blog_error.txt").unlink(missing_ok=True)
+
+    def try_make_blog(self, folder: Path) -> bool:
+        """블로그 글 실패가 카드뉴스 제작·게시를 막지 않도록 오류는 기록만 한다."""
+        try:
+            self.make_blog(folder)
+            return True
+        except Exception as e:
+            log.error("블로그 글 작성 실패: %s", e)
+            (folder / "blog_error.txt").write_text(str(e), encoding="utf-8")
+            return False
 
     # ----- 게시 -----
     def publish(self, folder: Path, publishers=None, host=None) -> dict:
@@ -96,6 +121,10 @@ class Pipeline:
             meta.get("errors", {}).pop(pub.name, None)
             self.store.add(topic.title, topic.keyword, pub.name, res.media_id, res.permalink, folder.name)
             meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2))
+
+        # 블로그 기능 이전에 만든 초안이면 게시와 함께 블로그 글도 만든다
+        if self.s.blog_enabled and not has_blog(folder):
+            self.try_make_blog(folder)
         return meta
 
     # ----- 성과 수집 -----

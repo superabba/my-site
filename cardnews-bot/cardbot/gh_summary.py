@@ -49,6 +49,17 @@ def main() -> None:
             md.append(
                 f"- 📝 초안만 생성됨 → Actions에서 **publish-draft** 실행, folder에 `{d.name}` 입력"
             )
+        blog = _json(d / "blog.json")
+        tree = f"https://github.com/{repo}/blob/{branch}/output/{d.name}"
+        if blog:
+            md.append(f"\n**📝 블로그 글 초안** — {blog.get('titles', [''])[0]}")
+            md.append(
+                f"[네이버용 텍스트]({tree}/blog_naver.txt) · [티스토리용 HTML]({tree}/blog_tistory.html)"
+                f" · [게시 가이드(제목·태그)]({tree}/blog_guide.md) · 핵심 키워드: `{blog.get('main_keyword', '')}`"
+            )
+        elif (d / "blog_error.txt").exists():
+            err = (d / "blog_error.txt").read_text(encoding="utf-8")[:300]
+            md.append(f"- ⚠️ 블로그 글 생성 실패: `{err}` → Run workflow에서 action `blog`로 다시 만들 수 있어요")
         cap = d / "caption.txt"
         if cap.exists():
             md.append("\n<details><summary>인스타 캡션</summary>\n\n```\n" + cap.read_text(encoding="utf-8") + "\n```\n</details>")

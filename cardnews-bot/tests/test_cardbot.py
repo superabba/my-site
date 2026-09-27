@@ -32,6 +32,25 @@ def sample_card(n=6):
                     threads_text="가" * 600, sources=["https://example.com/a"])
 
 
+def sample_blog(images=("slide_01.jpg", "slide_02.jpg")):
+    from cardbot.llm import BlogFAQ, BlogPost, BlogSection
+    return BlogPost(
+        titles=["연말정산 환급 늘리는 5가지 방법", "13월의 월급 챙기는 법"],
+        main_keyword="연말정산",
+        sub_keywords=["연말정산 환급", "카드 공제"],
+        meta_description="연말정산 환급액을 늘리는 방법 정리",
+        intro="연말정산 시즌입니다.\n\n미리 챙기면 환급이 늘어요.",
+        sections=[
+            BlogSection(heading="카드 공제 한도", body="체크카드 공제율이 <높아요> & 좋아요.", image=images[1], experience_hint="내 카드 사용 비율"),
+            BlogSection(heading="월세 공제", body="월세도 공제됩니다.", image="없는파일.jpg", experience_hint=""),
+        ],
+        faq=[BlogFAQ(question="언제 하나요?", answer="1월입니다.")],
+        conclusion="미리 준비하세요.",
+        tags=["#연말정산", "절세", "절세", "직장인 팁"],
+        sources=["https://example.com/a", "국세청"],
+    )
+
+
 def test_parse_traffic():
     assert trends.parse_traffic("20,000+") == 20000
     assert trends.parse_traffic("5K+") == 5000
@@ -130,6 +149,9 @@ class FakeWriter:
 
     def write(self, topic, notes):
         return normalize(sample_card(), 5, 8)
+
+    def write_blog(self, topic, notes, card, images):
+        return sample_blog(images)
 
 
 class FakeHost:
@@ -336,3 +358,79 @@ def test_publish_reuploads_non_ascii_urls(tmp_path, monkeypatch):
     assert Host.calls == 1 and all(u.isascii() for u in meta["image_urls"])
     p.publish(folder, publishers=[FakePub("instagram")], host=Host())  # ASCII면 다시 올리지 않음
     assert Host.calls == 1
+
+
+
+# ---------- 블로그 ----------
+from cardbot.blog import BLOG_FILES, naver_text, tistory_html
+from cardbot.llm import normalize_blog
+
+
+def test_normalize_blog_drops_unknown_images_and_dedupes_tags():
+    post = normalize_blog(sample_blog(), ["slide_01.jpg", "slide_02.jpg"])
+    assert [s.image for s in post.sections] == ["slide_02.jpg", ""]
+    assert post.tags == ["연말정산", "절세", "직장인팁"]
+
+
+def test_blog_formats():
+    post = normalize_blog(sample_blog(), ["slide_01.jpg", "slide_02.jpg"])
+    txt = naver_text(post)
+    assert "■ 카드 공제 한도" in txt and "slide_02.jpg" in txt and "Q. 언제 하나요?" in txt
+    assert "✍️" in txt and "- 국세청" in txt
+    html = tistory_html(post)
+    assert "<h2>카드 공제 한도</h2>" in html and "&lt;높아요&gt; &amp; 좋아요" in html  # 이스케이프
+    assert '<a href="https://example.com/a">' in html and "<li>국세청</li>" in html
+    assert html.count("<p>") >= 3  # 문단 분리
+
+
+def _pipeline(tmp_path, monkeypatch, writer):
+    s = Settings()
+    s.output_dir, s.data_dir = tmp_path / "out", tmp_path
+    s.fonts_dir = Path(__file__).parent.parent / "fonts"
+    s.output_dir.mkdir()
+    monkeypatch.setattr("cardbot.pipeline.trends.collect", lambda s: [])
+    return Pipeline(s, writer=writer, store=Store(tmp_path / "db.sqlite"))
+
+
+def test_make_creates_blog_files(tmp_path, monkeypatch):
+    p = _pipeline(tmp_path, monkeypatch, FakeWriter())
+    folder = p.make(p.recommend()[0][0], [])
+    for f in BLOG_FILES:
+        assert (folder / f).exists(), f
+    assert "연말정산 환급 늘리는 5가지 방법" in (folder / "blog_guide.md").read_text()
+
+
+def test_blog_failure_does_not_block_card_or_publish(tmp_path, monkeypatch):
+    class BrokenBlog(FakeWriter):
+        def write_blog(self, *a):
+            raise RuntimeError("quota")
+
+    p = _pipeline(tmp_path, monkeypatch, BrokenBlog())
+    folder = p.make(p.recommend()[0][0], [])
+    assert len(list(folder.glob("slide_*.jpg"))) == 6
+    assert (folder / "blog_error.txt").read_text() == "quota" and not (folder / "blog.json").exists()
+    meta = p.publish(folder, publishers=[FakePub("instagram")], host=FakeHost())
+    assert "instagram" in meta["posts"] and not p.failures
+
+
+def test_publish_backfills_blog_for_old_drafts(tmp_path, monkeypatch):
+    p = _pipeline(tmp_path, monkeypatch, FakeWriter())
+    p.s.blog_enabled = False
+    folder = p.make(p.recommend()[0][0], [])  # 블로그 기능 이전 초안
+    assert not (folder / "blog.json").exists()
+    p.s.blog_enabled = True
+    p.publish(folder, publishers=[FakePub("instagram")], host=FakeHost())
+    assert (folder / "blog_naver.txt").exists() and not (folder / "blog_error.txt").exists()
+
+
+def test_gemini_write_blog_passes_slide_list():
+    from cardbot.llm import BlogPost
+    s = Settings()
+    post = sample_blog()
+    models = FakeGeminiModels([gemini_resp(post.model_dump_json(), parsed=post)])
+    w = GeminiWriter(s, client=SimpleNamespace(models=models))
+    topic = TopicIdea(title="t", keyword="k", angle="a", hook="h", why_now="w", score=1, risk="")
+    out = w.write_blog(topic, "notes", sample_card(), ["slide_01.jpg", "slide_02.jpg"])
+    assert models.calls[0].config.response_schema is BlogPost
+    assert "slide_02.jpg: [content]" in models.calls[0].contents
+    assert out.sections[1].image == ""
