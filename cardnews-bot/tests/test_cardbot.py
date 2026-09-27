@@ -370,7 +370,7 @@ def test_publish_reuploads_non_ascii_urls(tmp_path, monkeypatch):
 
 
 # ---------- 블로그 ----------
-from cardbot.blog import BLOG_FILES, naver_text, tistory_html
+from cardbot.blog import BLOG_FILES, caption_hashtags, naver_text, tistory_html
 from cardbot.llm import normalize_blog
 
 
@@ -383,9 +383,12 @@ def test_normalize_blog_drops_unknown_images_and_dedupes_tags():
 def test_blog_formats():
     post = normalize_blog(sample_blog(), ["slide_01.jpg", "slide_02.jpg"])
     txt = naver_text(post)
+    assert txt.startswith("[제목] 연말정산 환급 늘리는 5가지 방법\n")
+    assert txt.index("아래부터 본문") < txt.index("연말정산 시즌입니다")
     assert "■ 카드 공제 한도" in txt and "slide_02.jpg" in txt and "Q. 언제 하나요?" in txt
     assert "✍️" in txt and "- 국세청" in txt
     html = tistory_html(post)
+    assert html.startswith("<!-- [제목] 연말정산 환급 늘리는 5가지 방법 -->")
     assert "<h2>카드 공제 한도</h2>" in html and "&lt;높아요&gt; &amp; 좋아요" in html  # 이스케이프
     assert '<a href="https://example.com/a">' in html and "<li>국세청</li>" in html
     assert html.count("<p>") >= 3  # 문단 분리
@@ -586,3 +589,20 @@ def test_reel_audio_modes(tmp_path):
     silent, _ = render_reel(card, slides, tmp_path / "silent.mp4", fonts, "midnight", "", audio="none", fps=4)
     assert _mean_volume(music) > -30 and _mean_volume(silent) < -80
     assert not list(tmp_path.glob("*.wav"))  # 합성 임시 음원은 지운다
+
+
+
+def test_caption_hashtags_and_blog_footer():
+    tags = caption_hashtags("연말정산 팁\n\n#연말정산 #절세 #직장인팁 #절세")
+    assert tags == ["#연말정산", "#절세", "#직장인팁"]
+    post = normalize_blog(sample_blog(), ["slide_01.jpg", "slide_02.jpg"])
+    assert naver_text(post, tags).rstrip().endswith("#연말정산 #절세 #직장인팁")
+    assert tistory_html(post, tags).rstrip().endswith("<p>#연말정산 #절세 #직장인팁</p>")
+    assert "#연말정산 #절세" not in naver_text(post)  # 해시태그가 없으면 붙이지 않음
+
+
+def test_saved_blog_uses_caption_hashtags(tmp_path, monkeypatch):
+    p = _pipeline(tmp_path, monkeypatch, FakeWriter())
+    folder = p.make(p.recommend()[0][0], [])
+    caption_tags = caption_hashtags((folder / "caption.txt").read_text())
+    assert caption_tags and (folder / "blog_naver.txt").read_text().rstrip().endswith(" ".join(caption_tags))

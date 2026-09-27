@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import re
 from html import escape
 from pathlib import Path
 
@@ -21,8 +22,29 @@ IMAGE_MARK = "📷 [이미지 넣기: {name} · 게시 전 이 줄 삭제]"
 BLOG_FILES = ("blog.json", "blog_naver.txt", "blog_tistory.html", "blog_guide.md")
 
 
-def naver_text(post: BlogPost) -> str:
-    out = [post.intro.strip(), ""]
+BODY_DIVIDER = "━━━━━━━━━━ 아래부터 본문 ━━━━━━━━━━"
+
+
+def caption_hashtags(caption: str) -> list[str]:
+    """인스타 캡션(caption.txt)에서 해시태그를 순서대로, 중복 없이 뽑는다."""
+    tags: list[str] = []
+    for t in re.findall(r"#[^\s#]+", caption):
+        if t not in tags:
+            tags.append(t)
+    return tags
+
+
+def naver_text(post: BlogPost, hashtags: list[str] | None = None) -> str:
+    # 네이버 에디터는 제목칸이 따로 있으므로 제목을 맨 위에 두고 본문과 구분한다
+    out = [
+        f"[제목] {post.titles[0].strip()}",
+        "(위 제목은 제목칸에 붙여넣으세요 · 다른 제목 후보는 blog_guide.md)",
+        "",
+        BODY_DIVIDER,
+        "",
+        post.intro.strip(),
+        "",
+    ]
     for sec in post.sections:
         out += [f"■ {sec.heading.strip()}", "", sec.body.strip(), ""]
         if sec.image:
@@ -36,6 +58,8 @@ def naver_text(post: BlogPost) -> str:
     out += ["■ 마무리", "", post.conclusion.strip(), ""]
     if post.sources:
         out += ["참고 자료"] + [f"- {s}" for s in post.sources] + [""]
+    if hashtags:  # 네이버는 본문의 #해시태그를 태그로 인식한다
+        out += [" ".join(hashtags), ""]
     return "\n".join(out).strip() + "\n"
 
 
@@ -44,8 +68,14 @@ def _paragraphs(text: str) -> str:
     return "\n".join(f"<p>{escape(p).replace(chr(10), '<br>')}</p>" for p in paras)
 
 
-def tistory_html(post: BlogPost) -> str:
-    out = [_paragraphs(post.intro)]
+def tistory_html(post: BlogPost, hashtags: list[str] | None = None) -> str:
+    # 제목은 HTML 주석으로 넣어 두어 실수로 함께 붙여넣어도 글에는 보이지 않게 한다
+    title = escape(post.titles[0].strip()).replace("--", "—")
+    out = [
+        f"<!-- [제목] {title} -->",
+        "<!-- 위 제목은 제목칸에 입력하세요 · 아래부터 본문 -->",
+        _paragraphs(post.intro),
+    ]
     for sec in post.sections:
         out.append(f"<h2>{escape(sec.heading.strip())}</h2>")
         out.append(_paragraphs(sec.body))
@@ -66,6 +96,8 @@ def tistory_html(post: BlogPost) -> str:
             for s in post.sources
         )
         out.append(f"<h3>참고 자료</h3><ul>{items}</ul>")
+    if hashtags:
+        out.append(f"<p>{escape(' '.join(hashtags))}</p>")
     return "\n".join(out) + "\n"
 
 
@@ -89,8 +121,8 @@ def guide(post: BlogPost, folder_name: str) -> str:
 - 티스토리 (10개 안팎 권장): {", ".join(post.tags[:10])}
 
 ## 게시 체크리스트
-1. 네이버: `blog_naver.txt` 내용을 스마트에디터에 붙여넣기 → '■' 줄을 소제목으로 바꾸기
-   티스토리: 에디터 오른쪽 위 **기본모드 → HTML**로 바꾸고 `blog_tistory.html` 붙여넣기
+1. 네이버: `blog_naver.txt` 맨 위 **[제목]** 줄을 제목칸에, '아래부터 본문' 구분선 아래를 본문에 붙여넣기 → '■' 줄을 소제목으로 바꾸기
+   티스토리: 맨 위 주석의 **[제목]**을 제목칸에 입력하고, 에디터 오른쪽 위 **기본모드 → HTML**로 바꾼 뒤 `blog_tistory.html` 붙여넣기
 2. 📷 표시 자리에 이미지 업로드 ({", ".join(images) or "없음"}) — 같은 폴더의 slide_*.jpg
 3. ✍️ 표시 자리에 **직접 겪은 경험·사진·의견** 한두 문장 추가 (검색 노출과 신뢰도에 가장 중요)
 4. 📷·✍️ 안내 줄은 모두 삭제
@@ -100,9 +132,12 @@ def guide(post: BlogPost, folder_name: str) -> str:
 
 
 def save_blog(folder: Path, post: BlogPost) -> None:
+    caption = folder / "caption.txt"
+    # 글 맨 아래에 인스타 캡션과 같은 해시태그를 붙인다 (사람이 고친 캡션도 반영)
+    hashtags = caption_hashtags(caption.read_text(encoding="utf-8")) if caption.exists() else []
     (folder / "blog.json").write_text(post.model_dump_json(indent=2), encoding="utf-8")
-    (folder / "blog_naver.txt").write_text(naver_text(post), encoding="utf-8")
-    (folder / "blog_tistory.html").write_text(tistory_html(post), encoding="utf-8")
+    (folder / "blog_naver.txt").write_text(naver_text(post, hashtags), encoding="utf-8")
+    (folder / "blog_tistory.html").write_text(tistory_html(post, hashtags), encoding="utf-8")
     (folder / "blog_guide.md").write_text(guide(post, folder.name), encoding="utf-8")
 
 
