@@ -383,9 +383,12 @@ def test_normalize_blog_drops_unknown_images_and_dedupes_tags():
 def test_blog_formats():
     post = normalize_blog(sample_blog(), ["slide_01.jpg", "slide_02.jpg"])
     txt = naver_text(post)
+    assert txt.startswith("[제목] 연말정산 환급 늘리는 5가지 방법\n")
+    assert txt.index("아래부터 본문") < txt.index("연말정산 시즌입니다")
     assert "■ 카드 공제 한도" in txt and "slide_02.jpg" in txt and "Q. 언제 하나요?" in txt
     assert "✍️" in txt and "- 국세청" in txt
     html = tistory_html(post)
+    assert html.startswith("<!-- [제목] 연말정산 환급 늘리는 5가지 방법 -->")
     assert "<h2>카드 공제 한도</h2>" in html and "&lt;높아요&gt; &amp; 좋아요" in html  # 이스케이프
     assert '<a href="https://example.com/a">' in html and "<li>국세청</li>" in html
     assert html.count("<p>") >= 3  # 문단 분리

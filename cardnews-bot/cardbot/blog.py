@@ -21,8 +21,20 @@ IMAGE_MARK = "📷 [이미지 넣기: {name} · 게시 전 이 줄 삭제]"
 BLOG_FILES = ("blog.json", "blog_naver.txt", "blog_tistory.html", "blog_guide.md")
 
 
+BODY_DIVIDER = "━━━━━━━━━━ 아래부터 본문 ━━━━━━━━━━"
+
+
 def naver_text(post: BlogPost) -> str:
-    out = [post.intro.strip(), ""]
+    # 네이버 에디터는 제목칸이 따로 있으므로 제목을 맨 위에 두고 본문과 구분한다
+    out = [
+        f"[제목] {post.titles[0].strip()}",
+        "(위 제목은 제목칸에 붙여넣으세요 · 다른 제목 후보는 blog_guide.md)",
+        "",
+        BODY_DIVIDER,
+        "",
+        post.intro.strip(),
+        "",
+    ]
     for sec in post.sections:
         out += [f"■ {sec.heading.strip()}", "", sec.body.strip(), ""]
         if sec.image:
@@ -45,7 +57,13 @@ def _paragraphs(text: str) -> str:
 
 
 def tistory_html(post: BlogPost) -> str:
-    out = [_paragraphs(post.intro)]
+    # 제목은 HTML 주석으로 넣어 두어 실수로 함께 붙여넣어도 글에는 보이지 않게 한다
+    title = escape(post.titles[0].strip()).replace("--", "—")
+    out = [
+        f"<!-- [제목] {title} -->",
+        "<!-- 위 제목은 제목칸에 입력하세요 · 아래부터 본문 -->",
+        _paragraphs(post.intro),
+    ]
     for sec in post.sections:
         out.append(f"<h2>{escape(sec.heading.strip())}</h2>")
         out.append(_paragraphs(sec.body))
@@ -89,8 +107,8 @@ def guide(post: BlogPost, folder_name: str) -> str:
 - 티스토리 (10개 안팎 권장): {", ".join(post.tags[:10])}
 
 ## 게시 체크리스트
-1. 네이버: `blog_naver.txt` 내용을 스마트에디터에 붙여넣기 → '■' 줄을 소제목으로 바꾸기
-   티스토리: 에디터 오른쪽 위 **기본모드 → HTML**로 바꾸고 `blog_tistory.html` 붙여넣기
+1. 네이버: `blog_naver.txt` 맨 위 **[제목]** 줄을 제목칸에, '아래부터 본문' 구분선 아래를 본문에 붙여넣기 → '■' 줄을 소제목으로 바꾸기
+   티스토리: 맨 위 주석의 **[제목]**을 제목칸에 입력하고, 에디터 오른쪽 위 **기본모드 → HTML**로 바꾼 뒤 `blog_tistory.html` 붙여넣기
 2. 📷 표시 자리에 이미지 업로드 ({", ".join(images) or "없음"}) — 같은 폴더의 slide_*.jpg
 3. ✍️ 표시 자리에 **직접 겪은 경험·사진·의견** 한두 문장 추가 (검색 노출과 신뢰도에 가장 중요)
 4. 📷·✍️ 안내 줄은 모두 삭제
