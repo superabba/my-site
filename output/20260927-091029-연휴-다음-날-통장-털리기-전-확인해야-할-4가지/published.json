@@ -1,15 +1,22 @@
 {
   "image_urls": [
-    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-091029-연휴-다음-날-통장-털리기-전-확인해야-할-4가지/slide_01.jpg",
-    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-091029-연휴-다음-날-통장-털리기-전-확인해야-할-4가지/slide_02.jpg",
-    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-091029-연휴-다음-날-통장-털리기-전-확인해야-할-4가지/slide_03.jpg",
-    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-091029-연휴-다음-날-통장-털리기-전-확인해야-할-4가지/slide_04.jpg",
-    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-091029-연휴-다음-날-통장-털리기-전-확인해야-할-4가지/slide_05.jpg",
-    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-091029-연휴-다음-날-통장-털리기-전-확인해야-할-4가지/slide_06.jpg",
-    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-091029-연휴-다음-날-통장-털리기-전-확인해야-할-4가지/slide_07.jpg"
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-091029-8d9ea6bb/slide_01.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-091029-8d9ea6bb/slide_02.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-091029-8d9ea6bb/slide_03.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-091029-8d9ea6bb/slide_04.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-091029-8d9ea6bb/slide_05.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-091029-8d9ea6bb/slide_06.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-091029-8d9ea6bb/slide_07.jpg"
   ],
-  "errors": {
-    "instagram": "400 {'message': 'Only photo or video can be accepted as media type.', 'type': 'OAuthException', 'code': 9004, 'error_subcode': 2207052, 'is_transient': False, 'error_user_title': \"Media download has failed. The media URI doesn't meet our requirements.\", 'error_user_msg': 'The media could not be fetched from this URI: https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-091029-연휴-다음-날-통장-털리기-전-확인해야-할-4가지/slide_01.jpg.Please check the limitations section in our development document for more information: https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media#creating', 'fbtrace_id': 'A4hbqWvXQbswwF4Gw2RnJz4'}",
-    "threads": "400 {'message': 'An unknown error occurred', 'type': 'OAuthException', 'code': 1, 'error_subcode': 2207052, 'is_transient': False, 'error_user_title': \"Media download has failed. The media URI doesn't meet our requirements.\", 'error_user_msg': 'The media could not be fetched from this URI: https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-091029-연휴-다음-날-통장-털리기-전-확인해야-할-4가지/slide_01.jpg.Please check the limitations section in our development document for more information: https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media#creating', 'fbtrace_id': 'AQk3kpH1rXLRbf-jtFtyU74'}"
+  "errors": {},
+  "posts": {
+    "instagram": {
+      "media_id": "18134635252710661",
+      "permalink": "https://www.instagram.com/p/DdyRaiVIBgI/"
+    },
+    "threads": {
+      "media_id": "17874327063581963",
+      "permalink": "https://www.threads.com/@economypub/post/DdyRfiQoOhD"
+    }
   }
 }
