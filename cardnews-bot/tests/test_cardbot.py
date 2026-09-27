@@ -449,7 +449,15 @@ def test_gemini_write_blog_passes_slide_list():
 # ---------- 릴스 ----------
 from cardbot.hosting import GitHubHost as _GH
 from cardbot.publishers import ReelsPublisher
-from cardbot.reel import render_reel
+from cardbot.reel import render_reel, slide_seconds
+
+
+def test_slide_seconds_reading_time():
+    assert slide_seconds(Slide(kind="cover", heading="짧은 제목", body="", highlight="")) == 2.5
+    assert slide_seconds(Slide(kind="cta", heading="저장", body="가" * 80, highlight="")) == 2.0
+    assert slide_seconds(Slide(kind="content", heading="짧음", body="", highlight="")) == 2.5
+    assert slide_seconds(Slide(kind="content", heading="가" * 15, body="나" * 65, highlight="다" * 8)) == 3.51
+    assert slide_seconds(Slide(kind="summary", heading="가" * 200, body="", highlight="")) == 4.0
 
 
 def test_render_reel_produces_vertical_mp4_with_audio(tmp_path):
@@ -463,7 +471,11 @@ def test_render_reel_produces_vertical_mp4_with_audio(tmp_path):
     assert Image.open(cover).size == (1080, 1920)
     info = subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-i", str(video)], capture_output=True, text=True).stderr
     assert "1080x1920" in info and "Audio: aac" in info and "h264" in info
-    assert "Duration: 00:00:09" in info  # 6장 × 1.5초 = 9초
+    # 표지 2.5 + 본문 3장 + 요약 + 저장 유도 2.0
+    import re
+    expected = sum(slide_seconds(sl) for sl in card.slides)
+    m = re.search(r"Duration: 00:00:(\d+\.\d+)", info)
+    assert 12 < expected < 22 and abs(float(m.group(1)) - expected) < 0.5  # 프레임 반올림 오차 허용
 
 
 def test_github_candidates_prefer_jsdelivr_for_video(monkeypatch, tmp_path):

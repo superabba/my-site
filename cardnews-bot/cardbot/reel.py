@@ -1,7 +1,7 @@
 """카드뉴스 슬라이드로 인스타그램 릴스용 세로 영상(1080x1920, MP4) 만들기.
 
 - 가운데에 카드뉴스 슬라이드, 위에 제목, 아래에 진행 바와 저장 유도 문구
-- 한 장당 1.5초(설정 가능)씩 빠르게 넘기고, 장면 사이는 짧게 겹쳐 전환
+- 글자 수에 맞춰 한 장 2.5~4초(전체 약 20~25초) 보여주고, 장면 사이는 짧게 겹쳐 전환
 - 오디오: REELS_AUDIO에 저작권 문제없는 음원 파일을 지정하면 배경음으로 쓰고,
   없으면 무음 트랙을 넣는다 (API로는 인스타그램 음악 라이브러리를 쓸 수 없음)
 - ffmpeg는 imageio-ffmpeg 패키지에 들어 있는 실행 파일을 쓴다 (별도 설치 불필요)
@@ -25,8 +25,21 @@ SLIDE_W = 900  # 오른쪽 릴스 버튼·아래쪽 캡션 영역을 피하도�
 SLIDE_H = SLIDE_W * 1350 // 1080
 SLIDE_Y = 300
 BAR_Y = SLIDE_Y + SLIDE_H + 50
-SECONDS_PER_SLIDE = 1.5  # 한 장당 노출 시간 (REELS_SECONDS_PER_SLIDE로 변경)
-FADE_S = 0.2  # 장면 전환(겹침) 시간
+FADE_S = 0.25  # 장면 전환(겹침) 시간
+
+
+def slide_seconds(slide) -> float:
+    """읽기 적당한 노출 시간.
+
+    제목·강조 문구는 확실히 읽고 본문은 훑어볼 수 있을 만큼(1초 + 글자 수/35),
+    한 장 2.5~4초. 표지는 2.5초, 마지막 저장 유도 장은 2초.
+    """
+    if slide.kind == "cover":
+        return 2.5
+    if slide.kind == "cta":
+        return 2.0
+    chars = len((slide.heading + slide.body + slide.highlight).replace("\n", "").replace(" ", ""))
+    return round(max(2.5, min(4.0, 1.0 + chars / 35)), 2)
 
 
 def _gradient(theme) -> Image.Image:
@@ -89,7 +102,7 @@ def render_reel(
     handle: str,
     audio: Path | None = None,
     fps: int = 30,
-    seconds_per_slide: float = SECONDS_PER_SLIDE,
+    seconds_per_slide: float | None = None,
 ) -> tuple[Path, Path]:
     """릴스 영상과 커버 이미지를 만든다. (영상 경로, 커버 경로) 반환."""
     import imageio_ffmpeg
@@ -100,7 +113,8 @@ def render_reel(
     if card.slides and card.slides[0].kind == "cover":  # 영상에선 '넘겨보세요' 안내가 어색하므로 표지만 다시 그림
         images[0] = render_slide(card.slides[0], 1, len(card.slides), fonts, theme, handle, swipe_hint=False)
     scenes = [compose_frame(img, title, fonts, theme, handle) for img in images]
-    durations = [seconds_per_slide] * len(scenes)
+    # seconds_per_slide를 주면 모든 장을 같은 시간으로, 아니면 글자 수 기준
+    durations = [seconds_per_slide or slide_seconds(sl) for sl, _ in zip(card.slides, scenes)]
     total = sum(durations)
 
     cover = out_path.with_name("reel_cover.jpg")

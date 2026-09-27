@@ -60,7 +60,7 @@ jobs:
       GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
       WEB_SEARCH: ${{ vars.WEB_SEARCH }}
       BLOG_ENABLED: ${{ vars.BLOG_ENABLED }} # 기본 켜짐, 'false'면 블로그 글 생략
-      REELS_SECONDS_PER_SLIDE: ${{ vars.REELS_SECONDS_PER_SLIDE }} # 기본 1.5
+      REELS_SECONDS_PER_SLIDE: ${{ vars.REELS_SECONDS_PER_SLIDE }} # 기본 auto(글자 수 기준), 숫자면 고정
       REELS_AUDIO: ${{ vars.REELS_AUDIO }} # 예: assets/bgm.mp3 (저장소에 올린 음원, 비우면 무음)
       ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
       CARD_EFFORT: ${{ vars.CARD_EFFORT }}

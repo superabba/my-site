@@ -77,7 +77,7 @@ class Settings:
     platforms: list[str] = field(default_factory=lambda: ["instagram", "reels", "threads"])
     reels_audio: Path | None = None  # 저작권 문제없는 배경음 파일 (없으면 무음)
     reels_fps: int = 30
-    reels_seconds_per_slide: float = 1.5
+    reels_seconds_per_slide: float | None = None  # None이면 글자 수 기준 자동
     ig_user_id: str = ""
     ig_access_token: str = ""
     ig_graph_base: str = "https://graph.instagram.com/v23.0"
@@ -130,7 +130,8 @@ class Settings:
         plats = _env("PLATFORMS")
         if plats:
             s.platforms = [p.strip().lower() for p in plats.split(",") if p.strip()]
-        s.reels_seconds_per_slide = max(0.5, float(_env("REELS_SECONDS_PER_SLIDE", "1.5")))
+        fixed = _env("REELS_SECONDS_PER_SLIDE", "auto").lower()
+        s.reels_seconds_per_slide = None if fixed == "auto" else max(0.5, float(fixed))
         audio = _env("REELS_AUDIO")
         s.reels_audio = (ROOT / audio if not Path(audio).is_absolute() else Path(audio)) if audio else None
         s.ig_user_id = _env("IG_USER_ID")
