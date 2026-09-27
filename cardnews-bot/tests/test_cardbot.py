@@ -370,7 +370,7 @@ def test_publish_reuploads_non_ascii_urls(tmp_path, monkeypatch):
 
 
 # ---------- 블로그 ----------
-from cardbot.blog import BLOG_FILES, naver_text, tistory_html
+from cardbot.blog import BLOG_FILES, caption_hashtags, naver_text, tistory_html
 from cardbot.llm import normalize_blog
 
 
@@ -589,3 +589,20 @@ def test_reel_audio_modes(tmp_path):
     silent, _ = render_reel(card, slides, tmp_path / "silent.mp4", fonts, "midnight", "", audio="none", fps=4)
     assert _mean_volume(music) > -30 and _mean_volume(silent) < -80
     assert not list(tmp_path.glob("*.wav"))  # 합성 임시 음원은 지운다
+
+
+
+def test_caption_hashtags_and_blog_footer():
+    tags = caption_hashtags("연말정산 팁\n\n#연말정산 #절세 #직장인팁 #절세")
+    assert tags == ["#연말정산", "#절세", "#직장인팁"]
+    post = normalize_blog(sample_blog(), ["slide_01.jpg", "slide_02.jpg"])
+    assert naver_text(post, tags).rstrip().endswith("#연말정산 #절세 #직장인팁")
+    assert tistory_html(post, tags).rstrip().endswith("<p>#연말정산 #절세 #직장인팁</p>")
+    assert "#연말정산 #절세" not in naver_text(post)  # 해시태그가 없으면 붙이지 않음
+
+
+def test_saved_blog_uses_caption_hashtags(tmp_path, monkeypatch):
+    p = _pipeline(tmp_path, monkeypatch, FakeWriter())
+    folder = p.make(p.recommend()[0][0], [])
+    caption_tags = caption_hashtags((folder / "caption.txt").read_text())
+    assert caption_tags and (folder / "blog_naver.txt").read_text().rstrip().endswith(" ".join(caption_tags))
