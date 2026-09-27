@@ -1,0 +1,29 @@
+{
+  "image_urls": [
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-150919-88cb568f/slide_01.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-150919-88cb568f/slide_02.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-150919-88cb568f/slide_03.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-150919-88cb568f/slide_04.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-150919-88cb568f/slide_05.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-150919-88cb568f/slide_06.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-150919-88cb568f/slide_07.jpg"
+  ],
+  "video_urls": [
+    "https://cdn.jsdelivr.net/gh/superabba/my-site@c87e772f895e66c7a87eb68cc34e8cf0b564f39f/images/20260927-150919-88cb568f/reel.mp4",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-150919-88cb568f/reel.mp4"
+  ],
+  "reel_cover_url": "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20260927-150919-88cb568f/reel_cover.jpg",
+  "posts": {
+    "instagram": {
+      "media_id": "17905370727340312",
+      "permalink": "https://www.instagram.com/p/Ddy5o4UoPlQ/"
+    },
+    "reels": {
+      "media_id": "18144472324600238",
+      "permalink": "https://www.instagram.com/reel/Ddy5rLiDdVB/"
+    }
+  },
+  "errors": {
+    "threads": "400 {'message': 'The requested resource does not exist', 'type': 'OAuthException', 'code': 24, 'error_subcode': 4279009, 'is_transient': False, 'error_user_title': 'Media Not Found', 'error_user_msg': 'The media with id 18125194447698347 cannot be found.', 'fbtrace_id': 'ATKGtZIl0GtWqrO_hqpHEF0'}"
+  }
+}
