@@ -73,6 +73,7 @@ class Pipeline:
         video, _ = render_reel(
             card, slides, folder / "reel.mp4", self.s.fonts_dir, self.s.theme,
             self.s.brand_handle, self.s.reels_audio, fps=self.s.reels_fps,
+            seconds_per_slide=self.s.reels_seconds_per_slide,
         )
         (folder / "reel_error.txt").unlink(missing_ok=True)
         return video

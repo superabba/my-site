@@ -449,13 +449,7 @@ def test_gemini_write_blog_passes_slide_list():
 # ---------- 릴스 ----------
 from cardbot.hosting import GitHubHost as _GH
 from cardbot.publishers import ReelsPublisher
-from cardbot.reel import render_reel, slide_seconds
-
-
-def test_slide_seconds_range():
-    assert slide_seconds("짧음", "", "cover") == 3.0
-    assert slide_seconds("가" * 5, "", "content") == 3.0
-    assert slide_seconds("가" * 200, "", "content") == 6.0
+from cardbot.reel import render_reel
 
 
 def test_render_reel_produces_vertical_mp4_with_audio(tmp_path):
@@ -469,6 +463,7 @@ def test_render_reel_produces_vertical_mp4_with_audio(tmp_path):
     assert Image.open(cover).size == (1080, 1920)
     info = subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-i", str(video)], capture_output=True, text=True).stderr
     assert "1080x1920" in info and "Audio: aac" in info and "h264" in info
+    assert "Duration: 00:00:09" in info  # 6장 × 1.5초 = 9초
 
 
 def test_github_candidates_prefer_jsdelivr_for_video(monkeypatch, tmp_path):
