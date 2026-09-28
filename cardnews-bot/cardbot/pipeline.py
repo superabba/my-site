@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import trends
-from .blog import caption_hashtags, has_blog, save_blog
+from .blog import caption_hashtags, has_blog, refresh_blog, save_blog
 from .hosting import make_host
 from .llm import BaseWriter, CardNews, TopicIdea, instagram_caption, make_writer
 from .publishers import make_publishers
@@ -171,6 +171,11 @@ class Pipeline:
         # 블로그 기능 이전에 만든 초안이면 게시와 함께 블로그 글도 만든다
         if self.s.blog_enabled and not has_blog(folder):
             self.try_make_blog(folder)
+        elif has_blog(folder):  # 올린 사진 URL을 넣어 블로그 파일을 다시 만든다
+            try:
+                refresh_blog(folder)
+            except Exception as e:
+                log.warning("블로그 글 사진 넣기 실패: %s", e)
         return meta
 
     # ----- 하루 1번 보장 -----

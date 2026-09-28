@@ -14,6 +14,7 @@ import os
 import shutil
 import sys
 from pathlib import Path
+from urllib.parse import quote
 
 
 LABELS = {"instagram": "인스타그램 카드뉴스", "reels": "인스타그램 릴스", "threads": "스레드", "youtube": "유튜브 쇼츠"}
@@ -61,8 +62,12 @@ def main() -> None:
         blog = _json(d / "blog.json")
         if blog:
             md.append(f"\n**📝 블로그 글 초안** — {blog.get('titles', [''])[0]}")
+            naver = ""
+            if (d / "blog_naver.html").exists():  # 브라우저에서 사진까지 보이게 열어 전체 복사
+                raw = f"https://raw.githubusercontent.com/{repo}/{branch}/output/{quote(d.name)}/blog_naver.html"
+                naver = f"[네이버용 (사진 포함, 열어서 전체 복사)](https://htmlpreview.github.io/?{raw}) · "
             md.append(
-                f"[네이버용 텍스트]({tree}/blog_naver.txt) · [티스토리용 HTML]({tree}/blog_tistory.html)"
+                f"{naver}[네이버용 텍스트]({tree}/blog_naver.txt) · [티스토리용 HTML]({tree}/blog_tistory.html)"
                 f" · [게시 가이드(제목·태그)]({tree}/blog_guide.md) · 핵심 키워드: `{blog.get('main_keyword', '')}`"
             )
         elif (d / "blog_error.txt").exists():
