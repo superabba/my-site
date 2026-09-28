@@ -25,9 +25,11 @@
     "threads": {
       "media_id": "17882247786624233",
       "permalink": "https://www.threads.com/@economypub/post/Dd0FhzxloKU"
+    },
+    "youtube": {
+      "media_id": "EowQoXtDDeU",
+      "permalink": "https://youtube.com/shorts/EowQoXtDDeU"
     }
   },
-  "errors": {
-    "youtube": "유튜브 토큰 갱신 실패 401: {\n  \"error\": \"invalid_client\",\n  \"error_description\": \"The OAuth client was not found.\"\n}"
-  }
+  "errors": {}
 }
