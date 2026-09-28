@@ -57,6 +57,16 @@ class Store:
         )
         self.db.commit()
 
+    def purge_stale_metrics(self, platform: str, days: int = 30) -> int:
+        """오래된 지표를 지운다 (YouTube API 정책: API 데이터는 30일 넘게 보관하지 않음)."""
+        cutoff = (datetime.now() - timedelta(days=days)).isoformat(timespec="seconds")
+        cur = self.db.execute(
+            "UPDATE posts SET metrics='{}', metrics_at=NULL WHERE platform=? AND metrics_at IS NOT NULL AND metrics_at < ?",
+            (platform, cutoff),
+        )
+        self.db.commit()
+        return cur.rowcount
+
     def top_posts(self, limit: int = 10) -> list[dict]:
         out = []
         for r in self.db.execute("SELECT * FROM posts WHERE metrics != '{}'"):

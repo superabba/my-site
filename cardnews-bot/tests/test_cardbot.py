@@ -759,3 +759,13 @@ def test_pipeline_passes_local_video_and_title_to_youtube(tmp_path, monkeypatch)
     assert assets["video_path"].endswith("reel.mp4") and assets["title"] == "연말정산 꿀팁"
     assert assets["hashtags"] and all(h.startswith("#") for h in assets["hashtags"])
     assert not any("reel.mp4" in u for u in Host.uploads)  # 유튜브만이면 영상 공개 호스팅은 안 함
+
+
+def test_purge_stale_youtube_metrics(tmp_path):
+    st = Store(tmp_path / "db.sqlite")
+    st.add("a", "k", "youtube", "v1", "", "f")
+    st.add("b", "k", "instagram", "m1", "", "f")
+    st.db.execute("UPDATE posts SET metrics='{\"views\": 5}', metrics_at='2000-01-01T00:00:00'")
+    assert st.purge_stale_metrics("youtube", days=30) == 1
+    rows = {r["platform"]: r["metrics"] for r in st.db.execute("SELECT * FROM posts")}
+    assert rows == {"youtube": "{}", "instagram": '{"views": 5}'}
