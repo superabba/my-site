@@ -606,3 +606,54 @@ def test_saved_blog_uses_caption_hashtags(tmp_path, monkeypatch):
     folder = p.make(p.recommend()[0][0], [])
     caption_tags = caption_hashtags((folder / "caption.txt").read_text())
     assert caption_tags and (folder / "blog_naver.txt").read_text().rstrip().endswith(" ".join(caption_tags))
+
+
+# ---------- Threads 전파 지연 (Media Not Found) ----------
+NOT_FOUND = {"error": {"message": "The requested resource does not exist", "type": "OAuthException",
+                       "code": 24, "error_subcode": 4279009, "error_user_title": "Media Not Found"}}
+
+
+def test_threads_tolerates_transient_media_not_found(monkeypatch):
+    calls = {"status": 0, "publish": 0}
+
+    def post(url, data, timeout):
+        if url.endswith("/threads_publish"):
+            calls["publish"] += 1
+            if calls["publish"] == 1:  # 게시 호출도 처음엔 '없음'
+                return FakeResp(NOT_FOUND, 400)
+            return FakeResp({"id": "POST1"})
+        return FakeResp({"id": f"C{calls['status']}"})
+
+    def get(url, params, timeout):
+        if params.get("fields") == "permalink":
+            return FakeResp({"permalink": "https://threads.com/p/1"})
+        calls["status"] += 1
+        if calls["status"] == 1:  # 방금 만든 컨테이너 조회 → 아직 없음
+            return FakeResp(NOT_FOUND, 400)
+        return FakeResp({"status": "FINISHED"})
+
+    monkeypatch.setattr("cardbot.publishers.requests.post", post)
+    monkeypatch.setattr("cardbot.publishers.requests.get", get)
+    slept = []
+    pub = ThreadsPublisher("9", "TOK", "https://graph.threads.net/v1.0", sleep=slept.append)
+    res = pub.publish({"image_urls": ["a", "b"]}, "text")
+    assert res.media_id == "POST1" and calls["publish"] == 2 and slept
+
+
+def test_media_not_found_beyond_grace_period_still_fails(monkeypatch):
+    monkeypatch.setattr("cardbot.publishers.requests.post", lambda url, data, timeout: FakeResp({"id": "C1"}))
+    monkeypatch.setattr("cardbot.publishers.requests.get", lambda url, params, timeout: FakeResp(NOT_FOUND, 400))
+    pub = ThreadsPublisher("9", "TOK", "https://graph.threads.net/v1.0", sleep=lambda s: None)
+    with pytest.raises(Exception, match="does not exist"):
+        pub.publish({"image_urls": ["a", "b"]}, "text")
+
+
+def test_other_errors_are_not_retried(monkeypatch):
+    bad = {"error": {"message": "Invalid parameter", "code": 100}}
+    monkeypatch.setattr("cardbot.publishers.requests.post", lambda url, data, timeout: FakeResp({"id": "C1"}))
+    monkeypatch.setattr("cardbot.publishers.requests.get", lambda url, params, timeout: FakeResp(bad, 400))
+    slept = []
+    pub = ThreadsPublisher("9", "TOK", "https://graph.threads.net/v1.0", sleep=slept.append)
+    with pytest.raises(Exception, match="Invalid parameter"):
+        pub.publish({"image_urls": ["a", "b"]}, "text")
+    assert not slept

@@ -34,6 +34,16 @@ class PublishResult:
     permalink: str = ""
 
 
+NOT_FOUND_GRACE_S = 90  # 새 컨테이너가 조회되지 않아도 기다려 줄 시간
+PUBLISH_RETRIES = 4
+
+
+def is_not_found(err: Exception) -> bool:
+    """Meta API의 '아직 없음' 응답 (code 24 / subcode 4279009 / does not exist)."""
+    text = str(err)
+    return "4279009" in text or "does not exist" in text or "'code': 24" in text
+
+
 class GraphClient:
     def __init__(self, base: str, token: str, sleep=time.sleep):
         self.base, self.token, self.sleep = base.rstrip("/"), token, sleep
@@ -47,6 +57,20 @@ class GraphClient:
             raise PublishError(f"{r.status_code} {data.get('error', data)}")
         return data
 
+    def publish_container(self, path: str, creation_id: str) -> dict:
+        """게시 호출. 컨테이너가 아직 전파되지 않아 '없음'이 오면 몇 번 더 시도한다."""
+        delay = 5
+        for attempt in range(PUBLISH_RETRIES):
+            try:
+                return self.post(path, creation_id=creation_id)
+            except PublishError as e:
+                if not is_not_found(e) or attempt == PUBLISH_RETRIES - 1:
+                    raise
+                log.info("게시할 컨테이너가 아직 조회 안 됨, %d초 후 재시도", delay)
+                self.sleep(delay)
+                delay *= 2
+        raise AssertionError("unreachable")
+
     def post(self, path: str, **params) -> dict:
         params["access_token"] = self.token
         return self._check(requests.post(f"{self.base}/{path.lstrip('/')}", data=params, timeout=60))
@@ -56,11 +80,21 @@ class GraphClient:
         return self._check(requests.get(f"{self.base}/{path.lstrip('/')}", params=params, timeout=60))
 
     def wait_ready(self, container_id: str, field: str, timeout_s: int = 300) -> None:
-        """컨테이너가 FINISHED가 될 때까지 대기 (서버가 이미지를 가져가는 시간)."""
-        deadline = time.monotonic() + timeout_s
+        """컨테이너가 FINISHED가 될 때까지 대기 (서버가 이미지를 가져가는 시간).
+
+        방금 만든 컨테이너를 바로 조회하면 Threads가 잠시 'Media Not Found'를 돌려줄 때가 있어
+        (전파 지연), 처음 NOT_FOUND_GRACE_S초 동안은 없다는 응답도 기다렸다가 다시 묻는다.
+        """
+        waited = 0.0  # 이 컨테이너를 기다린 시간 (호출마다 따로 셈)
         delay = 3
         while True:
-            status = self.get(container_id, fields=field).get(field, "")
+            try:
+                status = self.get(container_id, fields=field).get(field, "")
+            except PublishError as e:
+                if not is_not_found(e) or waited > NOT_FOUND_GRACE_S:
+                    raise
+                log.info("컨테이너 %s 아직 조회 안 됨, 잠시 후 재시도", container_id)
+                status = "NOT_FOUND_YET"
             if status == "FINISHED":
                 return
             if status in {"ERROR", "EXPIRED"}:
@@ -70,9 +104,10 @@ class GraphClient:
                 except PublishError:
                     pass
                 raise PublishError(f"컨테이너 {container_id} 상태 {status} {detail}".strip())
-            if time.monotonic() > deadline:
+            if waited > timeout_s:
                 raise PublishError(f"컨테이너 {container_id} 준비 시간 초과 (상태 {status})")
             self.sleep(delay)
+            waited += delay
             delay = min(delay * 2, 20)
 
 
@@ -107,7 +142,7 @@ class InstagramPublisher:
             caption=caption,
         )
         self.api.wait_ready(carousel["id"], "status_code")
-        media = self.api.post(f"{self.user_id}/media_publish", creation_id=carousel["id"])
+        media = self.api.publish_container(f"{self.user_id}/media_publish", carousel["id"])
         link = ""
         try:
             link = self.api.get(media["id"], fields="permalink").get("permalink", "")
@@ -149,7 +184,7 @@ class ReelsPublisher:
                 log.warning("릴스 영상 URL 실패, 다음 후보 시도: %s (%s)", url, e)
                 errors.append(f"{url}: {e}")
                 continue
-            media = self.api.post(f"{self.user_id}/media_publish", creation_id=container["id"])
+            media = self.api.publish_container(f"{self.user_id}/media_publish", container["id"])
             link = ""
             try:
                 link = self.api.get(media["id"], fields="permalink").get("permalink", "")
@@ -196,7 +231,7 @@ class ThreadsPublisher:
             text=text[:500],
         )
         self.api.wait_ready(carousel["id"], "status")
-        media = self.api.post(f"{self.user_id}/threads_publish", creation_id=carousel["id"])
+        media = self.api.publish_container(f"{self.user_id}/threads_publish", carousel["id"])
         link = ""
         try:
             link = self.api.get(media["id"], fields="permalink").get("permalink", "")
