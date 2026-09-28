@@ -769,3 +769,23 @@ def test_purge_stale_youtube_metrics(tmp_path):
     assert st.purge_stale_metrics("youtube", days=30) == 1
     rows = {r["platform"]: r["metrics"] for r in st.db.execute("SELECT * FROM posts")}
     assert rows == {"youtube": "{}", "instagram": '{"views": 5}'}
+
+
+def test_done_today_uses_kst_day(tmp_path, monkeypatch):
+    from datetime import datetime, timedelta, timezone
+    s = Settings.load()
+    s.output_dir = tmp_path / "out"
+    s.output_dir.mkdir()
+    p = Pipeline.__new__(Pipeline)
+    p.s = s
+    p.store = Store(tmp_path / "db.sqlite")
+    utc = timezone.utc
+    now = datetime(2026, 9, 29, 7, 5, tzinfo=utc)  # KST 9/29 16:05 → KST 자정 = UTC 9/28 15:00
+    assert not p.done_today(True, now) and not p.done_today(False, now)
+    p.store.add("t", "k", "instagram", "m1", "", "f")
+    p.store.db.execute("UPDATE posts SET created_at='2026-09-28T14:59:00'")  # KST 9/28 23:59 (어제)
+    assert not p.done_today(True, now)
+    p.store.db.execute("UPDATE posts SET created_at='2026-09-28T15:30:00'")  # KST 9/29 00:30 (오늘)
+    assert p.done_today(True, now)
+    (s.output_dir / "20260928-150100-topic").mkdir()
+    assert p.done_today(False, now)

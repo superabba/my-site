@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import trends
@@ -172,6 +172,23 @@ class Pipeline:
         if self.s.blog_enabled and not has_blog(folder):
             self.try_make_blog(folder)
         return meta
+
+    # ----- 하루 1번 보장 -----
+    def done_today(self, publish: bool, now: datetime | None = None) -> bool:
+        """오늘(한국 시간) 이미 게시(또는 초안 생성)했는지. 예약을 여러 번 걸어도 하루 1번만 돌게 한다."""
+        now = now or datetime.now().astimezone()
+        kst = timezone(timedelta(hours=9))
+        start = now.astimezone(kst).replace(hour=0, minute=0, second=0, microsecond=0)
+        start = start.astimezone(now.tzinfo).replace(tzinfo=None)  # DB·폴더 이름은 실행 환경 현지 시각
+        if publish:
+            return self.store.posted_since(start)
+        for d in self.s.output_dir.glob("*-*"):
+            try:
+                if datetime.strptime(d.name[:15], "%Y%m%d-%H%M%S") >= start:
+                    return True
+            except ValueError:
+                continue
+        return False
 
     # ----- 성과 수집 -----
     def refresh_insights(self, publishers=None) -> int:

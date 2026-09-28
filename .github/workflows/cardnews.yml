@@ -5,7 +5,12 @@ name: 카드뉴스 자동 발행
 on:
   schedule:
     # 하루 1번. 시간은 UTC 기준 (KST = UTC+9). 정각은 몰려서 지연되기 쉬워 5분에 실행
-    - cron: "5 7 * * *" # KST 16:05
+    # GitHub 예약은 가끔 건너뛰므로 1시간 간격으로 예비 시각을 둔다.
+    # 오늘(KST) 이미 게시했으면 건너뛰므로(--daily) 중복 게시되지 않는다.
+    - cron: "5 6 * * *" # KST 15:05
+    - cron: "5 7 * * *" # KST 16:05 (예비)
+    - cron: "5 8 * * *" # KST 17:05 (예비)
+    - cron: "5 9 * * *" # KST 18:05 (예비)
   workflow_dispatch:
     inputs:
       action:
@@ -135,7 +140,7 @@ jobs:
           FOLDER: ${{ inputs.folder }}
         run: |
           case "$ACTION" in
-            auto)          python -m cardbot auto --once ;; # AUTO_PUBLISH 변수에 따라 게시 여부 결정
+            auto)          python -m cardbot auto --once --daily ;; # AUTO_PUBLISH 변수에 따라 게시 여부 결정, 오늘 이미 했으면 건너뜀
             draft)
               if [ -n "$TOPIC" ]; then python -m cardbot make --topic "$TOPIC"
               else python -m cardbot make; fi ;;
