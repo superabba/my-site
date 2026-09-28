@@ -790,3 +790,21 @@ def test_done_today_uses_kst_day(tmp_path, monkeypatch):
     assert p.done_today(True, now)
     (s.output_dir / "20260928-150100-topic").mkdir()
     assert p.done_today(False, now)
+
+
+def test_blog_embeds_published_images(tmp_path):
+    from cardbot.blog import refresh_blog
+    from cardbot.llm import BlogPost
+    post = BlogPost.model_validate({
+        "titles": ["제목"], "main_keyword": "k", "sub_keywords": [], "meta_description": "d", "tags": ["t"],
+        "intro": "서론", "sections": [{"heading": "섹션1", "body": "본문", "image": "slide_02.jpg", "experience_hint": ""},
+                                      {"heading": "섹션2", "body": "본문", "image": "slide_09.jpg", "experience_hint": ""}],
+        "faq": [], "conclusion": "끝", "sources": []})
+    (tmp_path / "blog.json").write_text(post.model_dump_json(), encoding="utf-8")
+    url = "https://raw.githubusercontent.com/o/r/b/images/x/slide_02.jpg"
+    (tmp_path / "published.json").write_text(json.dumps({"image_urls": [url]}), encoding="utf-8")
+    refresh_blog(tmp_path)
+    t = (tmp_path / "blog_tistory.html").read_text(encoding="utf-8")
+    assert f'<img src="{url}"' in t and "slide_09.jpg · 게시 전" in t  # URL 없는 사진은 표시 유지
+    n = (tmp_path / "blog_naver.html").read_text(encoding="utf-8")
+    assert n.startswith("<!DOCTYPE html>") and '<meta charset="utf-8">' in n and f'<img src="{url}"' in n
