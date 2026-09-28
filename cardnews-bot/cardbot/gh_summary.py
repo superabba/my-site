@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 
-LABELS = {"instagram": "인스타그램 카드뉴스", "reels": "인스타그램 릴스", "threads": "스레드"}
+LABELS = {"instagram": "인스타그램 카드뉴스", "reels": "인스타그램 릴스", "threads": "스레드", "youtube": "유튜브 쇼츠"}
 
 
 def main() -> None:

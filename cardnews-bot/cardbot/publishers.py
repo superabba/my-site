@@ -269,6 +269,13 @@ def make_publishers(s, sleep=time.sleep) -> list:
             pubs.append(ReelsPublisher(s.ig_user_id, s.ig_access_token, s.ig_graph_base, sleep))
         elif p == "threads":
             pubs.append(ThreadsPublisher(s.threads_user_id, s.threads_access_token, s.threads_graph_base, sleep))
+        elif p == "youtube":
+            from .youtube import YouTubePublisher
+
+            pubs.append(YouTubePublisher(
+                s.youtube_client_id, s.youtube_client_secret, s.youtube_refresh_token, s.youtube_channel_id,
+                s.youtube_privacy, s.youtube_category, s.youtube_synthetic,
+            ))
         else:
             raise ValueError(f"알 수 없는 플랫폼: {p}")
     return pubs

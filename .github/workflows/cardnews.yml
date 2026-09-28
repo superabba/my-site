@@ -47,6 +47,9 @@ jobs:
       IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
       THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
       THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+      YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }} # 유튜브 쇼츠 (셋 다 있으면 자동으로 켜짐)
+      YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
       YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -59,6 +62,9 @@ jobs:
       WEB_SEARCH: ${{ vars.WEB_SEARCH }}
       BLOG_ENABLED: ${{ vars.BLOG_ENABLED }} # 기본 켜짐, 'false'면 블로그 글 생략
       REELS_SECONDS_PER_SLIDE: ${{ vars.REELS_SECONDS_PER_SLIDE }} # 기본 auto(글자 수 기준), 숫자면 고정
+      YOUTUBE_CHANNEL_ID: ${{ vars.YOUTUBE_CHANNEL_ID }} # 이 채널이 아니면 업로드하지 않음
+      YOUTUBE_PRIVACY: ${{ vars.YOUTUBE_PRIVACY }} # 기본 private, API 검수 통과 후 public
+      YOUTUBE_CATEGORY: ${{ vars.YOUTUBE_CATEGORY }} # 기본 27(교육)
       REELS_AUDIO: ${{ vars.REELS_AUDIO }} # 기본 auto(배경음악 합성), none=무음, 또는 음원 경로 (예: assets/music)
       ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
       CARD_EFFORT: ${{ vars.CARD_EFFORT }}
