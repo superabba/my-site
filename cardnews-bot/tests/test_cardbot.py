@@ -657,3 +657,105 @@ def test_other_errors_are_not_retried(monkeypatch):
     with pytest.raises(Exception, match="Invalid parameter"):
         pub.publish({"image_urls": ["a", "b"]}, "text")
     assert not slept
+
+
+# ---------- 유튜브 쇼츠 ----------
+from cardbot.youtube import YouTubePublisher, build_metadata
+
+
+class YTResp(FakeResp):
+    def __init__(self, data, status=200, headers=None):
+        super().__init__(data, status)
+        self.headers = headers or {}
+        self.content = b"x"
+
+
+def _yt_mock(monkeypatch, channel_id="UC_RIGHT", upload_status="private"):
+    calls = []
+
+    def post(url, **kw):
+        calls.append(("POST", url, kw))
+        if "oauth2" in url:
+            return YTResp({"access_token": "AT"})
+        return YTResp({}, 200, {"Location": "https://upload.session/1"})
+
+    def get(url, **kw):
+        calls.append(("GET", url, kw))
+        if url.endswith("/channels"):
+            return YTResp({"items": [{"id": channel_id, "snippet": {"title": "짠테크 채널"}}]})
+        return YTResp({"items": [{"statistics": {"viewCount": "1200", "likeCount": "30", "commentCount": "4"}}]})
+
+    def put(url, **kw):
+        calls.append(("PUT", url, kw))
+        return YTResp({"id": "VID123", "status": {"privacyStatus": upload_status}})
+
+    monkeypatch.setattr("cardbot.youtube.requests.post", post)
+    monkeypatch.setattr("cardbot.youtube.requests.get", get)
+    monkeypatch.setattr("cardbot.youtube.requests.put", put)
+    return calls
+
+
+def test_build_metadata_limits_and_cleanup():
+    meta = build_metadata("가" * 150 + " <특가>", "캡션 <b>본문</b>\n#절약", ["#절약", "#짠테크", "#절약"],
+                          "27", "private", False)
+    sn = meta["snippet"]
+    assert len(sn["title"]) == 100 and "<" not in sn["description"] and sn["description"].endswith("#Shorts")
+    assert sn["tags"] == ["절약", "짠테크"] and meta["status"]["selfDeclaredMadeForKids"] is False
+
+
+def test_youtube_upload_flow(monkeypatch, tmp_path):
+    video = tmp_path / "reel.mp4"
+    video.write_bytes(b"mp4")
+    calls = _yt_mock(monkeypatch)
+    pub = YouTubePublisher("cid", "sec", "rt", channel_id="UC_RIGHT", privacy="public")
+    res = pub.publish({"video_path": str(video), "title": "연휴 카드값 체크", "hashtags": ["#절약"]}, "캡션 #절약")
+    assert res.media_id == "VID123" and res.permalink == "https://youtube.com/shorts/VID123"
+    start = next(c for c in calls if c[0] == "POST" and "upload" in c[1])
+    assert start[2]["params"]["uploadType"] == "resumable"
+    assert start[2]["json"]["snippet"]["title"] == "연휴 카드값 체크"
+    assert start[2]["json"]["status"]["privacyStatus"] == "public"
+    assert any(c[0] == "PUT" and c[1] == "https://upload.session/1" for c in calls)
+    assert pub.insights("VID123") == {"views": 1200, "likes": 30, "comments": 4}
+
+
+def test_youtube_refuses_wrong_channel(monkeypatch, tmp_path):
+    video = tmp_path / "reel.mp4"
+    video.write_bytes(b"mp4")
+    calls = _yt_mock(monkeypatch, channel_id="UC_OTHER")
+    pub = YouTubePublisher("cid", "sec", "rt", channel_id="UC_RIGHT")
+    with pytest.raises(Exception, match="올리지 않았습니다"):
+        pub.publish({"video_path": str(video)}, "캡션")
+    assert not any(c[0] == "PUT" for c in calls)
+
+
+def test_youtube_auto_enabled_when_token_present(monkeypatch):
+    for k in ("PLATFORMS",):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("YOUTUBE_REFRESH_TOKEN", "rt")
+    assert "youtube" in Settings.load().platforms
+    monkeypatch.setenv("PLATFORMS", "instagram,threads")
+    assert "youtube" not in Settings.load().platforms
+
+
+def test_pipeline_passes_local_video_and_title_to_youtube(tmp_path, monkeypatch):
+    p = _pipeline(tmp_path, monkeypatch, FakeWriter())
+    p.s.platforms = ["instagram", "youtube"]
+    p.s.reels_fps = 4
+    folder = p.make(p.recommend()[0][0], [])
+    assert (folder / "reel.mp4").exists()  # 유튜브만 켜져 있어도 영상은 만든다
+
+    yt = FakePub("youtube")
+    yt.needs_video_file = True
+
+    class Host(FakeHost):
+        uploads = []
+
+        def upload(self, files, name):
+            Host.uploads.append([f.name for f in files])
+            return super().upload(files, name)
+
+    p.publish(folder, publishers=[yt], host=Host())
+    assets, text = yt.last
+    assert assets["video_path"].endswith("reel.mp4") and assets["title"] == "연말정산 꿀팁"
+    assert assets["hashtags"] and all(h.startswith("#") for h in assets["hashtags"])
+    assert not any("reel.mp4" in u for u in Host.uploads)  # 유튜브만이면 영상 공개 호스팅은 안 함

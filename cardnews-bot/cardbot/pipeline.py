@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 from . import trends
-from .blog import has_blog, save_blog
+from .blog import caption_hashtags, has_blog, save_blog
 from .hosting import make_host
 from .llm import BaseWriter, CardNews, TopicIdea, instagram_caption, make_writer
 from .publishers import make_publishers
@@ -131,16 +131,23 @@ class Pipeline:
 
         pubs = publishers if publishers is not None else make_publishers(self.s)
         pending = [p for p in pubs if p.name not in meta.get("posts", {})]
-        # 릴스: 영상이 없으면(이전 초안) 만들고, 아직 안 올렸으면 업로드
-        if any(getattr(p, "needs_video", False) for p in pending) and not meta.get("video_urls"):
-            reel = folder / "reel.mp4"
-            if reel.exists() or self.try_make_reel(folder):
-                host = host or make_host(self.s)
-                video_url, cover_url = host.upload([reel, folder / "reel_cover.jpg"], folder.name)
-                meta["video_urls"] = host.candidates(video_url)
-                meta["reel_cover_url"] = cover_url
-                meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2))
+        # 릴스·쇼츠: 영상이 없으면(이전 초안) 만든다
+        reel = folder / "reel.mp4"
+        wants_video = [p for p in pending if getattr(p, "needs_video", False) or getattr(p, "needs_video_file", False)]
+        if wants_video and not reel.exists():
+            self.try_make_reel(folder)
+        # 인스타 릴스는 공개 URL이 필요하므로 아직 안 올렸으면 업로드
+        if any(getattr(p, "needs_video", False) for p in pending) and not meta.get("video_urls") and reel.exists():
+            host = host or make_host(self.s)
+            video_url, cover_url = host.upload([reel, folder / "reel_cover.jpg"], folder.name)
+            meta["video_urls"] = host.candidates(video_url)
+            meta["reel_cover_url"] = cover_url
+            meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2))
         assets = {k: meta.get(k) for k in ("image_urls", "video_urls", "reel_cover_url")}
+        # 유튜브는 로컬 파일을 직접 올리고, 제목·태그가 따로 필요하다
+        assets["video_path"] = str(reel) if reel.exists() else None
+        assets["title"] = topic.title
+        assets["hashtags"] = caption_hashtags(caption)
 
         for pub in pubs:
             if pub.name in meta.get("posts", {}):

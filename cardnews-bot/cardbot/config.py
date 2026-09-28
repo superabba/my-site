@@ -84,6 +84,13 @@ class Settings:
     threads_user_id: str = ""
     threads_access_token: str = ""
     threads_graph_base: str = "https://graph.threads.net/v1.0"
+    youtube_client_id: str = ""
+    youtube_client_secret: str = ""
+    youtube_refresh_token: str = ""
+    youtube_channel_id: str = ""  # 지정하면 이 채널이 아닐 때 업로드하지 않음
+    youtube_privacy: str = "private"  # public | unlisted | private (API 검수 전에는 private로 잠김)
+    youtube_category: str = "27"  # 27=교육, 22=인물/블로그
+    youtube_synthetic: bool = False  # 실제처럼 보이는 AI 생성 영상이면 true
 
     # 자동화
     auto_publish: bool = False
@@ -97,7 +104,8 @@ class Settings:
 
     @property
     def reels_enabled(self) -> bool:
-        return "reels" in self.platforms
+        # 세로 영상은 인스타 릴스와 유튜브 쇼츠가 함께 쓴다
+        return "reels" in self.platforms or "youtube" in self.platforms
 
     @classmethod
     def load(cls) -> "Settings":
@@ -139,6 +147,16 @@ class Settings:
         s.threads_user_id = _env("THREADS_USER_ID")
         s.threads_access_token = _env("THREADS_ACCESS_TOKEN")
         s.threads_graph_base = _env("THREADS_GRAPH_BASE", s.threads_graph_base).rstrip("/")
+        s.youtube_client_id = _env("YOUTUBE_CLIENT_ID")
+        s.youtube_client_secret = _env("YOUTUBE_CLIENT_SECRET")
+        s.youtube_refresh_token = _env("YOUTUBE_REFRESH_TOKEN")
+        s.youtube_channel_id = _env("YOUTUBE_CHANNEL_ID")
+        s.youtube_privacy = _env("YOUTUBE_PRIVACY", s.youtube_privacy).lower()
+        s.youtube_category = _env("YOUTUBE_CATEGORY", s.youtube_category)
+        s.youtube_synthetic = _bool("YOUTUBE_SYNTHETIC", s.youtube_synthetic)
+        # PLATFORMS를 따로 정하지 않았으면, 유튜브 인증값이 있을 때 쇼츠 업로드를 자동으로 켠다
+        if not plats and s.youtube_refresh_token and "youtube" not in s.platforms:
+            s.platforms.append("youtube")
         s.auto_publish = _bool("AUTO_PUBLISH", False)
         s.interval_minutes = int(_env("INTERVAL_MINUTES", str(s.interval_minutes)))
         s.posts_per_run = int(_env("POSTS_PER_RUN", str(s.posts_per_run)))

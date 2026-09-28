@@ -119,6 +119,28 @@ Variables에 `IMAGE_REPO=owner/repo`, Secrets에 `CARDBOT_GITHUB_TOKEN`(그 저�
 
 참고: 공개 저장소는 60일간 활동이 없으면 예약 실행이 자동으로 꺼질 수 있습니다 (GitHub이 메일로 알려주며 Actions 탭에서 다시 켤 수 있음).
 
+## 유튜브 쇼츠 (선택)
+
+릴스 영상(세로 1080×1920, 3분 이하)을 그대로 유튜브에 올리면 **쇼츠**로 분류됩니다.
+아래 세 값이 GitHub Secrets에 있으면 쇼츠 업로드가 자동으로 켜집니다 (`PLATFORMS`를 직접 정했다면 `youtube`를 넣으세요).
+
+1. [Google Cloud 콘솔](https://console.cloud.google.com/)에서 프로젝트 만들기 → **API 및 서비스 → 라이브러리**에서 **YouTube Data API v3** 사용 설정
+2. **OAuth 동의 화면**: 사용자 유형 *외부*, 앱 이름·이메일 입력, 범위는 건너뛰어도 됨 → 테스트 사용자에 본인 구글 계정 추가
+   → 설정이 끝나면 **게시 상태를 '프로덕션'으로 전환** (테스트 상태면 토큰이 7일마다 만료됨. 본인 계정만 쓰면 구글 앱 인증 심사 없이 사용 가능, 로그인 때 '확인되지 않은 앱' 경고는 '고급 → 계속'으로 진행)
+3. **사용자 인증 정보 → OAuth 클라이언트 ID 만들기** → 유형 **데스크톱 앱** → 클라이언트 ID와 보안 비밀번호 복사
+4. 내 컴퓨터에서 한 번 실행:
+   ```bash
+   python -m cardbot.youtube_auth <클라이언트 ID> <보안 비밀번호>
+   ```
+   브라우저에서 로그인한 뒤 **'채널 선택' 화면에서 쇼츠를 올릴 채널**을 고르세요. 한 구글 계정에 채널(브랜드 계정)이 여러 개여도 여기서 고른 채널로 올라갑니다.
+   터미널에 인증된 채널 이름·ID와 refresh token이 출력됩니다.
+5. GitHub **Secrets**: `YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`, `YOUTUBE_REFRESH_TOKEN`
+   **Variables**: `YOUTUBE_CHANNEL_ID`(4번에서 출력된 채널 ID — 다른 채널이면 업로드하지 않음), `YOUTUBE_PRIVACY`(기본 `private`)
+
+**공개 범위**: YouTube API 검수(audit)를 통과하지 않은 프로젝트에서 올린 영상은 공개로 요청해도 **비공개로 잠깁니다.**
+검수 전에는 `YOUTUBE_PRIVACY=private`로 두고 YouTube Studio에서 공개로 바꾸세요. [YouTube API 서비스 감사 신청](https://support.google.com/youtube/contact/yt_api_form)을 통과하면 `YOUTUBE_PRIVACY=public`으로 바꾸면 됩니다.
+제목은 카드뉴스 주제, 설명은 인스타 캡션(해시태그 포함, `#Shorts` 자동 추가), 태그는 캡션 해시태그로 채웁니다. 조회수·좋아요·댓글 수도 성과 수집에 포함됩니다.
+
 ## 사전 준비 (Meta 쪽)
 
 1. **Instagram**: 프로페셔널(비즈니스/크리에이터) 계정 → [Meta for Developers](https://developers.facebook.com/)에서 앱 생성 → *Instagram API with Instagram Login* 추가 →
