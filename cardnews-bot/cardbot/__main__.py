@@ -86,6 +86,9 @@ def cmd_auto(s, a):
     if not publish:
         log.warning("AUTO_PUBLISH가 꺼져 있어 초안만 만듭니다 (--publish 또는 AUTO_PUBLISH=true)")
     p = _pipeline(s)
+    if a.daily and p.done_today(publish):
+        log.info("오늘(KST) 이미 %s 건너뜁니다", "게시해서" if publish else "초안을 만들어서")
+        return
     while True:
         try:
             n = p.refresh_insights() if publish else 0
@@ -152,6 +155,7 @@ def main(argv=None):
     x = sub.add_parser("auto", help="주기적으로 자동 실행")
     x.add_argument("--publish", action="store_true")
     x.add_argument("--once", action="store_true", help="한 사이클만 (cron용)")
+    x.add_argument("--daily", action="store_true", help="오늘(KST) 이미 했으면 건너뜀 (예비 예약용)")
     x.set_defaults(fn=cmd_auto)
 
     x = sub.add_parser("insights", help="게시물 성과 지표 갱신")

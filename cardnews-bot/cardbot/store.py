@@ -44,6 +44,13 @@ class Store:
         )
         return [r["topic"] for r in rows]
 
+    def posted_since(self, since: datetime) -> bool:
+        row = self.db.execute(
+            "SELECT 1 FROM posts WHERE media_id IS NOT NULL AND created_at >= ? LIMIT 1",
+            (since.isoformat(timespec="seconds"),),
+        ).fetchone()
+        return row is not None
+
     def posts_for_insights(self, max_age_days: int = 30) -> list[sqlite3.Row]:
         since = (datetime.now() - timedelta(days=max_age_days)).isoformat()
         return list(
