@@ -186,6 +186,8 @@ class Pipeline:
                 n += 1
             except Exception as e:
                 log.warning("인사이트 조회 실패 %s/%s: %s", row["platform"], row["media_id"], e)
+        # 30일 안에 갱신되지 않은 YouTube 지표는 삭제 (개인정보처리방침 5항)
+        self.store.purge_stale_metrics("youtube", days=30)
         return n
 
     # ----- 한 사이클 -----
