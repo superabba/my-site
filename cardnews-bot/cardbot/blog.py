@@ -69,11 +69,12 @@ def _paragraphs(text: str) -> str:
 
 
 def tistory_html(post: BlogPost, hashtags: list[str] | None = None) -> str:
-    # 제목은 HTML 주석으로 넣어 두어 실수로 함께 붙여넣어도 글에는 보이지 않게 한다
-    title = escape(post.titles[0].strip()).replace("--", "—")
+    # 제목은 브라우저로 열어도 보이게 맨 위에 표시한다 (이미지 표시처럼 게시 전 삭제)
+    title = escape(post.titles[0].strip())
     out = [
-        f"<!-- [제목] {title} -->",
-        "<!-- 위 제목은 제목칸에 입력하세요 · 아래부터 본문 -->",
+        f"<p><b>[제목] {title}</b></p>",
+        "<p><b>📌 [위 제목은 제목칸에 입력하고, 이 두 줄과 아래 구분선은 게시 전 삭제]</b></p>",
+        "<hr>",
         _paragraphs(post.intro),
     ]
     for sec in post.sections:
