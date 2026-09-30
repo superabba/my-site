@@ -808,3 +808,11 @@ def test_blog_embeds_published_images(tmp_path):
     assert f'<img src="{url}"' in t and "slide_09.jpg · 게시 전" in t  # URL 없는 사진은 표시 유지
     n = (tmp_path / "blog_naver.html").read_text(encoding="utf-8")
     assert n.startswith("<!DOCTYPE html>") and '<meta charset="utf-8">' in n and f'<img src="{url}"' in n
+
+
+def test_in_kst_hours():
+    from datetime import datetime, timezone
+    from cardbot.__main__ import in_kst_hours
+    assert in_kst_hours("15-23", datetime(2026, 9, 29, 6, 5, tzinfo=timezone.utc))  # KST 15:05
+    assert in_kst_hours("15-23", datetime(2026, 9, 29, 14, 59, tzinfo=timezone.utc))  # KST 23:59
+    assert not in_kst_hours("15-23", datetime(2026, 9, 28, 15, 20, tzinfo=timezone.utc))  # KST 00:20

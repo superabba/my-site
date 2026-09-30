@@ -4,20 +4,17 @@ name: 카드뉴스 자동 발행
 
 on:
   schedule:
-    # 하루 1번. 시간은 UTC 기준 (KST = UTC+9). 정각은 몰려서 지연되기 쉬워 5분에 실행
-    # GitHub 예약은 가끔 건너뛰므로 1시간 간격으로 예비 시각을 둔다.
-    # 오늘(KST) 이미 게시했으면 건너뛰므로(--daily) 중복 게시되지 않는다.
-    - cron: "5 6 * * *" # KST 15:05
-    - cron: "5 7 * * *" # KST 16:05 (예비)
-    - cron: "5 8 * * *" # KST 17:05 (예비)
-    - cron: "5 9 * * *" # KST 18:05 (예비)
+    # 매일 KST 15:05 실행은 cron-job.org가 workflow_dispatch(action=auto)로 정시에 깨운다.
+    # GitHub 예약은 몇 시간씩 늦거나 빠지므로 예비로 하나만 둔다 (UTC 기준, KST = UTC+9).
+    # auto는 오늘(KST) 이미 게시했거나 KST 15~23시가 아니면 건너뛰어 중복·새벽 게시가 없다.
+    - cron: "5 10 * * *" # KST 19:05 (예비)
   workflow_dispatch:
     inputs:
       action:
-        description: "draft=초안만 / publish-now=추천→제작→바로 게시 / publish-draft=검토한 초안 게시 / blog=초안의 블로그 글 다시 만들기"
+        description: "draft=초안만 / publish-now=추천→제작→바로 게시 / publish-draft=검토한 초안 게시 / blog=초안의 블로그 글 다시 만들기 / auto=예약 실행과 같음(하루 1번)"
         type: choice
         default: draft
-        options: [draft, publish-now, publish-draft, blog]
+        options: [draft, publish-now, publish-draft, blog, auto]
       topic:
         description: "(draft) 직접 정할 주제. 비우면 트렌드 추천 1순위"
         required: false
@@ -140,7 +137,7 @@ jobs:
           FOLDER: ${{ inputs.folder }}
         run: |
           case "$ACTION" in
-            auto)          python -m cardbot auto --once --daily ;; # AUTO_PUBLISH 변수에 따라 게시 여부 결정, 오늘 이미 했으면 건너뜀
+            auto)          python -m cardbot auto --once --daily --hours 15-23 ;; # AUTO_PUBLISH 변수에 따라 게시 여부 결정, 오늘 이미 했거나 시간대 밖이면 건너뜀
             draft)
               if [ -n "$TOPIC" ]; then python -m cardbot make --topic "$TOPIC"
               else python -m cardbot make; fi ;;
