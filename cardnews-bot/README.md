@@ -96,7 +96,9 @@ python -m cardbot refresh-token instagram   # 장기 토큰(60일) 갱신
 
 ### GitHub Actions로 자동 운영 (PC 없이)
 
-`.github/workflows/cardnews.yml`이 하루 1번 실행됩니다. GitHub 예약은 가끔 건너뛰므로 KST 15:05에 시작해 16:05·17:05·18:05에 예비 실행을 두고, 오늘(KST) 이미 게시했으면 건너뜁니다(`--daily`). 시간을 바꾸려면 워크플로의 `cron` 줄을 고치세요 (UTC 기준, KST에서 9시간을 뺀 값).
+`.github/workflows/cardnews.yml`은 하루 1번 게시합니다. GitHub 예약(`schedule`)은 몇 시간씩 늦거나 빠지므로, 정시 실행은 [cron-job.org](https://cron-job.org)가 매일 KST 15:05에 GitHub API로 `workflow_dispatch`(action=`auto`)를 호출해 깨웁니다. 워크플로 안의 KST 19:05 예약은 예비이며, `auto`는 오늘(KST) 이미 게시했거나(`--daily`) KST 15~23시가 아니면(`--hours 15-23`) 건너뜁니다.
+
+cron-job.org 설정: URL `https://api.github.com/repos/<owner>/<repo>/actions/workflows/cardnews.yml/dispatches`, 방식 POST, 본문 `{"ref":"main","inputs":{"action":"auto"}}`, 헤더 `Authorization: Bearer <토큰>`, `Accept: application/vnd.github+json`, `Content-Type: application/json`. 토큰은 이 저장소만, **Actions: Read and write** 권한만 준 fine-grained 토큰을 쓰세요.
 발행 이력 DB·초안·게시용 이미지는 코드와 분리된 **`cardbot-data` 브랜치**에 자동 커밋되어 다음 실행에 이어집니다.
 
 1. 이 브랜치를 기본 브랜치(`main`)에 병합하세요. 예약 실행은 기본 브랜치에 있는 워크플로만 동작합니다.

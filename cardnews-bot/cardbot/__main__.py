@@ -6,6 +6,7 @@ import argparse
 import logging
 import sys
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .config import Settings
@@ -80,11 +81,21 @@ def cmd_run(s, a):
     _exit_on_failures(p)
 
 
+def in_kst_hours(hours: str, now: datetime | None = None) -> bool:
+    """'15-23' 같은 KST 시간대 안인지 (양 끝 포함)."""
+    start, end = (int(h) for h in hours.split("-"))
+    hour = (now or datetime.now(timezone.utc)).astimezone(timezone(timedelta(hours=9))).hour
+    return start <= hour <= end
+
+
 def cmd_auto(s, a):
     publish = a.publish or s.auto_publish
     log = logging.getLogger("auto")
     if not publish:
         log.warning("AUTO_PUBLISH가 꺼져 있어 초안만 만듭니다 (--publish 또는 AUTO_PUBLISH=true)")
+    if a.hours and not in_kst_hours(a.hours):
+        log.info("지금은 실행 시간대(KST %s시)가 아니라 건너뜁니다 (늦게 도착한 예약 실행)", a.hours)
+        return
     p = _pipeline(s)
     if a.daily and p.done_today(publish):
         log.info("오늘(KST) 이미 %s 건너뜁니다", "게시해서" if publish else "초안을 만들어서")
@@ -156,6 +167,7 @@ def main(argv=None):
     x.add_argument("--publish", action="store_true")
     x.add_argument("--once", action="store_true", help="한 사이클만 (cron용)")
     x.add_argument("--daily", action="store_true", help="오늘(KST) 이미 했으면 건너뜀 (예비 예약용)")
+    x.add_argument("--hours", default="", help="이 KST 시간대(예: 15-23)가 아니면 건너뜀 (늦게 온 예약 방지)")
     x.set_defaults(fn=cmd_auto)
 
     x = sub.add_parser("insights", help="게시물 성과 지표 갱신")
