@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sqlite3
 import sys
 from pathlib import Path
 from urllib.parse import quote
@@ -81,6 +82,8 @@ def main() -> None:
             md.append("<details><summary>스레드 본문</summary>\n\n```\n" + th.read_text(encoding="utf-8") + "\n```\n</details>\n")
         shutil.copytree(d, review / d.name, dirs_exist_ok=True)
 
+    md += performance_table(Path(os.environ.get("CARDBOT_DATA_DIR", "data")) / "cardbot.db")
+
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     text = "\n".join(md) + "\n"
     if summary:
@@ -88,6 +91,31 @@ def main() -> None:
             f.write(text)
     else:
         print(text)
+
+
+def performance_table(db: Path, limit: int = 10) -> list[str]:
+    """최근 게시물의 성과 지표 (YouTube는 videos.list로 받은 조회수, 30일 지나면 삭제됨)."""
+    if not db.exists():
+        return []
+    con = sqlite3.connect(db)
+    con.row_factory = sqlite3.Row
+    rows = con.execute(
+        "SELECT * FROM posts WHERE media_id IS NOT NULL ORDER BY created_at DESC LIMIT ?", (limit * 4,)
+    ).fetchall()
+    con.close()
+    rows = [r for r in rows if r["metrics"] and r["metrics"] != "{}"][:limit]
+    if not rows:
+        return []
+    md = ["\n## 📊 게시물 성과 (Performance)", "",
+          "| 게시일 Date | 플랫폼 Platform | 주제 Topic | 조회수 Views | 좋아요 Likes | 댓글 Comments | 갱신 Updated |", "|---|---|---|---:|---:|---:|---|"]
+    for r in rows:
+        m = json.loads(r["metrics"])
+        link = f"[{r['topic'][:30]}]({r['permalink']})" if r["permalink"] else r["topic"][:30]
+        md.append(
+            f"| {r['created_at'][:10]} | {LABELS.get(r['platform'], r['platform'])} | {link} | "
+            f"{m.get('views', 0):,} | {m.get('likes', 0):,} | {m.get('comments', 0):,} | {(r['metrics_at'] or '')[:16]} |"
+        )
+    return md
 
 
 def _json(p: Path) -> dict:
