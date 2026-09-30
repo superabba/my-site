@@ -816,3 +816,14 @@ def test_in_kst_hours():
     assert in_kst_hours("15-23", datetime(2026, 9, 29, 6, 5, tzinfo=timezone.utc))  # KST 15:05
     assert in_kst_hours("15-23", datetime(2026, 9, 29, 14, 59, tzinfo=timezone.utc))  # KST 23:59
     assert not in_kst_hours("15-23", datetime(2026, 9, 28, 15, 20, tzinfo=timezone.utc))  # KST 00:20
+
+
+def test_performance_table(tmp_path):
+    from cardbot.gh_summary import performance_table
+    st = Store(tmp_path / "cardbot.db")
+    st.add("절약 꿀팁", "k", "youtube", "v1", "https://youtube.com/shorts/v1", "f")
+    st.add("미집계", "k", "threads", "t1", "", "f")
+    st.set_metrics(1, {"views": 1234, "likes": 5, "comments": 1})
+    md = "\n".join(performance_table(tmp_path / "cardbot.db"))
+    assert "유튜브 쇼츠" in md and "1,234" in md and "미집계" not in md
+    assert performance_table(tmp_path / "none.db") == []
