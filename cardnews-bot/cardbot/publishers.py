@@ -24,7 +24,9 @@ log = logging.getLogger(__name__)
 
 
 class PublishError(RuntimeError):
-    pass
+    def __init__(self, message: str, transient: bool = False):
+        super().__init__(message)
+        self.transient = transient  # 잠시 후 다시 하면 될 수 있는 오류 (서버 5xx 등)
 
 
 @dataclass
@@ -36,6 +38,8 @@ class PublishResult:
 
 NOT_FOUND_GRACE_S = 90  # 새 컨테이너가 조회되지 않아도 기다려 줄 시간
 PUBLISH_RETRIES = 4
+TRANSIENT_DELAYS = (5, 15, 30)  # 일시 오류(5xx, is_transient) 재시도 간격(초)
+PUBLISH_ENDPOINTS = ("media_publish", "threads_publish")
 
 
 def is_not_found(err: Exception) -> bool:
@@ -54,30 +58,77 @@ class GraphClient:
         except ValueError:
             data = {"raw": r.text[:300]}
         if r.status_code >= 400 or "error" in data:
-            raise PublishError(f"{r.status_code} {data.get('error', data)}")
+            err = data.get("error", data)
+            # Meta가 '잠시 후 다시 시도'라고 알려 주는 오류: 5xx, is_transient, code 1/2(서버 오류)
+            transient = r.status_code >= 500 or (
+                isinstance(err, dict) and (err.get("is_transient") is True or err.get("code") in (1, 2))
+            )
+            raise PublishError(f"{r.status_code} {err}", transient=transient)
         return data
 
-    def publish_container(self, path: str, creation_id: str) -> dict:
-        """게시 호출. 컨테이너가 아직 전파되지 않아 '없음'이 오면 몇 번 더 시도한다."""
+    def _call(self, send, path: str, retry: bool = True) -> dict:
+        """요청을 보내고, 일시 오류면 TRANSIENT_DELAYS 간격으로 다시 시도한다."""
+        for attempt in range(len(TRANSIENT_DELAYS) + 1):
+            try:
+                return self._check(send())
+            except requests.RequestException as e:  # 연결 끊김·시간 초과
+                err = PublishError(f"요청 실패: {e}", transient=True)
+            except PublishError as e:
+                err = e
+            if not (retry and err.transient) or attempt == len(TRANSIENT_DELAYS):
+                raise err
+            delay = TRANSIENT_DELAYS[attempt]
+            log.warning("%s 일시 오류, %d초 후 재시도: %s", path, delay, err)
+            self.sleep(delay)
+        raise AssertionError("unreachable")
+
+    def publish_container(self, path: str, creation_id: str, status_field: str = "") -> dict:
+        """게시 호출. 컨테이너가 아직 전파되지 않아 '없음'이 오거나 일시 오류가 나면 몇 번 더 시도한다.
+
+        일시 오류 뒤에는 실제로는 게시됐을 수 있으므로, 다시 게시하기 전에 컨테이너 상태를 확인해
+        이미 PUBLISHED면 계정의 최신 게시물을 결과로 돌려준다 (중복 게시 방지).
+        """
         delay = 5
         for attempt in range(PUBLISH_RETRIES):
             try:
                 return self.post(path, creation_id=creation_id)
             except PublishError as e:
-                if not is_not_found(e) or attempt == PUBLISH_RETRIES - 1:
+                if attempt == PUBLISH_RETRIES - 1 or not (is_not_found(e) or e.transient):
                     raise
-                log.info("게시할 컨테이너가 아직 조회 안 됨, %d초 후 재시도", delay)
+                if e.transient and status_field:
+                    latest = self._published_anyway(path, creation_id, status_field)
+                    if latest:
+                        return latest
+                log.info("게시 재시도 (%d초 후): %s", delay, e)
                 self.sleep(delay)
                 delay *= 2
         raise AssertionError("unreachable")
 
+    def _published_anyway(self, path: str, creation_id: str, status_field: str) -> dict | None:
+        try:
+            if self.get(creation_id, fields=status_field).get(status_field) != "PUBLISHED":
+                return None
+            user_id, endpoint = path.rsplit("/", 1)
+            feed = "threads" if endpoint == "threads_publish" else "media"
+            items = self.get(f"{user_id}/{feed}", fields="id", limit=1).get("data") or []
+        except PublishError:
+            return None
+        if items:
+            log.warning("게시 응답은 오류였지만 이미 게시됨, 재시도하지 않음: %s", items[0]["id"])
+            return {"id": items[0]["id"]}
+        return None
+
     def post(self, path: str, **params) -> dict:
         params["access_token"] = self.token
-        return self._check(requests.post(f"{self.base}/{path.lstrip('/')}", data=params, timeout=60))
+        url = f"{self.base}/{path.lstrip('/')}"
+        # 게시 호출은 publish_container가 상태를 확인하며 재시도한다 (여기서 바로 재시도하면 중복 게시 위험)
+        retry = not path.endswith(PUBLISH_ENDPOINTS)
+        return self._call(lambda: requests.post(url, data=params, timeout=60), path, retry)
 
     def get(self, path: str, **params) -> dict:
         params["access_token"] = self.token
-        return self._check(requests.get(f"{self.base}/{path.lstrip('/')}", params=params, timeout=60))
+        url = f"{self.base}/{path.lstrip('/')}"
+        return self._call(lambda: requests.get(url, params=params, timeout=60), path)
 
     def wait_ready(self, container_id: str, field: str, timeout_s: int = 300) -> None:
         """컨테이너가 FINISHED가 될 때까지 대기 (서버가 이미지를 가져가는 시간).
@@ -142,7 +193,7 @@ class InstagramPublisher:
             caption=caption,
         )
         self.api.wait_ready(carousel["id"], "status_code")
-        media = self.api.publish_container(f"{self.user_id}/media_publish", carousel["id"])
+        media = self.api.publish_container(f"{self.user_id}/media_publish", carousel["id"], "status_code")
         link = ""
         try:
             link = self.api.get(media["id"], fields="permalink").get("permalink", "")
@@ -184,7 +235,7 @@ class ReelsPublisher:
                 log.warning("릴스 영상 URL 실패, 다음 후보 시도: %s (%s)", url, e)
                 errors.append(f"{url}: {e}")
                 continue
-            media = self.api.publish_container(f"{self.user_id}/media_publish", container["id"])
+            media = self.api.publish_container(f"{self.user_id}/media_publish", container["id"], "status_code")
             link = ""
             try:
                 link = self.api.get(media["id"], fields="permalink").get("permalink", "")
@@ -231,7 +282,7 @@ class ThreadsPublisher:
             text=text[:500],
         )
         self.api.wait_ready(carousel["id"], "status")
-        media = self.api.publish_container(f"{self.user_id}/threads_publish", carousel["id"])
+        media = self.api.publish_container(f"{self.user_id}/threads_publish", carousel["id"], "status")
         link = ""
         try:
             link = self.api.get(media["id"], fields="permalink").get("permalink", "")
