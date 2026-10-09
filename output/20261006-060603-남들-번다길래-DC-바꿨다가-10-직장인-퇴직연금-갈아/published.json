@@ -25,9 +25,11 @@
     "youtube": {
       "media_id": "pNafW8lP_q4",
       "permalink": "https://youtube.com/shorts/pNafW8lP_q4"
+    },
+    "threads": {
+      "media_id": "17895819471413728",
+      "permalink": "https://www.threads.com/@economypub/post/DeRrv71G2iX"
     }
   },
-  "errors": {
-    "threads": "500 {'message': 'An unexpected error has occurred. Please retry your request later.', 'type': 'OAuthException', 'is_transient': True, 'code': 2, 'fbtrace_id': 'AmIibUvfDXeCo50LNjUPG2J'}"
-  }
+  "errors": {}
 }
