@@ -660,6 +660,67 @@ def test_other_errors_are_not_retried(monkeypatch):
     assert not slept
 
 
+# ---------- Meta 일시 오류 (500 is_transient) ----------
+TRANSIENT = {"error": {"message": "An unexpected error has occurred. Please retry your request later.",
+                       "type": "OAuthException", "is_transient": True, "code": 2}}
+
+
+def _threads_api(monkeypatch, fail_items=0, publish_fail=0, status_after_fail="FINISHED"):
+    calls = {"items": 0, "publish": 0, "feed": 0}
+
+    def post(url, data, timeout):
+        if url.endswith("/threads_publish"):
+            calls["publish"] += 1
+            if calls["publish"] <= publish_fail:
+                return FakeResp(TRANSIENT, 500)
+            return FakeResp({"id": "POST1"})
+        if data.get("is_carousel_item"):
+            calls["items"] += 1
+            if calls["items"] <= fail_items:
+                return FakeResp(TRANSIENT, 500)
+        return FakeResp({"id": f"C{calls['items']}"})
+
+    def get(url, params, timeout):
+        if params.get("fields") == "permalink":
+            return FakeResp({"permalink": "https://threads.com/p/1"})
+        if url.endswith("/9/threads"):
+            calls["feed"] += 1
+            return FakeResp({"data": [{"id": "POST_EARLIER"}]})
+        status = status_after_fail if calls["publish"] else "FINISHED"
+        return FakeResp({"status": status})
+
+    monkeypatch.setattr("cardbot.publishers.requests.post", post)
+    monkeypatch.setattr("cardbot.publishers.requests.get", get)
+    slept = []
+    pub = ThreadsPublisher("9", "TOK", "https://graph.threads.net/v1.0", sleep=slept.append)
+    return pub, calls, slept
+
+
+def test_threads_retries_transient_500_on_container(monkeypatch):
+    pub, calls, slept = _threads_api(monkeypatch, fail_items=1)
+    res = pub.publish({"image_urls": ["a", "b"]}, "text")
+    assert res.media_id == "POST1" and calls["items"] == 3 and slept[0] == 5
+
+
+def test_threads_publish_transient_retries_when_not_published(monkeypatch):
+    pub, calls, _ = _threads_api(monkeypatch, publish_fail=1, status_after_fail="FINISHED")
+    assert pub.publish({"image_urls": ["a", "b"]}, "text").media_id == "POST1"
+    assert calls["publish"] == 2 and calls["feed"] == 0
+
+
+def test_threads_publish_transient_but_already_published_does_not_repost(monkeypatch):
+    pub, calls, _ = _threads_api(monkeypatch, publish_fail=1, status_after_fail="PUBLISHED")
+    assert pub.publish({"image_urls": ["a", "b"]}, "text").media_id == "POST_EARLIER"
+    assert calls["publish"] == 1  # 중복 게시하지 않음
+
+
+def test_transient_error_gives_up_after_retries(monkeypatch):
+    pub, calls, slept = _threads_api(monkeypatch, fail_items=99)
+    with pytest.raises(Exception, match="unexpected error"):
+        pub.publish({"image_urls": ["a", "b"]}, "text")
+    assert slept == [5, 15, 30]
+
+
 # ---------- 유튜브 쇼츠 ----------
 from cardbot.youtube import YouTubePublisher, build_metadata
 
