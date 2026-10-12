@@ -65,7 +65,7 @@ jobs:
       BLOG_ENABLED: ${{ vars.BLOG_ENABLED }} # 기본 켜짐, 'false'면 블로그 글 생략
       REELS_SECONDS_PER_SLIDE: ${{ vars.REELS_SECONDS_PER_SLIDE }} # 기본 auto(글자 수 기준), 숫자면 고정
       YOUTUBE_CHANNEL_ID: ${{ vars.YOUTUBE_CHANNEL_ID }} # 이 채널이 아니면 업로드하지 않음
-      YOUTUBE_PRIVACY: ${{ vars.YOUTUBE_PRIVACY }} # 기본 private, API 검수 통과 후 public
+      YOUTUBE_PRIVACY: ${{ vars.YOUTUBE_PRIVACY }} # 기본 private, 공개로 올리려면 public
       YOUTUBE_CATEGORY: ${{ vars.YOUTUBE_CATEGORY }} # 기본 27(교육)
       REELS_AUDIO: ${{ vars.REELS_AUDIO }} # 기본 auto(배경음악 합성), none=무음, 또는 음원 경로 (예: assets/music)
       ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}

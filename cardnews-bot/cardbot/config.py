@@ -88,7 +88,7 @@ class Settings:
     youtube_client_secret: str = ""
     youtube_refresh_token: str = ""
     youtube_channel_id: str = ""  # 지정하면 이 채널이 아닐 때 업로드하지 않음
-    youtube_privacy: str = "private"  # public | unlisted | private (API 검수 전에는 private로 잠김)
+    youtube_privacy: str = "private"  # public | unlisted | private (공개로 올리려면 public)
     youtube_category: str = "27"  # 27=교육, 22=인물/블로그
     youtube_synthetic: bool = False  # 실제처럼 보이는 AI 생성 영상이면 true
 
