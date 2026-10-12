@@ -139,8 +139,8 @@ Variables에 `IMAGE_REPO=owner/repo`, Secrets에 `CARDBOT_GITHUB_TOKEN`(그 저�
 5. GitHub **Secrets**: `YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`, `YOUTUBE_REFRESH_TOKEN`
    **Variables**: `YOUTUBE_CHANNEL_ID`(4번에서 출력된 채널 ID — 다른 채널이면 업로드하지 않음), `YOUTUBE_PRIVACY`(기본 `private`)
 
-**공개 범위**: YouTube API 검수(audit)를 통과하지 않은 프로젝트에서 올린 영상은 공개로 요청해도 **비공개로 잠깁니다.**
-검수 전에는 `YOUTUBE_PRIVACY=private`로 두고 YouTube Studio에서 공개로 바꾸세요. [YouTube API 서비스 감사 신청](https://support.google.com/youtube/contact/yt_api_form)을 통과하면 `YOUTUBE_PRIVACY=public`으로 바꾸면 됩니다.
+**공개 범위**: `YOUTUBE_PRIVACY` 변수로 정합니다 (기본 `private`). 바로 공개로 올리려면 `public`으로 등록하세요.
+API로 올린 영상이 자동으로 비공개가 되지는 않습니다 (YouTube API 지원팀 확인). 유튜브가 요청과 다른 공개 범위로 바꾸면 실행 로그에 경고가 남습니다.
 제목은 카드뉴스 주제, 설명은 인스타 캡션(해시태그 포함, `#Shorts` 자동 추가), 태그는 캡션 해시태그로 채웁니다. 조회수·좋아요·댓글 수도 성과 수집에 포함됩니다.
 
 ## 사전 준비 (Meta 쪽)

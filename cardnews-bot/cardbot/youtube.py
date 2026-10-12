@@ -7,8 +7,8 @@ Meta와 달리 공개 URL이 아니라 파일을 직접 올린다 (resumable upl
 한 구글 계정 아래 채널(브랜드 계정)이 여러 개면, 인증할 때 고른 채널로 올라간다.
 YOUTUBE_CHANNEL_ID를 지정하면 업로드 직전에 채널을 확인하고 다르면 올리지 않는다.
 
-주의: YouTube API 검수(audit)를 통과하지 않은 프로젝트에서 올린 영상은 공개로 요청해도
-유튜브가 '비공개'로 잠근다. 검수 전에는 YouTube Studio에서 직접 공개로 바꿔야 한다.
+공개 범위는 YOUTUBE_PRIVACY(기본 private)로 정한다. API로 올린 영상이 자동으로 비공개가 되지는
+않는다 (YouTube API 지원팀 확인, 2026-10). 유튜브가 요청과 다른 공개 범위로 바꾸면 경고를 남긴다.
 """
 
 from __future__ import annotations
@@ -148,7 +148,7 @@ class YouTubePublisher:
         vid = data["id"]
         got = (data.get("status") or {}).get("privacyStatus")
         if got and got != self.privacy:
-            log.warning("유튜브가 공개 범위를 %s → %s로 바꿨습니다 (API 검수 전 프로젝트는 비공개로 잠김)",
+            log.warning("유튜브가 공개 범위를 %s → %s로 바꿨습니다 (YouTube Studio에서 사유를 확인하세요)",
                         self.privacy, got)
         log.info("유튜브 채널 '%s'에 업로드: %s", channel_title, vid)
         return PublishResult(self.name, vid, f"https://youtube.com/shorts/{vid}")
