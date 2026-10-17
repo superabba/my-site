@@ -122,7 +122,7 @@ PC 앱: 영상 선택 → (AI로 문구 작성) → [업로드 시작]
 | `core/accounts.py` | 영상 전용 계정 도우미 (인스타·스레드 계정 ID 확인, 유튜브 refresh token 받기) |
 | `core/media.py` | 영상 정보, AI용 장면 추출, 업로드용 압축 |
 | `core/analyzer.py` | Claude로 게시 문구 작성 |
-| `data/` | 설정(키·토큰), 업로드 기록, 작업용 영상 — **커밋되지 않으며 공유하지 마세요** |
+| `data/` | 설정(키·토큰), 업로드 기록 — **커밋되지 않으며 공유하지 마세요**. 영상 처리용 사본(`videos/`, `work/`, `frames/`)은 GitHub로 보낸 뒤와 프로그램을 켤 때 자동으로 지워집니다 (원본 파일은 건드리지 않음) |
 | `../cardnews-bot/cardbot/videopost.py` | (봇 쪽) 영상 게시 |
 | `../.github/workflows/video-upload.yml` | (봇 쪽) 영상 업로드 워크플로 |
 | `../.github/workflows/video-refresh-tokens.yml` | (봇 쪽) 영상 전용 인스타·스레드 토큰 매달 갱신 |

@@ -40,6 +40,24 @@ DEFAULT_SETTINGS = {
 }
 
 
+def clear_working_files() -> int:
+    """이 프로그램이 만든 작업용 사본(올린 영상 복사본, 압축본, AI용 장면 사진)을 지운다.
+
+    브라우저로 고른 영상은 처리용으로 data/videos에 복사되는데, GitHub로 보낸 뒤에는 필요 없다.
+    사용자의 원본 파일은 이 폴더들 밖에 있으므로 건드리지 않는다. 지운 파일 수를 돌려준다.
+    """
+    removed = 0
+    for folder in (VIDEO_DIR, WORK_DIR, FRAME_DIR):
+        for f in folder.iterdir():
+            if f.is_file():
+                try:
+                    f.unlink()
+                    removed += 1
+                except OSError:
+                    pass  # 다른 곳에서 열려 있으면 다음 기회에 지운다
+    return removed
+
+
 def load_settings() -> dict:
     settings = dict(DEFAULT_SETTINGS)
     if SETTINGS_FILE.exists():
