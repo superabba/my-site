@@ -2,7 +2,8 @@
 # 카드뉴스 자동 발행(cardnews.yml)과 완전히 따로 동작한다.
 #   - 실행 순서 그룹(concurrency)이 달라 서로 기다리거나 멈추지 않는다.
 #   - 카드뉴스의 cardbot-data 브랜치·이력 DB를 건드리지 않는다 (영상은 video/<ID>, 결과는 video-records 브랜치).
-# 계정 정보는 카드뉴스와 같은 Secrets를 쓴다. 사용법은 video-uploader/README.md 참고.
+#   - 게시 계정도 따로다: VIDEO_* Secrets만 쓰고, 없으면 카드뉴스 계정으로 대신 올리지 않는다.
+# 사용법·계정 설정은 video-uploader/README.md 참고.
 name: 영상 업로드
 run-name: "영상 업로드 ${{ inputs.video_id }}"
 
@@ -31,15 +32,19 @@ jobs:
       VIDEO_ID: ${{ inputs.video_id }}
       RECORDS_BRANCH: video-records
 
-      IG_USER_ID: ${{ secrets.IG_USER_ID }}
-      IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
-      THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
-      THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+      # --- 영상 전용 계정 (카드뉴스 계정과 다름) ---
+      VIDEO_IG_USER_ID: ${{ secrets.VIDEO_IG_USER_ID }}
+      VIDEO_IG_ACCESS_TOKEN: ${{ secrets.VIDEO_IG_ACCESS_TOKEN }}
+      VIDEO_THREADS_USER_ID: ${{ secrets.VIDEO_THREADS_USER_ID }}
+      VIDEO_THREADS_ACCESS_TOKEN: ${{ secrets.VIDEO_THREADS_ACCESS_TOKEN }}
+      VIDEO_YOUTUBE_REFRESH_TOKEN: ${{ secrets.VIDEO_YOUTUBE_REFRESH_TOKEN }}
+      VIDEO_YOUTUBE_CHANNEL_ID: ${{ vars.VIDEO_YOUTUBE_CHANNEL_ID }} # 이 채널이 아니면 업로드하지 않음
+      VIDEO_YOUTUBE_CATEGORY: ${{ vars.VIDEO_YOUTUBE_CATEGORY }} # 기본 22=인물/블로그
+      # 구글 OAuth 클라이언트(앱)는 카드뉴스와 같이 써도 된다. 따로 만들었으면 VIDEO_YOUTUBE_CLIENT_*에 넣기
       YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
       YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
-      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-      YOUTUBE_CHANNEL_ID: ${{ vars.YOUTUBE_CHANNEL_ID }} # 이 채널이 아니면 업로드하지 않음
-      YOUTUBE_CATEGORY: ${{ vars.VIDEO_YOUTUBE_CATEGORY || '22' }} # 22=인물/블로그 (카드뉴스는 27=교육)
+      VIDEO_YOUTUBE_CLIENT_ID: ${{ secrets.VIDEO_YOUTUBE_CLIENT_ID }}
+      VIDEO_YOUTUBE_CLIENT_SECRET: ${{ secrets.VIDEO_YOUTUBE_CLIENT_SECRET }}
 
     steps:
       - name: 영상 ID 확인

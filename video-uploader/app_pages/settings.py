@@ -1,6 +1,6 @@
 import streamlit as st
 
-from core import config, transcribe
+from core import accounts, config, transcribe
 from core.config import PLATFORM_LABELS, PRIVACY_LABELS
 from core.github_bot import GitHubBot, GitHubError
 
@@ -20,8 +20,8 @@ st.caption("입력한 키와 토큰은 이 컴퓨터의 data 폴더에만 저장
 with st.container(border=True):
     st.subheader("카드뉴스 봇 연결 (GitHub)", icon=":material/hub:")
     st.caption(
-        "영상은 GitHub의 카드뉴스 봇 저장소로 보내지고, 봇이 이미 연결된 인스타·스레드·유튜브 계정으로 게시합니다. "
-        "계정 토큰은 GitHub Secrets에 있는 것을 그대로 쓰므로 여기서 따로 연결할 필요가 없습니다."
+        "영상은 GitHub의 카드뉴스 봇 저장소로 보내지고, 봇이 아래 '영상 전용 계정'(VIDEO_* Secrets)으로 게시합니다. "
+        "카드뉴스 계정으로는 올라가지 않습니다."
     )
     with st.form("github_form", border=False):
         repo = st.text_input("저장소", value=settings["github_repo"], placeholder="owner/repo")
@@ -49,6 +49,73 @@ with st.container(border=True):
             "4. **Permissions → Repository permissions**: **Contents** = Read and write, **Actions** = Read and write\n"
             "5. **Generate token** → 나온 토큰(`github_pat_...`)을 위 칸에 붙여 넣기"
         )
+
+
+# ── 영상 전용 계정 (VIDEO_* Secrets) ─────────────────────────
+
+secrets_url = f"https://github.com/{settings['github_repo']}/settings/secrets/actions"
+variables_url = f"https://github.com/{settings['github_repo']}/settings/variables/actions"
+
+with st.container(border=True):
+    st.subheader("영상 전용 계정", icon=":material/switch_account:")
+    st.caption(
+        "영상은 카드뉴스와 다른 계정으로 올라갑니다. 계정 정보는 GitHub 저장소의 "
+        f"[Secrets]({secrets_url})에 아래 이름으로 넣습니다. 없는 플랫폼은 카드뉴스 계정으로 대신 올리지 않고 실패로 표시됩니다."
+    )
+    st.table([
+        {"플랫폼": "인스타 릴스", "Secrets": "VIDEO_IG_USER_ID, VIDEO_IG_ACCESS_TOKEN"},
+        {"플랫폼": "스레드", "Secrets": "VIDEO_THREADS_USER_ID, VIDEO_THREADS_ACCESS_TOKEN"},
+        {"플랫폼": "유튜브 쇼츠", "Secrets": "VIDEO_YOUTUBE_REFRESH_TOKEN (+ Variables: VIDEO_YOUTUBE_CHANNEL_ID)"},
+    ])
+
+    with st.expander("인스타·스레드 토큰으로 계정 ID 확인", icon=":material/badge:"):
+        st.caption("Meta 개발자 앱에서 영상용 계정으로 받은 토큰을 넣으면, Secrets에 넣을 계정 ID와 아이디(@)를 보여 줍니다. "
+                   "토큰은 저장하지 않습니다.")
+        with st.form("meta_check", border=False):
+            platform = st.segmented_control("플랫폼", ["인스타그램", "스레드"], default="인스타그램", required=True)
+            meta_token = st.text_input("액세스 토큰", type="password")
+            checked = st.form_submit_button("계정 확인", icon=":material/search:")
+        if checked:
+            try:
+                if platform == "인스타그램":
+                    acc = accounts.instagram_account(meta_token)
+                    id_name, token_name = "VIDEO_IG_USER_ID", "VIDEO_IG_ACCESS_TOKEN"
+                else:
+                    acc = accounts.threads_account(meta_token)
+                    id_name, token_name = "VIDEO_THREADS_USER_ID", "VIDEO_THREADS_ACCESS_TOKEN"
+                st.success(f"@{acc['username']} 계정입니다.", icon=":material/check_circle:")
+                st.markdown(f"[Secrets]({secrets_url})에 **{id_name}** = 아래 ID, **{token_name}** = 방금 넣은 토큰")
+                st.code(acc["id"], language=None)
+            except accounts.AccountError as e:
+                st.error(str(e))
+
+    with st.expander("유튜브 채널 연결 (refresh token 받기)", icon=":material/smart_display:"):
+        st.caption(
+            "카드뉴스 봇에 쓰는 구글 OAuth 클라이언트(데스크톱 앱)의 ID와 보안 비밀번호를 넣고 누르면 브라우저가 열립니다. "
+            "**영상을 올릴 채널**의 계정으로 로그인하고 '채널 선택'에서 그 채널을 고르세요. 값은 저장하지 않습니다."
+        )
+        with st.form("yt_auth", border=False):
+            client_id = st.text_input("OAuth 클라이언트 ID", placeholder="....apps.googleusercontent.com")
+            client_secret = st.text_input("클라이언트 보안 비밀번호", type="password")
+            go = st.form_submit_button("구글 로그인 열기", icon=":material/login:")
+        if go:
+            with st.spinner("브라우저에서 로그인과 채널 선택을 기다리는 중… (최대 5분)"):
+                try:
+                    st.session_state.yt_auth_result = accounts.youtube_authorize(client_id, client_secret)
+                except accounts.AccountError as e:
+                    st.session_state.yt_auth_result = None
+                    st.error(str(e))
+        res = st.session_state.get("yt_auth_result")
+        if res:
+            st.success(f"채널: {res['channel_title']} — 영상을 올릴 채널이 맞는지 확인하세요.",
+                       icon=":material/check_circle:")
+            st.markdown(f"[Secrets]({secrets_url})에 **VIDEO_YOUTUBE_REFRESH_TOKEN** = 아래 값 (다른 곳에 공유 금지)")
+            st.code(res["refresh_token"], language=None)
+            st.markdown(f"[Variables]({variables_url})에 **VIDEO_YOUTUBE_CHANNEL_ID** = 아래 값 (다른 채널로 잘못 올라가는 것 방지)")
+            st.code(res["channel_id"], language=None)
+            if st.button("화면에서 지우기", icon=":material/visibility_off:"):
+                st.session_state.yt_auth_result = None
+                st.rerun()
 
 
 # ── Claude (영상 내용 자동 작성) ─────────────────────────────

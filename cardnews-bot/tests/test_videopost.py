@@ -106,7 +106,68 @@ def test_publish_video_only_selected_platforms_and_unknown(tmp_path):
 def test_missing_credentials_fail_only_that_platform(tmp_path, monkeypatch):
     d = make_video_dir(tmp_path, platforms=("threads", "youtube"))
     rec = publish_video(d, "o/r", "abc", tmp_path / "rec.json", Settings(), {"youtube": FakePub("youtube")})
-    assert "THREADS_USER_ID" in rec["errors"]["threads"] and "youtube" in rec["posts"]
+    assert "VIDEO_THREADS_USER_ID" in rec["errors"]["threads"] and "youtube" in rec["posts"]
+
+
+def isolated_env(monkeypatch, tmp_path, **env):
+    for name in ("IG_USER_ID", "IG_ACCESS_TOKEN", "THREADS_USER_ID", "THREADS_ACCESS_TOKEN",
+                 "YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN", "YOUTUBE_CHANNEL_ID",
+                 "VIDEO_IG_USER_ID", "VIDEO_IG_ACCESS_TOKEN", "VIDEO_THREADS_USER_ID", "VIDEO_THREADS_ACCESS_TOKEN",
+                 "VIDEO_YOUTUBE_REFRESH_TOKEN", "VIDEO_YOUTUBE_CLIENT_ID", "VIDEO_YOUTUBE_CLIENT_SECRET",
+                 "VIDEO_YOUTUBE_CHANNEL_ID", "VIDEO_YOUTUBE_CATEGORY"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("CARDBOT_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("CARDBOT_OUTPUT_DIR", str(tmp_path / "output"))
+    monkeypatch.setattr("cardbot.config.load_dotenv", lambda path: None)
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+
+
+def test_video_settings_use_only_video_accounts(monkeypatch, tmp_path):
+    from cardbot.videopost import video_settings
+
+    isolated_env(monkeypatch, tmp_path,
+                 IG_USER_ID="card-ig", IG_ACCESS_TOKEN="card-ig-token",
+                 YOUTUBE_CLIENT_ID="shared-client", YOUTUBE_CLIENT_SECRET="shared-secret",
+                 YOUTUBE_REFRESH_TOKEN="card-channel", YOUTUBE_CHANNEL_ID="UC_CARD",
+                 VIDEO_THREADS_USER_ID="video-th", VIDEO_THREADS_ACCESS_TOKEN="video-th-token",
+                 VIDEO_YOUTUBE_REFRESH_TOKEN="video-channel", VIDEO_YOUTUBE_CHANNEL_ID="UC_VIDEO")
+    s = video_settings()
+    # 카드뉴스 인스타 계정으로 대신 채우지 않는다
+    assert (s.ig_user_id, s.ig_access_token) == ("", "")
+    assert (s.threads_user_id, s.threads_access_token) == ("video-th", "video-th-token")
+    assert (s.youtube_refresh_token, s.youtube_channel_id) == ("video-channel", "UC_VIDEO")
+    # OAuth 클라이언트(앱)는 카드뉴스 것을 같이 쓴다
+    assert (s.youtube_client_id, s.youtube_client_secret) == ("shared-client", "shared-secret")
+    assert s.youtube_category == "22"
+
+
+def test_missing_video_account_never_posts_to_cardnews_account(tmp_path, monkeypatch):
+    isolated_env(monkeypatch, tmp_path, IG_USER_ID="card-ig", IG_ACCESS_TOKEN="card-ig-token")
+    built = []
+    monkeypatch.setattr("cardbot.videopost.ReelsPublisher", lambda *a, **k: built.append(a) or FakePub("reels"))
+    d = make_video_dir(tmp_path, platforms=("reels",))
+    code = main([str(d), "--repo", "o/r", "--sha", "abc", "--record", str(tmp_path / "rec.json")])
+    rec = json.loads((tmp_path / "rec.json").read_text(encoding="utf-8"))
+    assert code == 1 and built == []
+    assert "VIDEO_IG_USER_ID" in rec["errors"]["reels"]
+
+
+def test_video_accounts_are_passed_to_publishers(tmp_path, monkeypatch):
+    isolated_env(monkeypatch, tmp_path,
+                 VIDEO_IG_USER_ID="v-ig", VIDEO_IG_ACCESS_TOKEN="v-ig-token",
+                 YOUTUBE_CLIENT_ID="cid", YOUTUBE_CLIENT_SECRET="sec",
+                 VIDEO_YOUTUBE_REFRESH_TOKEN="v-rt", VIDEO_YOUTUBE_CHANNEL_ID="UC_VIDEO")
+    built = {}
+    monkeypatch.setattr("cardbot.videopost.ReelsPublisher",
+                        lambda *a, **k: built.setdefault("reels", a) and FakePub("reels"))
+    monkeypatch.setattr("cardbot.youtube.YouTubePublisher",
+                        lambda *a, **k: built.setdefault("youtube", a) and FakePub("youtube"))
+    d = make_video_dir(tmp_path, platforms=("reels", "youtube"))
+    assert main([str(d), "--repo", "o/r", "--sha", "abc", "--record", str(tmp_path / "rec.json")]) == 0
+    assert built["reels"][:2] == ("v-ig", "v-ig-token")
+    assert built["youtube"][:5] == ("cid", "sec", "v-rt", "UC_VIDEO", "unlisted")
+    assert built["youtube"][5] == "22"
 
 
 def test_videopost_does_not_touch_cardnews_history(tmp_path, monkeypatch):
