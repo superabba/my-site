@@ -1,0 +1,4 @@
+# 선택 기능: 영상 속 말소리 인식
+faster-whisper>=1.2
+# faster-whisper 1.2.x는 PyAV 16 이상과 호환되지 않는다 (metadata_errors 인자 제거됨)
+av<16
