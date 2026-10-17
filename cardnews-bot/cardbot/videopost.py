@@ -6,7 +6,10 @@
 - 결과: `video-records` 브랜치의 `records/<ID>.json`.
   카드뉴스 이력 DB(cardbot.db)에는 쓰지 않으므로 카드뉴스의 '오늘 이미 게시함' 판단과
   주제 추천에 영향을 주지 않는다.
-- 계정: 카드뉴스와 같은 GitHub Secrets(IG/Threads/YouTube)를 그대로 쓴다.
+- 계정: 카드뉴스와 다른 '영상 전용' 계정. VIDEO_* Secrets만 쓰고, 없으면 카드뉴스 계정으로
+  대신 올리지 않고 그 플랫폼을 실패 처리한다 (video_settings 참고).
+  Meta 앱과 구글 OAuth 클라이언트(YOUTUBE_CLIENT_ID/SECRET)는 같이 써도 된다 — 어느 계정에 올라갈지는
+  계정 토큰(VIDEO_IG_ACCESS_TOKEN, VIDEO_YOUTUBE_REFRESH_TOKEN 등)이 정한다.
 
 인스타 릴스·스레드는 공개 URL에서 영상을 가져가므로 jsDelivr(파일당 20MB 제한) 주소를 먼저,
 raw 주소를 다음으로 시도한다. PC 앱이 인스타·스레드용 영상(meta)을 20MB 아래로 맞춰 올리고,
@@ -94,14 +97,48 @@ def with_hashtags(text: str, hashtags: list[str], limit: int | None = None) -> s
     return f"{text.strip()}\n\n{' '.join(tags)}".strip()
 
 
+def _env(name: str) -> str:
+    return os.environ.get(name, "").strip()
+
+
+def video_settings() -> Settings:
+    """영상 업로드 전용 계정 설정.
+
+    계정 토큰은 VIDEO_* 값만 쓴다. 비어 있어도 카드뉴스 계정(IG_*, THREADS_*, YOUTUBE_REFRESH_TOKEN)으로
+    대신 채우지 않는다 — 잘못된 계정에 올리는 것보다 실패하는 편이 낫다.
+    구글 OAuth 클라이언트는 계정이 아니라 앱이므로 VIDEO_YOUTUBE_CLIENT_*가 없으면 카드뉴스 것을 쓴다.
+    """
+    s = Settings.load()
+    s.ig_user_id, s.ig_access_token = _env("VIDEO_IG_USER_ID"), _env("VIDEO_IG_ACCESS_TOKEN")
+    s.threads_user_id, s.threads_access_token = _env("VIDEO_THREADS_USER_ID"), _env("VIDEO_THREADS_ACCESS_TOKEN")
+    s.youtube_refresh_token = _env("VIDEO_YOUTUBE_REFRESH_TOKEN")
+    s.youtube_client_id = _env("VIDEO_YOUTUBE_CLIENT_ID") or s.youtube_client_id
+    s.youtube_client_secret = _env("VIDEO_YOUTUBE_CLIENT_SECRET") or s.youtube_client_secret
+    s.youtube_channel_id = _env("VIDEO_YOUTUBE_CHANNEL_ID")
+    s.youtube_category = _env("VIDEO_YOUTUBE_CATEGORY") or "22"  # 22=인물/블로그 (카드뉴스는 27=교육)
+    return s
+
+
+SETUP_HINT = "video-uploader/README.md의 '영상 전용 계정 연결'을 참고하세요."
+
+
 def make_publisher(name: str, s: Settings, post: dict):
     if name == "reels":
+        if not (s.ig_user_id and s.ig_access_token):
+            raise ValueError(f"영상용 인스타 계정 Secrets(VIDEO_IG_USER_ID, VIDEO_IG_ACCESS_TOKEN)가 없습니다. {SETUP_HINT}")
         return ReelsPublisher(s.ig_user_id, s.ig_access_token, s.ig_graph_base)
     if name == "threads":
+        if not (s.threads_user_id and s.threads_access_token):
+            raise ValueError(
+                f"영상용 스레드 계정 Secrets(VIDEO_THREADS_USER_ID, VIDEO_THREADS_ACCESS_TOKEN)가 없습니다. {SETUP_HINT}")
         return ThreadsVideoPublisher(s.threads_user_id, s.threads_access_token, s.threads_graph_base)
     if name == "youtube":
         from .youtube import YouTubePublisher
 
+        if not s.youtube_refresh_token:
+            raise ValueError(f"영상용 유튜브 채널 Secret(VIDEO_YOUTUBE_REFRESH_TOKEN)이 없습니다. {SETUP_HINT}")
+        if not (s.youtube_client_id and s.youtube_client_secret):
+            raise ValueError("유튜브 OAuth 클라이언트(YOUTUBE_CLIENT_ID/SECRET 또는 VIDEO_YOUTUBE_CLIENT_ID/SECRET)가 없습니다.")
         return YouTubePublisher(
             s.youtube_client_id, s.youtube_client_secret, s.youtube_refresh_token, s.youtube_channel_id,
             post.get("youtube_privacy") or s.youtube_privacy, s.youtube_category, s.youtube_synthetic,
@@ -190,7 +227,7 @@ def main(argv=None) -> int:
     ap.add_argument("--record", required=True, type=Path, help="결과를 쓸 json 경로")
     a = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-    record = publish_video(a.video_dir, a.repo, a.sha, a.record, Settings.load())
+    record = publish_video(a.video_dir, a.repo, a.sha, a.record, video_settings())
     write_summary(record)
     failed = [n for n in record["platforms"] if n not in record["posts"]]
     for n in failed:

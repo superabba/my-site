@@ -145,7 +145,7 @@ API로 올린 영상이 자동으로 비공개가 되지는 않습니다 (YouTub
 
 ## 직접 찍은 영상 올리기 (별도 기능)
 
-PC 앱 [`video-uploader/`](../video-uploader/README.md)로 영상을 보내면 `.github/workflows/video-upload.yml`이 같은 계정(Secrets)으로 릴스·스레드·쇼츠에 게시합니다 (`cardbot/videopost.py`).
+PC 앱 [`video-uploader/`](../video-uploader/README.md)로 영상을 보내면 `.github/workflows/video-upload.yml`이 카드뉴스와 다른 **영상 전용 계정**(`VIDEO_*` Secrets)으로 릴스·스레드·쇼츠에 게시합니다 (`cardbot/videopost.py`). 영상용 값이 없으면 카드뉴스 계정으로 대신 올리지 않습니다.
 카드뉴스 자동 발행과는 워크플로·실행 순서 그룹·브랜치(`video/<ID>`, `video-records`)가 모두 따로이고 카드뉴스 이력 DB에 쓰지 않으므로, 영상을 올려도 카드뉴스의 하루 1번 게시는 그대로 진행됩니다.
 
 ## 사전 준비 (Meta 쪽)

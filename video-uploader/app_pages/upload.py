@@ -284,7 +284,7 @@ with st.container(border=True):
         st.badge(f"카드뉴스 봇 · {settings['github_repo']}", icon=":material/check:", color="green")
     else:
         st.badge("카드뉴스 봇 연결 안 됨", icon=":material/link_off:", color="gray")
-    st.caption("카드뉴스 자동 발행과는 따로 실행되어, 영상을 올려도 카드뉴스 발행 일정에 영향이 없습니다.")
+    st.caption("카드뉴스와 다른 '영상 전용 계정'으로 올라가고, 카드뉴스 자동 발행 일정에도 영향이 없습니다.")
 
     targets = st.pills(
         "올릴 곳", PLATFORMS, selection_mode="multi", format_func=PLATFORM_LABELS.get,
