@@ -1,0 +1,26 @@
+{
+  "id": "20261017-143301-cbb1cc3a",
+  "created_at": "2026-10-17T05:33:33",
+  "title": "앗 벌레다",
+  "platforms": [
+    "reels",
+    "threads",
+    "youtube"
+  ],
+  "posts": {
+    "reels": {
+      "media_id": "18092588879657918",
+      "permalink": "https://www.instagram.com/reel/DelXfEBCbn2/"
+    },
+    "threads": {
+      "media_id": "17910054477589344",
+      "permalink": "https://www.threads.com/@economypub/post/DelXlQCkbiE"
+    },
+    "youtube": {
+      "media_id": "vxIO-eRrTfk",
+      "permalink": "https://youtube.com/shorts/vxIO-eRrTfk"
+    }
+  },
+  "errors": {},
+  "updated_at": "2026-10-17T05:35:15"
+}
