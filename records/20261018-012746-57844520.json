@@ -10,10 +10,12 @@
     "youtube": {
       "media_id": "a_mQ3kuLQMk",
       "permalink": "https://youtube.com/shorts/a_mQ3kuLQMk"
+    },
+    "reels": {
+      "media_id": "18103438457631835",
+      "permalink": "https://www.instagram.com/reel/DemjpkhE5C1/"
     }
   },
-  "errors": {
-    "reels": "릴스 영상을 가져오지 못했습니다 — https://cdn.jsdelivr.net/gh/superabba/my-site@97d3c2fd2a8bab085d487d33bb2053b89d1b1ab1/videos/20261018-012746-57844520/video.mp4: 400 {'message': \"Unsupported post request. Object with ID 'super_abba_' does not exist, cannot be loaded due to missing permissions, or does not support this operation\", 'type': 'IGApiException', 'code': 100, 'error_subcode': 33, 'fbtrace_id': 'AOmt2SVttmMOLStQw8rIGY5'} | https://raw.githubusercontent.com/superabba/my-site/97d3c2fd2a8bab085d487d33bb2053b89d1b1ab1/videos/20261018-012746-57844520/video.mp4: 400 {'message': \"Unsupported post request. Object with ID 'super_abba_' does not exist, cannot be loaded due to missing permissions, or does not support this operation\", 'type': 'IGApiException', 'code': 100, 'error_subcode': 33, 'fbtrace_id': 'AMxy_xX753EQbPwfMwT7tFf'}"
-  },
-  "updated_at": "2026-10-17T16:34:05"
+  "errors": {},
+  "updated_at": "2026-10-17T16:39:36"
 }
