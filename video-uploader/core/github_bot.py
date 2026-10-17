@@ -9,6 +9,7 @@
 
 import base64
 import json
+import re
 import secrets
 import time
 from datetime import datetime
@@ -28,6 +29,37 @@ class GitHubError(Exception):
 
 def new_video_id() -> str:
     return f"{datetime.now():%Y%m%d-%H%M%S}-{secrets.token_hex(4)}"
+
+
+def token_problem(token: str) -> str | None:
+    """GitHub 토큰 칸의 값이 fine-grained 토큰(github_pat_…)이 아니면 이유를, 맞으면 None을 돌려준다.
+
+    다른 칸에 넣을 토큰을 잘못 붙여 넣는 실수가 잦아서, 생김새로 무슨 토큰인지 알려 준다.
+    """
+    t = (token or "").strip()
+    if not t:
+        return "GitHub 토큰을 입력해 주세요."
+    if t.startswith("github_pat_"):
+        return None
+    if t.startswith("IG"):
+        return ("인스타그램 토큰으로 보입니다. 이 칸이 아니라 아래 '영상 전용 계정 → 인스타·스레드 토큰으로 계정 ID 확인'에 "
+                "넣어 주세요. 이 칸에는 'github_pat_'로 시작하는 GitHub 토큰을 넣습니다.")
+    if t.startswith("TH"):
+        return ("스레드 토큰으로 보입니다. 이 칸이 아니라 아래 '영상 전용 계정 → 인스타·스레드 토큰으로 계정 ID 확인'에 "
+                "넣어 주세요. 이 칸에는 'github_pat_'로 시작하는 GitHub 토큰을 넣습니다.")
+    if t.startswith("1//"):
+        return ("유튜브 refresh token으로 보입니다. 이 값은 GitHub Secrets의 VIDEO_YOUTUBE_REFRESH_TOKEN에 넣습니다. "
+                "이 칸에는 'github_pat_'로 시작하는 GitHub 토큰을 넣습니다.")
+    if t.startswith(("ghp_", "gho_", "ghu_", "ghs_")):
+        return ("예전 방식(classic) GitHub 토큰입니다. 아래 'GitHub 토큰 만드는 법'대로 "
+                "'github_pat_'로 시작하는 fine-grained 토큰을 만들어 넣어 주세요.")
+    return "GitHub 토큰은 'github_pat_'로 시작해야 합니다. 복사한 값이 맞는지 확인해 주세요."
+
+
+def repo_problem(repo: str) -> str | None:
+    if re.fullmatch(r"[\w.-]+/[\w.-]+", (repo or "").strip()):
+        return None
+    return "저장소는 'owner/repo' 형식으로 입력해 주세요 (예: superabba/my-site)."
 
 
 class _ProgressBody:
@@ -52,6 +84,8 @@ class GitHubBot:
     def __init__(self, token: str, repo: str):
         if not token or not repo:
             raise GitHubError("계정 설정에서 GitHub 저장소와 토큰을 먼저 입력해 주세요.")
+        if problem := token_problem(token) or repo_problem(repo):
+            raise GitHubError(problem)
         self.repo = repo.strip().strip("/")
         self.session = requests.Session()
         self.session.headers.update({
