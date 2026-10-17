@@ -2,7 +2,7 @@ import streamlit as st
 
 from core import accounts, config, transcribe
 from core.config import PLATFORM_LABELS, PRIVACY_LABELS
-from core.github_bot import GitHubBot, GitHubError
+from core.github_bot import GitHubBot, GitHubError, repo_problem, token_problem
 
 settings = config.load_settings()
 
@@ -23,6 +23,8 @@ with st.container(border=True):
         "영상은 GitHub의 카드뉴스 봇 저장소로 보내지고, 봇이 아래 '영상 전용 계정'(VIDEO_* Secrets)으로 게시합니다. "
         "카드뉴스 계정으로는 올라가지 않습니다."
     )
+    if settings["github_token"] and (saved_problem := token_problem(settings["github_token"])):
+        st.warning(f"저장된 GitHub 토큰이 올바르지 않습니다. {saved_problem}", icon=":material/warning:")
     with st.form("github_form", border=False):
         repo = st.text_input("저장소", value=settings["github_repo"], placeholder="owner/repo")
         token = st.text_input(
@@ -30,7 +32,9 @@ with st.container(border=True):
             help="fine-grained 토큰: 저장소는 위 저장소 하나만, 권한은 Contents와 Actions를 'Read and write'로.",
         )
         submitted = st.form_submit_button("저장하고 연결 확인", icon=":material/check:")
-    if submitted:
+    if submitted and (problem := token_problem(token) or repo_problem(repo)):
+        st.error(f"저장하지 않았습니다. {problem}", icon=":material/block:")
+    elif submitted:
         save(github_repo=repo.strip(), github_token=token.strip())
         try:
             info = GitHubBot(token, repo).check()
@@ -75,7 +79,10 @@ with st.container(border=True):
             platform = st.segmented_control("플랫폼", ["인스타그램", "스레드"], default="인스타그램", required=True)
             meta_token = st.text_input("액세스 토큰", type="password")
             checked = st.form_submit_button("계정 확인", icon=":material/search:")
-        if checked:
+        if checked and meta_token.strip().startswith("github_pat_"):
+            st.error("GitHub 토큰입니다. 이 값은 맨 위 '카드뉴스 봇 연결'의 GitHub 토큰 칸에 넣어 주세요.",
+                     icon=":material/block:")
+        elif checked:
             try:
                 if platform == "인스타그램":
                     acc = accounts.instagram_account(meta_token)

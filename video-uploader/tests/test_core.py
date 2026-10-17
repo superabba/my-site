@@ -1,12 +1,15 @@
 import base64
 import json
 import subprocess
+from pathlib import Path
 
 import imageio_ffmpeg
 import pytest
 
 from core import config, media
 from core.github_bot import GitHubBot, GitHubError, new_video_id
+
+APP_DIR = Path(__file__).resolve().parent.parent
 
 
 class FakeResp:
@@ -56,7 +59,7 @@ def test_upload_creates_single_orphan_commit_on_video_branch(tmp_path):
             return FakeResp({"sha": "commit1"}, 201)
         return FakeResp({}, 201)
 
-    bot = GitHubBot("tok", "o/r")
+    bot = GitHubBot("github_pat_test", "o/r")
     bot.session.request = request
     progress = []
     sha = bot.upload("20261017-153000-1a2b3c4d", {"video.mp4": video}, {"title": "제목"}, progress.append)
@@ -73,7 +76,7 @@ def test_upload_creates_single_orphan_commit_on_video_branch(tmp_path):
 
 
 def test_check_explains_missing_workflow_and_bad_token():
-    bot = GitHubBot("tok", "o/r")
+    bot = GitHubBot("github_pat_test", "o/r")
     bot.session.request = lambda m, url, **kw: (
         FakeResp({"default_branch": "main"}) if url.endswith("/repos/o/r") else FakeResp({"message": "Not Found"}, 404))
     with pytest.raises(GitHubError, match="병합"):
@@ -85,7 +88,7 @@ def test_check_explains_missing_workflow_and_bad_token():
 
 def test_read_record_and_find_run(monkeypatch):
     record = {"platforms": ["reels"], "posts": {"reels": {"media_id": "1", "permalink": "https://ig/x"}}}
-    bot = GitHubBot("tok", "o/r")
+    bot = GitHubBot("github_pat_test", "o/r")
 
     def request(method, url, **kw):
         if "/contents/records/" in url:
@@ -133,3 +136,45 @@ def test_prepare_mov_is_converted_for_meta_only(tmp_path):
     info = media.probe(make_video(tmp_path / "clip.mov", size="720x1280"))
     files = media.prepare_upload_files(info, ["threads"], tmp_path / "work")
     assert set(files) == {"meta"} and files["meta"].suffix == ".mp4"
+
+
+def test_token_problem_recognizes_wrong_tokens():
+    from core.github_bot import repo_problem, token_problem
+
+    assert token_problem("github_pat_11ABC") is None
+    assert "인스타그램" in token_problem("IGAAxxxxxxxx")
+    assert "스레드" in token_problem("THAAxxxxxxxx")
+    assert "VIDEO_YOUTUBE_REFRESH_TOKEN" in token_problem("1//0abc")
+    assert "classic" in token_problem("ghp_abc")
+    assert "github_pat_" in token_problem("random")
+    assert token_problem("  ") == "GitHub 토큰을 입력해 주세요."
+    assert repo_problem("superabba/my-site") is None and repo_problem("my-site")
+    with pytest.raises(GitHubError, match="인스타그램"):
+        GitHubBot("IGAAxxxx", "o/r")
+
+
+def run_settings_page(tmp_path, monkeypatch, token):
+    from streamlit.testing.v1 import AppTest
+
+    monkeypatch.setattr(config, "SETTINGS_FILE", tmp_path / "settings.json")
+    config.save_settings({**config.DEFAULT_SETTINGS, "github_token": "github_pat_OLD"})
+    at = AppTest.from_file(str(APP_DIR / "app_pages" / "settings.py"), default_timeout=60).run()
+    field = next(w for w in at.text_input if w.label == "GitHub 토큰")
+    field.set_value(token)
+    next(b for b in at.button if b.label == "저장하고 연결 확인").click()
+    return at.run()
+
+
+def test_settings_refuses_non_github_token(tmp_path, monkeypatch):
+    at = run_settings_page(tmp_path, monkeypatch, "IGAAinstagramtoken")
+    assert any("저장하지 않았습니다" in e.value and "인스타그램" in e.value for e in at.error)
+    assert config.load_settings()["github_token"] == "github_pat_OLD"  # 기존 토큰이 그대로 남는다
+
+
+def test_settings_warns_about_saved_wrong_token(tmp_path, monkeypatch):
+    from streamlit.testing.v1 import AppTest
+
+    monkeypatch.setattr(config, "SETTINGS_FILE", tmp_path / "settings.json")
+    config.save_settings({**config.DEFAULT_SETTINGS, "github_token": "IGAAsavedbymistake"})
+    at = AppTest.from_file(str(APP_DIR / "app_pages" / "settings.py"), default_timeout=60).run()
+    assert any("저장된 GitHub 토큰이 올바르지 않습니다" in w.value for w in at.warning)

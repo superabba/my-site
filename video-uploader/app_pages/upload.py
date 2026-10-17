@@ -7,7 +7,7 @@ import streamlit as st
 
 from core import analyzer, config, media, transcribe
 from core.config import PLATFORM_LABELS, PRIVACY_LABELS
-from core.github_bot import GitHubBot, GitHubError, new_video_id
+from core.github_bot import GitHubBot, GitHubError, new_video_id, token_problem
 
 settings = config.load_settings()
 PLATFORMS = list(PLATFORM_LABELS)
@@ -276,7 +276,8 @@ with st.container(border=True):
 
 # ── 3. 업로드 ──────────────────────────────────────────────
 
-bot_ready = bool(settings["github_token"] and settings["github_repo"])
+token_issue = token_problem(settings["github_token"]) if settings["github_token"] else None
+bot_ready = bool(settings["github_token"] and settings["github_repo"]) and not token_issue
 
 with st.container(border=True):
     st.subheader("3. 업로드", icon=":material/rocket_launch:")
@@ -307,7 +308,9 @@ with st.container(border=True):
         problems.append("영상을 선택해 주세요.")
     if not targets:
         problems.append("올릴 곳을 하나 이상 고르세요.")
-    if not bot_ready:
+    if token_issue:
+        problems.append(f"계정 설정의 GitHub 토큰이 올바르지 않습니다. {token_issue}")
+    elif not bot_ready:
         problems.append("계정 설정에서 카드뉴스 봇(GitHub) 연결을 먼저 해 주세요.")
     if "youtube" in targets and not st.session_state.yt_title.strip():
         problems.append("유튜브 제목을 입력해 주세요.")
