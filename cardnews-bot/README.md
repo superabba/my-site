@@ -143,6 +143,11 @@ Variables에 `IMAGE_REPO=owner/repo`, Secrets에 `CARDBOT_GITHUB_TOKEN`(그 저�
 API로 올린 영상이 자동으로 비공개가 되지는 않습니다 (YouTube API 지원팀 확인). 유튜브가 요청과 다른 공개 범위로 바꾸면 실행 로그에 경고가 남습니다.
 제목은 카드뉴스 주제, 설명은 인스타 캡션(해시태그 포함, `#Shorts` 자동 추가), 태그는 캡션 해시태그로 채웁니다. 조회수·좋아요·댓글 수도 성과 수집에 포함됩니다.
 
+## 직접 찍은 영상 올리기 (별도 기능)
+
+PC 앱 [`video-uploader/`](../video-uploader/README.md)로 영상을 보내면 `.github/workflows/video-upload.yml`이 같은 계정(Secrets)으로 릴스·스레드·쇼츠에 게시합니다 (`cardbot/videopost.py`).
+카드뉴스 자동 발행과는 워크플로·실행 순서 그룹·브랜치(`video/<ID>`, `video-records`)가 모두 따로이고 카드뉴스 이력 DB에 쓰지 않으므로, 영상을 올려도 카드뉴스의 하루 1번 게시는 그대로 진행됩니다.
+
 ## 사전 준비 (Meta 쪽)
 
 1. **Instagram**: 프로페셔널(비즈니스/크리에이터) 계정 → [Meta for Developers](https://developers.facebook.com/)에서 앱 생성 → *Instagram API with Instagram Login* 추가 →

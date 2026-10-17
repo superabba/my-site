@@ -1,0 +1,102 @@
+# 직접 찍은 영상 업로드 (video-uploader 앱 → 인스타 릴스·스레드·유튜브 쇼츠)
+# 카드뉴스 자동 발행(cardnews.yml)과 완전히 따로 동작한다.
+#   - 실행 순서 그룹(concurrency)이 달라 서로 기다리거나 멈추지 않는다.
+#   - 카드뉴스의 cardbot-data 브랜치·이력 DB를 건드리지 않는다 (영상은 video/<ID>, 결과는 video-records 브랜치).
+# 계정 정보는 카드뉴스와 같은 Secrets를 쓴다. 사용법은 video-uploader/README.md 참고.
+name: 영상 업로드
+run-name: "영상 업로드 ${{ inputs.video_id }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_id:
+        description: "영상 ID (video-uploader 앱이 자동으로 넣음, 예: 20261017-153000-1a2b3c4d)"
+        required: true
+
+permissions:
+  contents: write # 결과 기록 + 게시가 끝난 영상 브랜치 삭제
+
+concurrency:
+  group: video-upload
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: cardnews-bot
+    env:
+      VIDEO_ID: ${{ inputs.video_id }}
+      RECORDS_BRANCH: video-records
+
+      IG_USER_ID: ${{ secrets.IG_USER_ID }}
+      IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+      THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
+      THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+      YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+      YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+      YOUTUBE_CHANNEL_ID: ${{ vars.YOUTUBE_CHANNEL_ID }} # 이 채널이 아니면 업로드하지 않음
+      YOUTUBE_CATEGORY: ${{ vars.VIDEO_YOUTUBE_CATEGORY || '22' }} # 22=인물/블로그 (카드뉴스는 27=교육)
+
+    steps:
+      - name: 영상 ID 확인
+        working-directory: .
+        run: |
+          if ! [[ "$VIDEO_ID" =~ ^[0-9]{8}-[0-9]{6}-[0-9a-f]{8}$ ]]; then
+            echo "::error::영상 ID 형식이 잘못됐습니다: $VIDEO_ID"; exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: cardnews-bot/requirements.txt
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 영상과 결과 브랜치 가져오기
+        working-directory: .
+        run: |
+          git config --global user.name "cardbot"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --depth=1 origin "refs/heads/video/$VIDEO_ID:refs/remotes/origin/video/$VIDEO_ID"
+          git worktree add --detach video "origin/video/$VIDEO_ID"
+          echo "VIDEO_SHA=$(git rev-parse "origin/video/$VIDEO_ID")" >> "$GITHUB_ENV"
+          if git fetch --depth=1 origin "$RECORDS_BRANCH:$RECORDS_BRANCH"; then
+            git worktree add records "$RECORDS_BRANCH"
+          else
+            git worktree add --orphan -b "$RECORDS_BRANCH" records
+            printf '# 영상 업로드 결과\n\nvideo-uploader 앱으로 올린 영상의 게시 결과(records/)가 쌓입니다.\n' > records/README.md
+          fi
+
+      - name: 게시
+        run: |
+          python -m cardbot.videopost "$GITHUB_WORKSPACE/video/videos/$VIDEO_ID" \
+            --repo "$GITHUB_REPOSITORY" --sha "$VIDEO_SHA" \
+            --record "$GITHUB_WORKSPACE/records/records/$VIDEO_ID.json"
+
+      - name: 결과 저장
+        if: always()
+        working-directory: records
+        run: |
+          [ -d records ] || exit 0
+          git add -A
+          if git diff --cached --quiet; then echo "변경 없음"; exit 0; fi
+          git commit -m "video: $VIDEO_ID"
+          for i in 1 2 3; do
+            git push origin "HEAD:$RECORDS_BRANCH" && exit 0
+            git fetch origin "$RECORDS_BRANCH" && git rebase FETCH_HEAD
+            sleep $((i * 5))
+          done
+          echo "::error::결과 브랜치 푸시 실패"; exit 1
+
+      - name: 게시가 끝난 영상 브랜치 삭제
+        if: success()
+        working-directory: .
+        run: git push origin --delete "video/$VIDEO_ID"
