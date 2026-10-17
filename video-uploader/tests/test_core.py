@@ -178,3 +178,89 @@ def test_settings_warns_about_saved_wrong_token(tmp_path, monkeypatch):
     config.save_settings({**config.DEFAULT_SETTINGS, "github_token": "IGAAsavedbymistake"})
     at = AppTest.from_file(str(APP_DIR / "app_pages" / "settings.py"), default_timeout=60).run()
     assert any("저장된 GitHub 토큰이 올바르지 않습니다" in w.value for w in at.warning)
+
+
+def use_tmp_data_dirs(monkeypatch, tmp_path):
+    dirs = {}
+    for name in ("VIDEO_DIR", "WORK_DIR", "FRAME_DIR"):
+        d = tmp_path / name.lower()
+        d.mkdir()
+        monkeypatch.setattr(config, name, d)
+        dirs[name] = d
+    monkeypatch.setattr(config, "SETTINGS_FILE", tmp_path / "settings.json")
+    monkeypatch.setattr(config, "HISTORY_FILE", tmp_path / "history.json")
+    return dirs
+
+
+def test_clear_working_files_keeps_originals(tmp_path, monkeypatch):
+    dirs = use_tmp_data_dirs(monkeypatch, tmp_path)
+    original = tmp_path / "내 영상 원본.mp4"
+    original.write_bytes(b"original")
+    (dirs["VIDEO_DIR"] / "copy.mp4").write_bytes(b"copy")
+    (dirs["WORK_DIR"] / "meta.mp4").write_bytes(b"meta")
+    (dirs["FRAME_DIR"] / "frame_00.jpg").write_bytes(b"jpg")
+    assert config.clear_working_files() == 3
+    assert all(not any(d.iterdir()) for d in dirs.values())
+    assert original.read_bytes() == b"original"
+
+
+class FakeBot:
+    instances = []
+
+    def __init__(self, token, repo):
+        self.repo, self.calls = repo, []
+        FakeBot.instances.append(self)
+
+    def check(self):
+        return {"default_branch": "main", "private": False}
+
+    def upload(self, video_id, files, post, progress_cb=None):
+        # 보내는 시점에는 작업용 사본이 아직 있어야 한다
+        assert all(p.exists() for p in files.values())
+        self.calls.append(("upload", video_id, sorted(files), post["platforms"]))
+        return "sha"
+
+    def dispatch(self, video_id, ref):
+        self.calls.append(("dispatch", video_id, ref))
+
+    def delete_video_branch(self, video_id):
+        self.calls.append(("delete", video_id))
+
+    def find_run(self, video_id, wait_s=90):
+        return {"id": 1, "status": "completed", "html_url": "https://github.com/o/r/actions/runs/1"}
+
+    def get_run(self, run_id):
+        return {"id": run_id, "status": "completed"}
+
+    def read_record(self, video_id):
+        return {"platforms": ["threads"], "posts": {"threads": {"media_id": "1", "permalink": "https://threads/x"}},
+                "errors": {}}
+
+
+def test_upload_deletes_working_copies_and_resets_picker(tmp_path, monkeypatch):
+    from streamlit.testing.v1 import AppTest
+
+    import core.github_bot as github_bot
+
+    dirs = use_tmp_data_dirs(monkeypatch, tmp_path)
+    config.save_settings({**config.DEFAULT_SETTINGS, "github_token": "github_pat_x", "github_repo": "o/r",
+                          "default_platforms": ["threads"]})
+    monkeypatch.setattr(github_bot, "GitHubBot", FakeBot)
+    working_copy = make_video(dirs["VIDEO_DIR"] / "clip.mp4")
+    (dirs["FRAME_DIR"] / "frame_00.jpg").write_bytes(b"jpg")
+
+    at = AppTest.from_file(str(APP_DIR / "app_pages" / "upload.py"), default_timeout=120)
+    at.session_state["video"] = {"file_id": "f1", "key": "clip.mp4:123", "info": media.probe(working_copy)}
+    at.session_state["threads_text"] = "스레드 글"
+    at.run()
+    next(b for b in at.button if b.label == "업로드 시작").click()
+    at.run()
+
+    assert not at.exception
+    bot = FakeBot.instances[-1]
+    assert [c[0] for c in bot.calls] == ["upload", "dispatch"]
+    assert all(not any(d.iterdir()) for d in dirs.values()), "작업용 사본이 남아 있으면 안 된다"
+    assert at.session_state["video"] is None and at.session_state["uploader_n"] == 1
+    assert "clip.mp4:123" in at.session_state["uploaded_keys"]
+    assert at.session_state["last_result"]["status"] == "완료"
+    assert config.load_history()[0]["status"] == "완료"

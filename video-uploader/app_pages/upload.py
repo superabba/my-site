@@ -43,9 +43,9 @@ def save_upload(uploaded) -> Path:
     return target
 
 
-def on_video_change():
+def on_video_change(key: str):
     # 사용자가 업로더에서 파일을 지웠을 때만 호출된다(페이지 이동 때는 호출되지 않음).
-    if st.session_state.get("video_file") is None:
+    if st.session_state.get(key) is None:
         st.session_state.video = None
 
 
@@ -133,7 +133,12 @@ def run_publish(video: dict, targets: list[str], post: dict) -> None:
             except GitHubError:
                 bot.delete_video_branch(video_id)
                 raise
-            st.session_state.uploaded_keys.add(video["file_id"])
+            st.session_state.uploaded_keys.add(video.get("key"))
+            # 영상은 이제 GitHub에 있으므로 이 프로그램이 만든 작업용 사본은 지운다 (원본 파일은 그대로).
+            # 업로더도 비워서 같은 파일을 다시 복사하지 않게 한다.
+            config.clear_working_files()
+            st.session_state.video = None
+            st.session_state.uploader_n += 1
 
             step.write("봇이 실행되기를 기다리는 중…")
             bar.progress(0.0, text="실행 대기")
@@ -174,7 +179,8 @@ def run_publish(video: dict, targets: list[str], post: dict) -> None:
 
 st.session_state.setdefault("video", None)
 st.session_state.setdefault("ai_summary", "")
-st.session_state.setdefault("uploaded_keys", set())
+st.session_state.setdefault("uploaded_keys", set())  # 이미 보낸 영상 (파일 이름:크기)
+st.session_state.setdefault("uploader_n", 0)  # 올린 뒤 업로더를 비우려고 위젯 key를 바꾼다
 st.session_state.setdefault("last_result", None)
 for key in ("yt_title", "yt_desc", "ig_caption", "threads_text"):
     st.session_state.setdefault(key, "")
@@ -195,16 +201,19 @@ if pending := st.session_state.pop("pending_fill", None):
 
 with st.container(border=True):
     st.subheader("1. 영상 선택", icon=":material/movie:")
+    uploader_key = f"video_file_{st.session_state.uploader_n}"
     uploaded = st.file_uploader(
         "올릴 영상 파일 (mp4, mov)", type=["mp4", "mov", "m4v"],
-        max_upload_size=2048, key="video_file", on_change=on_video_change,
+        max_upload_size=2048, key=uploader_key, on_change=on_video_change, args=(uploader_key,),
+        help="처리하는 동안만 작업용 사본을 만들고, GitHub로 보낸 뒤 바로 지웁니다. 원본 파일은 건드리지 않습니다.",
     )
     current = st.session_state.video
     if uploaded is not None and (current is None or current["file_id"] != uploaded.file_id):
         with st.spinner("영상 정보를 읽는 중…"):
             try:
                 path = save_upload(uploaded)
-                st.session_state.video = {"file_id": uploaded.file_id, "info": media.probe(path)}
+                st.session_state.video = {"file_id": uploaded.file_id, "key": f"{uploaded.name}:{uploaded.size}",
+                                          "info": media.probe(path)}
                 # 새 영상이면 이전 영상용 문구를 비운다.
                 for key in ("yt_title", "yt_desc", "ig_caption", "threads_text", "ai_summary"):
                     st.session_state[key] = ""
@@ -338,7 +347,7 @@ with st.container(border=True):
                 st.text(threads_final)
 
     allow = True
-    if video and video["file_id"] in st.session_state.uploaded_keys:
+    if video and video.get("key") in st.session_state.uploaded_keys:
         st.warning("이 영상은 이미 봇으로 보냈습니다.", icon=":material/content_copy:")
         allow = st.checkbox("같은 영상을 한 번 더 올리기", key="allow_again")
 
@@ -374,4 +383,5 @@ with st.container(border=True):
             else:
                 st.success(f"{label}: {detail}", icon=":material/check_circle:")
         if result.get("run_url"):
-            st.caption(f"[GitHub 실행 기록 보기]({result['run_url']})")
+            st.caption(f"[GitHub 실행 기록 보기]({result['run_url']}) · 이 프로그램이 만든 작업용 사본은 지웠습니다 "
+                       "(원본 파일은 그대로).")
