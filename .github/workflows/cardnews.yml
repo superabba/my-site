@@ -31,7 +31,7 @@ concurrency:
 
 jobs:
   cardnews:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # ubuntu-latest는 2026-10-19부터 Ubuntu 26으로 바뀌므로 고정
     timeout-minutes: 40
     defaults:
       run:
