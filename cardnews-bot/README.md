@@ -148,6 +148,29 @@ API로 올린 영상이 자동으로 비공개가 되지는 않습니다 (YouTub
 PC 앱 [`video-uploader/`](../video-uploader/README.md)로 영상을 보내면 `.github/workflows/video-upload.yml`이 카드뉴스와 다른 **영상 전용 계정**(`VIDEO_*` Secrets)으로 릴스·스레드·쇼츠에 게시합니다 (`cardbot/videopost.py`). 영상용 값이 없으면 카드뉴스 계정으로 대신 올리지 않습니다.
 카드뉴스 자동 발행과는 워크플로·실행 순서 그룹·브랜치(`video/<ID>`, `video-records`)가 모두 따로이고 카드뉴스 이력 DB에 쓰지 않으므로, 영상을 올려도 카드뉴스의 하루 1번 게시는 그대로 진행됩니다.
 
+## 쇼츠 스튜디오 발행 (경제주막 계정, 별도 기능)
+
+PC 앱 **쇼츠 스튜디오**(글 → 목소리·음악·자막이 들어간 세로 영상 생성)가 만든 영상을 `.github/workflows/shorts-upload.yml`이 **카드뉴스와 같은 경제주막(@economypub) 계정**의 릴스·스레드·유튜브 쇼츠에 게시합니다 (`cardbot/shortspost.py`).
+계정은 같지만 실행은 카드뉴스와 완전히 따로입니다.
+
+| | 카드뉴스 자동 발행 | 쇼츠 스튜디오 발행 |
+|---|---|---|
+| 워크플로 / 실행 순서 그룹 | `cardnews.yml` / `cardbot` | `shorts-upload.yml` / `shorts-upload` — 서로 기다리거나 막지 않음 |
+| 데이터 | `cardbot-data` 브랜치, 이력 DB | `shorts/<ID>`, `shorts-records` 브랜치 — 카드뉴스 이력 DB에 쓰지 않음 |
+| 계정 값 | `IG_*`, `THREADS_*`, `YOUTUBE_*` | 같은 값을 **읽기만** 함 (토큰 갱신은 `cardnews-refresh-tokens.yml`만) |
+
+따로 넣을 Secrets는 없습니다. 같은 계정을 쓰기 때문에 카드뉴스가 막히지 않도록 게시 직전에 확인합니다 (저장소 **Variables**로 조정, 비우면 기본값):
+
+| Variable | 기본값 | 하는 일 |
+|---|---|---|
+| `SHORTS_ACCOUNT` | `economypub` | 인스타·스레드 아이디가 이것과 다르면 올리지 않음 (유튜브는 `YOUTUBE_CHANNEL_ID`로 확인) |
+| `SHORTS_RESERVE` | `10` | 인스타·스레드의 24시간 게시 한도를 조회해, 남은 횟수가 이 이하면 카드뉴스 몫으로 남기고 건너뜀 |
+| `SHORTS_DAILY_MAX` | `5` | 플랫폼마다 최근 24시간에 쇼츠를 이 개수까지만 올림 (유튜브 API 하루 할당량도 카드뉴스와 나눠 씀) |
+| `SHORTS_YOUTUBE_CATEGORY` | `YOUTUBE_CATEGORY` | 쇼츠의 유튜브 카테고리 |
+
+유튜브 할당량을 카드뉴스와 아예 나누고 싶으면, 다른 구글 Cloud 프로젝트의 OAuth 앱으로 경제주막 채널 토큰을 받아 Secrets `SHORTS_YOUTUBE_CLIENT_ID`, `SHORTS_YOUTUBE_CLIENT_SECRET`, `SHORTS_YOUTUBE_REFRESH_TOKEN`에 넣으세요 (카드뉴스의 `YOUTUBE_REFRESH_TOKEN`은 그대로 둡니다).
+공개 범위와 'AI 합성 콘텐츠' 표시는 PC 앱에서 영상마다 고릅니다. 실패한 플랫폼은 Actions 실행 기록의 **Re-run jobs**로 그 플랫폼만 다시 올릴 수 있습니다.
+
 ## 사전 준비 (Meta 쪽)
 
 1. **Instagram**: 프로페셔널(비즈니스/크리에이터) 계정 → [Meta for Developers](https://developers.facebook.com/)에서 앱 생성 → *Instagram API with Instagram Login* 추가 →

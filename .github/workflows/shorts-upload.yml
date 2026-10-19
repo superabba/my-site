@@ -1,0 +1,117 @@
+# 쇼츠 스튜디오 영상 발행 (shorts-studio PC 앱 → 경제주막 계정의 인스타 릴스·스레드·유튜브 쇼츠)
+# 카드뉴스 자동 발행(cardnews.yml)과 '같은 계정'에 올리지만 실행은 완전히 따로다.
+#   - 실행 순서 그룹(concurrency)이 달라 서로 기다리거나 멈추지 않는다.
+#   - 카드뉴스의 cardbot-data 브랜치·이력 DB를 건드리지 않는다 (영상은 shorts/<ID>, 결과는 shorts-records 브랜치).
+#   - 카드뉴스 계정 Secrets는 읽기만 하고 갱신하지 않는다 (갱신은 cardnews-refresh-tokens.yml만).
+#   - 계정 확인·카드뉴스 몫 남기기·하루 상한으로 카드뉴스 게시가 막히지 않게 한다 (cardbot/shortspost.py).
+# 사용법은 cardnews-bot/README.md의 '쇼츠 스튜디오 발행' 참고.
+name: 쇼츠 발행 (경제주막)
+run-name: "쇼츠 발행 ${{ inputs.video_id }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_id:
+        description: "영상 ID (쇼츠 스튜디오가 자동으로 넣음, 예: 20261020-153000-1a2b3c4d)"
+        required: true
+
+permissions:
+  contents: write # 결과 기록 + 게시가 끝난 영상 브랜치 삭제
+
+concurrency:
+  group: shorts-upload
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: cardnews-bot
+    env:
+      VIDEO_ID: ${{ inputs.video_id }}
+      RECORDS_BRANCH: shorts-records
+
+      # --- 경제주막 = 카드뉴스와 같은 계정 (읽기만 함) ---
+      IG_USER_ID: ${{ secrets.IG_USER_ID }}
+      IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+      THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
+      THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+      YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+      YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+      YOUTUBE_CHANNEL_ID: ${{ vars.YOUTUBE_CHANNEL_ID }} # 이 채널이 아니면 업로드하지 않음
+      YOUTUBE_CATEGORY: ${{ vars.YOUTUBE_CATEGORY }}
+      # (선택) 유튜브 하루 할당량을 카드뉴스와 나누고 싶으면 다른 구글 OAuth 앱으로 받은 값을 넣는다
+      SHORTS_YOUTUBE_CLIENT_ID: ${{ secrets.SHORTS_YOUTUBE_CLIENT_ID }}
+      SHORTS_YOUTUBE_CLIENT_SECRET: ${{ secrets.SHORTS_YOUTUBE_CLIENT_SECRET }}
+      SHORTS_YOUTUBE_REFRESH_TOKEN: ${{ secrets.SHORTS_YOUTUBE_REFRESH_TOKEN }}
+      SHORTS_YOUTUBE_CATEGORY: ${{ vars.SHORTS_YOUTUBE_CATEGORY }}
+
+      # --- 안전장치 (Variables, 비우면 기본값) ---
+      SHORTS_ACCOUNT: ${{ vars.SHORTS_ACCOUNT }} # 기본 economypub: 인스타·스레드 아이디가 다르면 올리지 않음
+      SHORTS_DAILY_MAX: ${{ vars.SHORTS_DAILY_MAX }} # 기본 5: 플랫폼마다 24시간에 쇼츠 최대 개수
+      SHORTS_RESERVE: ${{ vars.SHORTS_RESERVE }} # 기본 10: 인스타·스레드 24시간 한도에서 카드뉴스 몫으로 남길 개수
+
+    steps:
+      - name: 영상 ID 확인
+        working-directory: .
+        run: |
+          if ! [[ "$VIDEO_ID" =~ ^[0-9]{8}-[0-9]{6}-[0-9a-f]{8}$ ]]; then
+            echo "::error::영상 ID 형식이 잘못됐습니다: $VIDEO_ID"; exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: cardnews-bot/requirements.txt
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 영상과 결과 브랜치 가져오기
+        working-directory: .
+        run: |
+          git config --global user.name "cardbot"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --depth=1 origin "refs/heads/shorts/$VIDEO_ID:refs/remotes/origin/shorts/$VIDEO_ID"
+          git worktree add --detach video "origin/shorts/$VIDEO_ID"
+          echo "VIDEO_SHA=$(git rev-parse "origin/shorts/$VIDEO_ID")" >> "$GITHUB_ENV"
+          if git fetch --depth=1 origin "$RECORDS_BRANCH:$RECORDS_BRANCH"; then
+            git worktree add records "$RECORDS_BRANCH"
+          else
+            git worktree add --orphan -b "$RECORDS_BRANCH" records
+            printf '# 쇼츠 발행 결과\n\n쇼츠 스튜디오로 경제주막 계정에 올린 영상의 게시 결과(records/)가 쌓입니다.\n' > records/README.md
+          fi
+          mkdir -p records/records
+
+      - name: 게시
+        run: |
+          python -m cardbot.shortspost "$GITHUB_WORKSPACE/video/videos/$VIDEO_ID" \
+            --repo "$GITHUB_REPOSITORY" --sha "$VIDEO_SHA" \
+            --record "$GITHUB_WORKSPACE/records/records/$VIDEO_ID.json" \
+            --records-dir "$GITHUB_WORKSPACE/records/records"
+
+      - name: 결과 저장
+        if: always()
+        working-directory: records
+        run: |
+          [ -d records ] || exit 0
+          git add -A
+          if git diff --cached --quiet; then echo "변경 없음"; exit 0; fi
+          git commit -m "shorts: $VIDEO_ID"
+          for i in 1 2 3; do
+            git push origin "HEAD:$RECORDS_BRANCH" && exit 0
+            git fetch origin "$RECORDS_BRANCH" && git rebase FETCH_HEAD
+            sleep $((i * 5))
+          done
+          echo "::error::결과 브랜치 푸시 실패"; exit 1
+
+      - name: 게시가 끝난 영상 브랜치 삭제
+        if: success()
+        working-directory: .
+        run: git push origin --delete "shorts/$VIDEO_ID"
