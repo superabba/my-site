@@ -203,3 +203,13 @@ def test_remaining_quota_parses_and_tolerates_errors(env, monkeypatch):
     assert shortspost.remaining_quota("reels", s) == 47
     monkeypatch.setattr(shortspost, "_graph", lambda name, s: (Api(err=PublishError("400 권한 없음")), "1"))
     assert shortspost.remaining_quota("threads", s) is None
+
+
+def test_daily_fields_are_recorded(env, tmp_path):
+    d = make_video_dir(tmp_path, platforms=("youtube",), daily=True, topic="금리 동결", keyword="기준금리",
+                       theme="경제 뉴스 쉽게 풀기")
+    build, _ = fake_build()
+    rec = run(tmp_path, d, build)
+    assert rec["daily"] is True and rec["topic"] == "금리 동결" and rec["theme"] == "경제 뉴스 쉽게 풀기"
+    saved = json.loads((tmp_path / "records" / f"{d.name}.json").read_text(encoding="utf-8"))
+    assert saved["keyword"] == "기준금리"

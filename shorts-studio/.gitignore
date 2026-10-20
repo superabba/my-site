@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+cache/
+output/
+settings.json
+publish_history.json
+.streamlit/secrets.toml
+assets/music/*
+assets/fonts/*
+!assets/music/.gitkeep
+!assets/fonts/.gitkeep
