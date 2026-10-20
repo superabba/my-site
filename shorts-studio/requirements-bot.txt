@@ -1,0 +1,8 @@
+# 매일 자동 쇼츠(GitHub Actions)용 — 화면(streamlit) 없이 영상만 만든다
+anthropic>=1.15
+google-genai>=2.31
+edge-tts>=7.3
+imageio-ffmpeg>=0.6
+numpy>=2.0
+pillow>=11
+requests>=2.32

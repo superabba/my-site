@@ -178,6 +178,9 @@ def publish_shorts(video_dir: Path, repo: str, sha: str, record_path: Path, reco
             for name in PLATFORMS}
     record = publish_video(video_dir, repo, sha, record_path, settings, pubs)
     record["account"] = expected_account()
+    for key in ("daily", "topic", "keyword", "theme"):  # 매일 자동 쇼츠: '오늘 이미 게시함'·주제 중복 판단용
+        if key in post:
+            record[key] = post[key]
     for info in record.get("posts", {}).values():
         info.setdefault("published_at", now.isoformat(timespec="seconds"))
     record_path.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")

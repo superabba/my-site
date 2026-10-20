@@ -171,6 +171,9 @@ PC 앱 **쇼츠 스튜디오**(글 → 목소리·음악·자막이 들어간 �
 유튜브 할당량을 카드뉴스와 아예 나누고 싶으면, 다른 구글 Cloud 프로젝트의 OAuth 앱으로 경제주막 채널 토큰을 받아 Secrets `SHORTS_YOUTUBE_CLIENT_ID`, `SHORTS_YOUTUBE_CLIENT_SECRET`, `SHORTS_YOUTUBE_REFRESH_TOKEN`에 넣으세요 (카드뉴스의 `YOUTUBE_REFRESH_TOKEN`은 그대로 둡니다).
 공개 범위와 'AI 합성 콘텐츠' 표시는 PC 앱에서 영상마다 고릅니다. 실패한 플랫폼은 Actions 실행 기록의 **Re-run jobs**로 그 플랫폼만 다시 올릴 수 있습니다.
 
+**매일 자동 쇼츠**: `.github/workflows/shorts-daily.yml`이 매일 KST 06:45(cron-job.org)에 경제 쇼츠를 만들어 **07:10에 같은 경제주막 계정**으로 게시합니다 (`shorts-studio/shorts/daily.py` → 게시는 위와 같은 `cardbot.shortspost`, 같은 안전장치).
+카드뉴스 이력 DB는 최근 주제를 피하려고 **읽기만** 하고, 결과는 `shorts-records`에만 씁니다. 설정은 [`shorts-studio/README.md`](../shorts-studio/README.md)의 '매일 자동 발행' 참고.
+
 ## 사전 준비 (Meta 쪽)
 
 1. **Instagram**: 프로페셔널(비즈니스/크리에이터) 계정 → [Meta for Developers](https://developers.facebook.com/)에서 앱 생성 → *Instagram API with Instagram Login* 추가 →

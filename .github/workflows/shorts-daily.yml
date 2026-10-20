@@ -1,0 +1,201 @@
+# 매일 자동 경제 쇼츠 (shorts-studio/shorts/daily.py → 경제주막 계정 게시)
+# 오늘의 경제 테마(날마다 돌아감) → 인기 키워드 → 웹 조사 → 존댓말 30초 대본 → 나노바나나 그림 → 영상 → KST 07:10 게시.
+# 카드뉴스 자동 발행(cardnews.yml)과는 따로 동작한다:
+#   - 실행 순서 그룹이 달라 서로 기다리거나 막지 않는다.
+#   - 카드뉴스 이력 DB(cardbot-data 브랜치)는 '최근 주제를 피하려고' 읽기만 하고, 쓰지 않는다.
+#   - 게시는 cardbot.shortspost가 한다 (계정 확인·카드뉴스 몫 남기기·하루 상한, shorts-upload.yml과 같은 안전장치).
+# 정시 실행은 cron-job.org가 workflow_dispatch(action=auto)로 KST 06:45에 깨운다. 아래 예약은 예비.
+# auto는 오늘(KST) 이미 게시했거나 KST 6~11시가 아니면 건너뛰어 중복·늦은 게시가 없다.
+name: 매일 자동 쇼츠 (경제주막)
+run-name: "매일 자동 쇼츠 ${{ inputs.action || 'auto' }}"
+
+on:
+  schedule:
+    - cron: "55 21 * * *" # KST 06:55 (예비 — GitHub 예약은 늦어질 수 있음)
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "auto=예약 실행과 같음(07:10에 게시, 하루 1번) / draft=만들기만(게시 안 함, 결과는 아티팩트) / publish-now=만들고 바로 게시"
+        type: choice
+        default: draft
+        options: [auto, draft, publish-now]
+      theme:
+        description: "(선택) 오늘의 테마 대신 쓸 테마 이름 (예: 직장인 재테크)"
+        required: false
+      topic:
+        description: "(선택) 직접 정할 주제. 비우면 인기 키워드에서 고름"
+        required: false
+
+permissions:
+  contents: write # 영상 브랜치·결과 기록 + 게시가 끝난 영상 브랜치 삭제
+
+concurrency:
+  group: shorts-daily
+  cancel-in-progress: false
+
+jobs:
+  daily:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      ACTION: ${{ github.event_name == 'schedule' && 'auto' || inputs.action }}
+      RECORDS_BRANCH: shorts-records
+      PUBLISH_AT: ${{ vars.SHORTS_PUBLISH_AT || '07:10' }}
+      SHORTS_OUTPUT_DIR: ${{ github.workspace }}/out/render
+      SHORTS_CACHE_DIR: ${{ github.workspace }}/cache
+      SHORTS_FONT_DIR: ${{ github.workspace }}/cardnews-bot/fonts
+
+      # --- 글·그림 ---
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      SHORTS_GEMINI_API_KEY: ${{ secrets.SHORTS_GEMINI_API_KEY }} # (선택) 그림용 키를 따로 쓸 때
+      PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }} # (선택) 그림 실패 시 스톡 영상
+      SHORTS_MODEL: ${{ vars.SHORTS_MODEL }}
+      SHORTS_IMAGE_MODEL: ${{ vars.SHORTS_IMAGE_MODEL }} # 기본 gemini-nano-banana-2.1
+      SHORTS_IMAGE_SIZE: ${{ vars.SHORTS_IMAGE_SIZE }} # 기본 2K
+      SHORTS_THEMES: ${{ vars.SHORTS_THEMES }}
+      SHORTS_LENGTH: ${{ vars.SHORTS_LENGTH }} # 기본 30(초)
+      SHORTS_VOICE: ${{ vars.SHORTS_VOICE }}
+      SHORTS_DAILY_PLATFORMS: ${{ vars.SHORTS_DAILY_PLATFORMS }} # 기본 reels,threads,youtube
+      SHORTS_YOUTUBE_PRIVACY: ${{ vars.SHORTS_YOUTUBE_PRIVACY }} # 기본 public
+
+      # --- 경제주막 = 카드뉴스와 같은 계정 (읽기만 함, shorts-upload.yml과 같음) ---
+      IG_USER_ID: ${{ secrets.IG_USER_ID }}
+      IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+      THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
+      THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+      YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+      YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+      YOUTUBE_CHANNEL_ID: ${{ vars.YOUTUBE_CHANNEL_ID }}
+      YOUTUBE_CATEGORY: ${{ vars.YOUTUBE_CATEGORY }}
+      SHORTS_YOUTUBE_CLIENT_ID: ${{ secrets.SHORTS_YOUTUBE_CLIENT_ID }}
+      SHORTS_YOUTUBE_CLIENT_SECRET: ${{ secrets.SHORTS_YOUTUBE_CLIENT_SECRET }}
+      SHORTS_YOUTUBE_REFRESH_TOKEN: ${{ secrets.SHORTS_YOUTUBE_REFRESH_TOKEN }}
+      SHORTS_YOUTUBE_CATEGORY: ${{ vars.SHORTS_YOUTUBE_CATEGORY }}
+      SHORTS_ACCOUNT: ${{ vars.SHORTS_ACCOUNT }}
+      SHORTS_DAILY_MAX: ${{ vars.SHORTS_DAILY_MAX }}
+      SHORTS_RESERVE: ${{ vars.SHORTS_RESERVE }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            shorts-studio/requirements-bot.txt
+            cardnews-bot/requirements.txt
+
+      - name: 의존성 설치
+        run: pip install -r shorts-studio/requirements-bot.txt -r cardnews-bot/requirements.txt
+
+      - name: 폰트 캐시
+        uses: actions/cache@v4
+        with:
+          path: cardnews-bot/fonts
+          key: pretendard-v1.3.9
+
+      - name: 폰트 준비 (Pretendard)
+        working-directory: cardnews-bot
+        run: python -c "from pathlib import Path; from cardbot.render import ensure_fonts; print(ensure_fonts(Path('fonts')))"
+
+      - name: 기록 가져오기 (결과 브랜치, 카드뉴스 이력은 읽기만)
+        run: |
+          git config --global user.name "cardbot"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch --depth=1 origin "$RECORDS_BRANCH:$RECORDS_BRANCH"; then
+            git worktree add records "$RECORDS_BRANCH"
+          else
+            git worktree add --orphan -b "$RECORDS_BRANCH" records
+            printf '# 쇼츠 발행 결과\n\n쇼츠 스튜디오로 경제주막 계정에 올린 영상의 게시 결과(records/)가 쌓입니다.\n' > records/README.md
+          fi
+          mkdir -p records/records
+          if git fetch --depth=1 origin cardbot-data:refs/remotes/origin/cardbot-data; then
+            git show origin/cardbot-data:data/cardbot.db > "$RUNNER_TEMP/cardbot.db" 2>/dev/null || rm -f "$RUNNER_TEMP/cardbot.db"
+          fi
+
+      - name: 오늘 할 일인지 확인
+        id: check
+        working-directory: shorts-studio
+        run: |
+          if [ "$ACTION" = "auto" ]; then
+            set +e
+            python -m shorts.daily check --records-dir "$GITHUB_WORKSPACE/records/records" --hours 6-11
+            code=$?
+            set -e
+            if [ $code -eq 10 ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+            exit $code
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: 영상 만들기
+        if: steps.check.outputs.skip != 'true'
+        working-directory: shorts-studio
+        env:
+          THEME: ${{ inputs.theme }}
+          TOPIC: ${{ inputs.topic }}
+        run: |
+          python -m shorts.daily make --out "$GITHUB_WORKSPACE/out" \
+            --records-dir "$GITHUB_WORKSPACE/records/records" --cardnews-db "$RUNNER_TEMP/cardbot.db" \
+            --theme "$THEME" --topic "$TOPIC"
+          cat "$GITHUB_WORKSPACE/out/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "VIDEO_ID=$(cat "$GITHUB_WORKSPACE/out/id.txt")" >> "$GITHUB_ENV"
+
+      - name: 만든 영상 보관 (아티팩트)
+        if: steps.check.outputs.skip != 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shorts-daily-${{ github.run_number }}
+          path: |
+            out/video.mp4
+            out/post.json
+            out/script.json
+            out/summary.md
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: 게시용 영상 브랜치 올리기
+        if: steps.check.outputs.skip != 'true' && env.ACTION != 'draft'
+        run: |
+          git worktree add --orphan -b "shorts/$VIDEO_ID" pub
+          mkdir -p "pub/videos/$VIDEO_ID"
+          cp out/post.json out/video.mp4 "pub/videos/$VIDEO_ID/"
+          [ -f out/meta.mp4 ] && cp out/meta.mp4 "pub/videos/$VIDEO_ID/" || true
+          git -C pub add -A
+          git -C pub commit -m "shorts: $VIDEO_ID (매일 자동)"
+          git -C pub push origin "shorts/$VIDEO_ID"
+          echo "VIDEO_SHA=$(git -C pub rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: 게시 시각까지 기다리기
+        if: steps.check.outputs.skip != 'true' && env.ACTION == 'auto'
+        working-directory: shorts-studio
+        run: python -m shorts.daily wait --until "$PUBLISH_AT"
+
+      - name: 게시
+        if: steps.check.outputs.skip != 'true' && env.ACTION != 'draft'
+        working-directory: cardnews-bot
+        run: |
+          python -m cardbot.shortspost "$GITHUB_WORKSPACE/pub/videos/$VIDEO_ID" \
+            --repo "$GITHUB_REPOSITORY" --sha "$VIDEO_SHA" \
+            --record "$GITHUB_WORKSPACE/records/records/$VIDEO_ID.json" \
+            --records-dir "$GITHUB_WORKSPACE/records/records"
+
+      - name: 결과 저장
+        if: steps.check.outputs.skip != 'true' && env.ACTION != 'draft' && always()
+        working-directory: records
+        run: |
+          git add -A
+          if git diff --cached --quiet; then echo "변경 없음"; exit 0; fi
+          git commit -m "shorts: $VIDEO_ID (매일 자동)"
+          for i in 1 2 3; do
+            git push origin "HEAD:$RECORDS_BRANCH" && exit 0
+            git fetch origin "$RECORDS_BRANCH" && git rebase FETCH_HEAD
+            sleep $((i * 5))
+          done
+          echo "::error::결과 브랜치 푸시 실패"; exit 1
+
+      - name: 게시가 끝난 영상 브랜치 삭제
+        if: steps.check.outputs.skip != 'true' && env.ACTION != 'draft' && success()
+        run: git push origin --delete "shorts/$VIDEO_ID"
