@@ -32,7 +32,7 @@ import requests
 from . import aiimage
 from .publish import META_MAX_BYTES, YOUTUBE_MAX_BYTES, transcode
 from .render import RenderOptions, render
-from .writer import WriterError, _call_json, write_script
+from .writer import WriterError, _call_json, narration_chars, shorten_script, target_chars, write_script
 
 log = logging.getLogger(__name__)
 
@@ -288,15 +288,24 @@ def make(out: Path, records_dir: Path | None, cardnews_db: Path | None, theme_na
 
     facts = research(api_key, model, topic)
     log.info("팩트 시트 %d자", len(facts))
+    length = int(_env("SHORTS_LENGTH", "30"))
     script = write_script(
-        api_key, model, f"{topic['topic']} — {topic['angle']}", "정보", "존댓말 (~해요)",
-        int(_env("SHORTS_LENGTH", "30")),
+        api_key, model, f"{topic['topic']} — {topic['angle']}", "정보", "존댓말 (~해요)", length,
         notes=(f"경제 정보 채널 '경제주막'의 쇼츠. 오늘의 테마: {theme[0]}. "
                "첫 장면은 질문이나 의외의 사실로 시작하고, 마지막 장면은 저장·팔로우를 권하는 한 문장으로 끝내 주세요."),
         facts=facts,
     )
     if not script["scenes"]:
         raise WriterError("대본이 비어 있습니다.")
+    # 쇼츠는 길이가 중요해서, 목표보다 15% 넘게 길면 한 번 더 줄여 쓰게 한다
+    if narration_chars(script) > target_chars(length) * 1.15:
+        log.info("대본이 %d자로 길어 %d자 안으로 줄입니다", narration_chars(script), target_chars(length))
+        try:
+            shorter = shorten_script(api_key, model, script, length, facts)
+            if shorter["scenes"] and narration_chars(shorter) < narration_chars(script):
+                script = shorter
+        except WriterError as e:
+            log.warning("대본 줄이기 실패, 원래 대본을 씁니다: %s", e)
 
     stock = {"pixabay": _env("PIXABAY_API_KEY")} if _env("PIXABAY_API_KEY") else {}
     opts = RenderOptions(

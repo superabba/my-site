@@ -182,10 +182,20 @@ SCRIPT_SYSTEM = """당신은 한국어 유튜브 쇼츠·인스타그램 릴스 
 - <조사 자료>가 주어지면 숫자·날짜·제도 같은 사실은 그 안에 있는 것만 씁니다."""
 
 
+def target_chars(length_sec: int) -> int:
+    return int(length_sec * CHARS_PER_SEC)
+
+
+def narration_chars(script: dict) -> int:
+    """대본 전체 내레이션 글자 수 (공백 제외)."""
+    return sum(len(sc.get("narration", "").replace(" ", "")) for sc in script.get("scenes", []))
+
+
 def _length_spec(length_sec: int) -> str:
-    chars = int(length_sec * CHARS_PER_SEC)
+    chars = target_chars(length_sec)
     scenes = max(3, round(length_sec / 5))
-    return f"영상 길이 약 {length_sec}초 → narration 전체 글자 수(공백 제외) 약 {chars}자, 장면 {scenes}개 내외."
+    return (f"영상 길이 약 {length_sec}초 → narration 전체 글자 수(공백 제외) 약 {chars}자, "
+            f"최대 {int(chars * 1.1)}자를 넘기지 마세요. 장면 {scenes}개 내외.")
 
 
 def write_script(
@@ -227,6 +237,23 @@ def polish_text(
         f"말투: {TONES.get(tone, tone)}\n"
         f"{_length_spec(length_sec)}\n"
         f"추가 요청: {notes or '(없음)'}"
+    )
+    data = _call_json(api_key, model, SCRIPT_SYSTEM, user, SCRIPT_SCHEMA, effort="medium")
+    return normalize_script(data)
+
+
+def shorten_script(api_key: str, model: str, script: dict, length_sec: int, facts: str = "") -> dict:
+    """너무 긴 대본을 내용·말투·사실은 그대로 두고 목표 길이로 줄인다."""
+    have, limit = narration_chars(script), int(target_chars(length_sec) * 1.05)
+    draft = json.dumps({k: script.get(k) for k in ("title", "mood", "caption", "hashtags", "visual_style")}
+                       | {"scenes": [{k: sc.get(k, "") for k in ("narration", "headline", "keywords", "image_prompt")}
+                                     for sc in script.get("scenes", [])]}, ensure_ascii=False)
+    user = (
+        (f"<조사 자료>\n{facts}\n</조사 자료>\n\n" if facts else "")
+        + f"아래 대본은 narration이 공백 제외 {have}자라서 {length_sec}초 영상에 너무 깁니다.\n"
+        f"가장 중요한 내용만 남겨 narration 전체를 공백 제외 {limit}자 이내로 줄여 주세요. "
+        "말투·사실·첫 장면의 후킹·마지막 장면의 저장·팔로우 권유는 유지하고, 장면 수는 줄여도 됩니다.\n\n"
+        f"<대본>\n{draft}\n</대본>"
     )
     data = _call_json(api_key, model, SCRIPT_SYSTEM, user, SCRIPT_SCHEMA, effort="medium")
     return normalize_script(data)

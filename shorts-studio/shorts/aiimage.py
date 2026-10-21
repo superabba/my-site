@@ -43,6 +43,7 @@ def build_prompt(scene: str, style: str = "") -> str:
         f"Visual style: {style or DEFAULT_STYLE}.\n"
         f"Scene to depict: {scene.strip()}\n"
         "Rules: absolutely no text, letters, numbers, captions, charts with labels, logos, watermarks or UI. "
+        "Any paper, document, book, screen, sign or label in the scene must be completely blank. "
         "No real, famous or identifiable people and no brand names. "
         "Keep the top quarter and the bottom third calm and uncluttered because captions will be placed there. "
         "One clear focal subject in the middle."
