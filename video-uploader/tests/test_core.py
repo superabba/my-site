@@ -264,3 +264,53 @@ def test_upload_deletes_working_copies_and_resets_picker(tmp_path, monkeypatch):
     assert "clip.mp4:123" in at.session_state["uploaded_keys"]
     assert at.session_state["last_result"]["status"] == "완료"
     assert config.load_history()[0]["status"] == "완료"
+
+
+def test_upload_retries_when_github_has_not_seen_new_blob(tmp_path, monkeypatch):
+    """GitHub가 방금 만든 blob을 잠깐 못 찾으면(422 not a valid blob) 기다렸다가 다시 트리를 만든다."""
+    from core import github_bot
+
+    video = tmp_path / "v.mp4"
+    video.write_bytes(b"video")
+    slept, tree_calls = [], []
+    monkeypatch.setattr(github_bot.time, "sleep", slept.append)
+
+    def request(method, url, **kw):
+        path = url.split("/repos/o/r", 1)[1]
+        if "data" in kw:
+            while kw["data"].read(1 << 16):
+                pass
+            return FakeResp({"sha": "blob1"}, 201)
+        if path == "/git/trees":
+            tree_calls.append(1)
+            if len(tree_calls) == 1:
+                return FakeResp({"message": "tree.sha blob1 is not a valid blob"}, 422)
+            return FakeResp({"sha": "tree1"}, 201)
+        if path == "/git/commits":
+            return FakeResp({"sha": "commit1"}, 201)
+        return FakeResp({}, 201)
+
+    bot = GitHubBot("github_pat_test", "o/r")
+    bot.session.request = request
+    assert bot.upload("20261021-191129-0c0061e1", {"video.mp4": video}, {"title": "t"}) == "commit1"
+    assert len(tree_calls) == 2 and slept == [2]
+
+
+def test_upload_does_not_retry_other_errors(tmp_path, monkeypatch):
+    from core import github_bot
+
+    video = tmp_path / "v.mp4"
+    video.write_bytes(b"video")
+    monkeypatch.setattr(github_bot.time, "sleep", lambda s: pytest.fail("다시 시도하면 안 됨"))
+
+    def request(method, url, **kw):
+        if "data" in kw:
+            while kw["data"].read(1 << 16):
+                pass
+            return FakeResp({"sha": "blob1"}, 201)
+        return FakeResp({"message": "Validation Failed"}, 422)
+
+    bot = GitHubBot("github_pat_test", "o/r")
+    bot.session.request = request
+    with pytest.raises(GitHubError, match="Validation Failed"):
+        bot.upload("20261021-191129-0c0061e1", {"video.mp4": video}, {"title": "t"})

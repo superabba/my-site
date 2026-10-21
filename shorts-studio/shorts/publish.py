@@ -83,6 +83,9 @@ def video_uploader_settings() -> dict | None:
     return None
 
 
+BLOB_RETRY_DELAYS = (2, 4, 8, 15)  # 방금 올린 파일을 GitHub가 못 찾을 때 기다릴 시간(초)
+
+
 class _ProgressBody:
     """요청 본문을 조금씩 보내면서 진행률을 알려 준다 (requests가 len()으로 Content-Length를 정함)."""
 
@@ -152,6 +155,18 @@ class GitHubBot:
                          headers={"Content-Type": "application/json"}, timeout=(30, 900))
         return resp.json()["sha"]
 
+    def _tree(self, entries: list[dict]) -> str:
+        """트리(폴더)를 만든다. 방금 올린 파일(blob)을 GitHub가 아직 못 찾아 422 'not a valid blob'이 오면
+        잠깐 기다렸다가 다시 시도한다 (GitHub 쪽 일시 지연, 실제로 겪은 오류)."""
+        for delay in (*BLOB_RETRY_DELAYS, None):
+            try:
+                return self._req("POST", "/git/trees", json={"tree": entries}).json()["sha"]
+            except PublishError as e:
+                if delay is None or "not a valid blob" not in str(e):
+                    raise
+                time.sleep(delay)
+        raise AssertionError("unreachable")
+
     def upload(self, video_id: str, files: dict[str, Path], post: dict,
                progress_cb: Callable[[float], None] | None = None) -> str:
         """files: {저장소 안 파일 이름: 내 컴퓨터 경로}. 영상 브랜치를 만들고 커밋 sha를 돌려준다."""
@@ -170,7 +185,7 @@ class GitHubBot:
             entries.append({"path": f"videos/{video_id}/{name}", "mode": "100644", "type": "blob", "sha": sha})
         post_sha = self._blob(json.dumps(post, ensure_ascii=False, indent=2).encode("utf-8"))
         entries.append({"path": f"videos/{video_id}/post.json", "mode": "100644", "type": "blob", "sha": post_sha})
-        tree = self._req("POST", "/git/trees", json={"tree": entries}).json()["sha"]
+        tree = self._tree(entries)
         commit = self._req("POST", "/git/commits", json={
             "message": f"shorts: {video_id}", "tree": tree, "parents": [],
         }).json()["sha"]

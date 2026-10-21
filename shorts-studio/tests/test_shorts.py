@@ -254,3 +254,62 @@ def test_length_target_is_six_chars_per_second():
     from shorts.writer import target_chars
 
     assert target_chars(30) == 180 and target_chars(60) == 360
+
+
+class Resp:
+    def __init__(self, data, status):
+        self._d, self.status_code, self.text = data, status, json.dumps(data)
+        self.content = self.text.encode()
+
+    def json(self):
+        return self._d
+
+
+def test_publish_upload_retries_unseen_blob(tmp_path, monkeypatch):
+    from shorts import publish as pub
+
+    video = tmp_path / "v.mp4"
+    video.write_bytes(b"video")
+    slept, trees = [], []
+    monkeypatch.setattr(pub.time, "sleep", slept.append)
+
+    def request(method, url, **kw):
+        path = url.split("/repos/o/r", 1)[1]
+        if kw.get("data") is not None:
+            while kw["data"].read(1 << 16):
+                pass
+            return Resp({"sha": "blob1"}, 201)
+        if path == "/git/trees":
+            trees.append(1)
+            return Resp({"message": "tree.sha blob1 is not a valid blob"}, 422) if len(trees) < 3 \
+                else Resp({"sha": "tree1"}, 201)
+        if path == "/git/commits":
+            return Resp({"sha": "c1"}, 201)
+        return Resp({}, 201)
+
+    bot = pub.GitHubBot("github_pat_test", "o/r")
+    bot.session.request = request
+    assert bot.upload("20261021-191129-0c0061e1", {"video.mp4": video}, {"title": "t"}) == "c1"
+    assert len(trees) == 3 and slept == [2, 4]
+
+
+def test_publish_upload_gives_up_after_retries(tmp_path, monkeypatch):
+    from shorts import publish as pub
+
+    video = tmp_path / "v.mp4"
+    video.write_bytes(b"video")
+    slept = []
+    monkeypatch.setattr(pub.time, "sleep", slept.append)
+
+    def request(method, url, **kw):
+        if kw.get("data") is not None:
+            while kw["data"].read(1 << 16):
+                pass
+            return Resp({"sha": "blob1"}, 201)
+        return Resp({"message": "tree.sha blob1 is not a valid blob"}, 422)
+
+    bot = pub.GitHubBot("github_pat_test", "o/r")
+    bot.session.request = request
+    with pytest.raises(pub.PublishError, match="not a valid blob"):
+        bot.upload("20261021-191129-0c0061e1", {"video.mp4": video}, {"title": "t"})
+    assert slept == list(pub.BLOB_RETRY_DELAYS)
