@@ -248,3 +248,9 @@ def test_long_script_is_shortened_once(tmp_path, monkeypatch):
 
 def test_image_prompt_asks_for_blank_papers():
     assert "must be completely blank" in aiimage.build_prompt("계약서와 동전")
+
+
+def test_length_target_is_six_chars_per_second():
+    from shorts.writer import target_chars
+
+    assert target_chars(30) == 180 and target_chars(60) == 360

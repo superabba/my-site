@@ -9,7 +9,7 @@ from shorts.render import RenderOptions, render
 from shorts.text import SUB_STYLES
 from shorts.tts import VOICES, TTSError, synthesize
 from shorts.visuals import IMAGE_EXTS, VIDEO_EXTS, media_kind, save_upload
-from shorts.writer import (CATEGORIES, MOODS, TONES, WriterError, new_scene,
+from shorts.writer import (CATEGORIES, CHARS_PER_SEC, MOODS, TONES, WriterError, new_scene,
                            polish_text, split_text, suggest_topics, write_script)
 
 ss = st.session_state
@@ -209,7 +209,7 @@ with st.container(border=True):
 
     with st.container(horizontal=True, vertical_alignment="center"):
         st.button("장면 추가", icon=":material/add:", on_click=add_scene)
-        est = total_chars / 5.3 + 0.55 * len(script["scenes"])
+        est = total_chars / CHARS_PER_SEC
         st.caption(f"장면 {len(script['scenes'])}개 · 목소리 기준 예상 길이 약 {est:.0f}초")
 
     st.text_area("게시글 설명 (업로드할 때 복사해서 쓰세요)", key="caption_in", persist_state="session", height=80)
