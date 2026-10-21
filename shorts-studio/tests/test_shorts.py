@@ -216,3 +216,35 @@ def test_make_end_to_end_with_fakes(tmp_path, monkeypatch):
     assert "지난주 주제" in seen["avoid"]
     assert post["topic"] == "금리 동결, 내 대출은?" and post["files"] == {"youtube": "video.mp4", "meta": "video.mp4"}
     assert "금리" in (out / "summary.md").read_text(encoding="utf-8")
+
+
+def test_long_script_is_shortened_once(tmp_path, monkeypatch):
+    from shorts.writer import narration_chars
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("PIXABAY_API_KEY", raising=False)
+    monkeypatch.setattr(daily, "collect_signals", lambda q: [])
+    monkeypatch.setattr(daily, "pick_topic", lambda *a: {"topic": "연금저축", "keyword": "연금", "angle": "a", "why": "w"})
+    monkeypatch.setattr(daily, "research", lambda *a: "- 사실")
+    long_text = " ".join(["연금저축 예상수령액은 가입 당시 이율이 유지된다는 가정이에요."] * 8)
+    monkeypatch.setattr(daily, "write_script", lambda *a, **k: split_text(long_text, "연금"))
+    shortened = []
+
+    def fake_shorten(key, model, script, length, facts):
+        shortened.append((narration_chars(script), length, facts))
+        return split_text("연금 예상액은 확정이 아니에요. 지금 이율부터 확인하세요.", "연금")
+
+    monkeypatch.setattr(daily, "shorten_script", fake_shorten)
+    real_render = daily.render
+    monkeypatch.setattr(daily, "render", lambda script, opts, progress=None: real_render(
+        script, RenderOptions(width=180, height=320, fps=10, voice_on=False, music_mode="none",
+                              output_dir=opts.output_dir), progress))
+    daily.make(tmp_path / "out", None, None)
+    assert len(shortened) == 1 and shortened[0][0] > 150 and shortened[0][1:] == (30, "- 사실")
+    saved = json.loads((tmp_path / "out" / "script.json").read_text(encoding="utf-8"))
+    assert narration_chars(saved) < 40
+
+
+def test_image_prompt_asks_for_blank_papers():
+    assert "must be completely blank" in aiimage.build_prompt("계약서와 동전")
