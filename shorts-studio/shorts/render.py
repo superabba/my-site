@@ -71,6 +71,7 @@ class RenderResult:
     warnings: list[str]
     credits: list[str]
     ai_images: int = 0  # 나노바나나로 그린 장면 수 (AI 합성 콘텐츠 표시에 씀)
+    scenes: list[dict] = field(default_factory=list)  # 장면마다 {"media": 배경 파일, "start", "dur"} (블로그 사진용)
 
 
 ProgressFn = Callable[[float, str], None]
@@ -366,4 +367,5 @@ def render(script: dict, opts: RenderOptions, progress: ProgressFn | None = None
     saved = {**script, "ai_images": len(ai_images)}
     out_path.with_suffix(".json").write_text(json.dumps(saved, ensure_ascii=False, indent=2), encoding="utf-8")
     report(1.0, "완성!")
-    return RenderResult(out_path, srt_path, info_path, total, warnings, credits, len(ai_images))
+    scene_info = [{"media": p.get("media"), "start": p["start"], "dur": p["dur"]} for p in plans]
+    return RenderResult(out_path, srt_path, info_path, total, warnings, credits, len(ai_images), scene_info)

@@ -9,6 +9,7 @@ from PIL import Image
 
 from shorts import aiimage, daily
 from shorts.render import RenderOptions, render
+from shorts.ffmpeg import run
 from shorts.writer import normalize_script, split_text
 
 
@@ -208,10 +209,25 @@ def test_make_end_to_end_with_fakes(tmp_path, monkeypatch):
         script, RenderOptions(width=180, height=320, fps=10, voice_on=False, music_mode="none",
                               bg_mode=opts.bg_mode, output_dir=opts.output_dir), progress))
     write_record(tmp_path / "records", "old", topic="지난주 주제", created_at=datetime.now().isoformat())
+    blog_calls = []
+
+    def fake_blog(key, model, script, facts, topic, theme, images):
+        blog_calls.append(images)
+        return {"titles": ["금리 동결, 내 대출 이자는?"], "sections": [{"heading": "h", "body": "b", "image": images[0],
+                                                                    "experience_hint": ""}], "tags": ["금리"]}
+
+    monkeypatch.setattr(daily, "write_blog", fake_blog)
     post = daily.make(tmp_path / "out", tmp_path / "records", None)
     out = tmp_path / "out"
     assert (out / "video.mp4").exists() and (out / "post.json").exists() and (out / "summary.md").exists()
     assert len((out / "id.txt").read_text()) == 24
+    blog = json.loads((out / "blog" / "blog.json").read_text(encoding="utf-8"))
+    assert blog["video_id"] == (out / "id.txt").read_text() and blog["cover"] == "cover.jpg"
+    n_scenes = len(json.loads((out / "script.json").read_text(encoding="utf-8"))["scenes"])
+    expected = [f"scene_{i:02d}.jpg" for i in range(1, n_scenes + 1)]
+    assert blog_calls[0] == expected == blog["images"]
+    assert (out / "blog" / "cover.jpg").exists() and all((out / "blog" / n).exists() for n in expected)
+    assert "블로그 글: 금리 동결" in (out / "summary.md").read_text(encoding="utf-8")
     assert seen["tone"] == "존댓말 (~해요)" and seen["length"] == 30 and "2.50%" in seen["facts"]
     assert "지난주 주제" in seen["avoid"]
     assert post["topic"] == "금리 동결, 내 대출은?" and post["files"] == {"youtube": "video.mp4", "meta": "video.mp4"}
@@ -236,6 +252,7 @@ def test_long_script_is_shortened_once(tmp_path, monkeypatch):
         return split_text("연금 예상액은 확정이 아니에요. 지금 이율부터 확인하세요.", "연금")
 
     monkeypatch.setattr(daily, "shorten_script", fake_shorten)
+    monkeypatch.setenv("SHORTS_BLOG", "false")
     real_render = daily.render
     monkeypatch.setattr(daily, "render", lambda script, opts, progress=None: real_render(
         script, RenderOptions(width=180, height=320, fps=10, voice_on=False, music_mode="none",
@@ -313,3 +330,64 @@ def test_publish_upload_gives_up_after_retries(tmp_path, monkeypatch):
     with pytest.raises(pub.PublishError, match="not a valid blob"):
         bot.upload("20261021-191129-0c0061e1", {"video.mp4": video}, {"title": "t"})
     assert slept == list(pub.BLOB_RETRY_DELAYS)
+
+
+# ---------------------------------------------------------------- 네이버 블로그 글
+
+def test_crop_for_blog_is_4_by_5(tmp_path):
+    from shorts.blog import crop_for_blog
+
+    src = tmp_path / "tall.png"
+    Image.new("RGB", (1536, 2752), (10, 20, 30)).save(src)
+    out = crop_for_blog(src, tmp_path / "out.jpg")
+    with Image.open(out) as im:
+        assert im.size == (1080, 1350) and im.format == "JPEG"
+
+
+def test_normalize_blog_assigns_unique_images_and_cleans_tags():
+    from shorts.blog import normalize_blog
+
+    data = {"titles": [" 제목 ", ""], "main_keyword": "금리", "sub_keywords": ["대출"], "meta_description": "m",
+            "intro": "i", "conclusion": "c", "sources": ["금융감독원 (2026.10.21)", " "],
+            "tags": ["#금리 인하", "금리인하", "대출"],
+            "faq": [{"question": "Q", "answer": "A"}, {"question": " ", "answer": "x"}],
+            "sections": [{"heading": "a", "body": "b", "image": "scene_02.jpg", "experience_hint": ""},
+                         {"heading": "c", "body": "d", "image": "scene_02.jpg", "experience_hint": "h"},
+                         {"heading": "e", "body": "f", "image": "없는파일.jpg", "experience_hint": ""},
+                         {"heading": "", "body": "빈 소제목은 뺌", "image": "", "experience_hint": ""}]}
+    blog = normalize_blog(data, ["scene_01.jpg", "scene_02.jpg", "scene_03.jpg"])
+    assert blog["titles"] == ["제목"] and blog["tags"] == ["금리인하", "대출"]
+    assert [s["image"] for s in blog["sections"]] == ["scene_02.jpg", "scene_01.jpg", "scene_03.jpg"]
+    assert len(blog["faq"]) == 1 and blog["sources"] == ["금융감독원 (2026.10.21)"]
+
+
+def test_save_blog_images_uses_ai_images_and_video_frames(tmp_path):
+    from shorts.blog import save_blog_images
+
+    video = tmp_path / "v.mp4"
+    run(["-f", "lavfi", "-i", "testsrc2=size=180x320:rate=10", "-t", "4", "-pix_fmt", "yuv420p", str(video)])
+    ai = tmp_path / "ai.png"
+    Image.new("RGB", (900, 1600), (200, 120, 60)).save(ai)
+    names = save_blog_images(video, [{"media": str(ai), "start": 0, "dur": 2},
+                                     {"media": None, "start": 2, "dur": 2}], tmp_path / "blog")
+    assert names == ["scene_01.jpg", "scene_02.jpg"]
+    for n in ("cover.jpg", *names):
+        with Image.open(tmp_path / "blog" / n) as im:
+            assert im.width == 1080 and abs(im.height / im.width - 1.25) < 0.02
+    with Image.open(tmp_path / "blog" / "scene_01.jpg") as im:
+        assert im.getpixel((540, 675))[0] > 150  # 나노바나나 그림(주황)을 그대로 썼는지
+
+
+def test_blog_failure_does_not_stop_video(tmp_path, monkeypatch):
+    from shorts.writer import WriterError
+
+    monkeypatch.setattr(daily, "save_blog_images", lambda video, scenes, d: ["scene_01.jpg"])
+
+    def boom(*a):
+        raise WriterError("크레딧 부족")
+
+    monkeypatch.setattr(daily, "write_blog", boom)
+    res = type("R", (), {"scenes": []})()
+    msg = daily.make_blog(tmp_path, tmp_path / "v.mp4", res, {}, "", {"topic": "t"}, "테마", "id", {"title": "t"},
+                          "k", "m")
+    assert "만들지 못했어요" in msg and not (tmp_path / "blog" / "blog.json").exists()
