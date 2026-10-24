@@ -180,6 +180,9 @@ def test_wait_until(monkeypatch):
     assert daily.wait_until("07:10", sleep=slept.append) == 720 and slept == [720]
     monkeypatch.setattr(daily, "now_kst", lambda: fixed.replace(hour=8))
     assert daily.wait_until("07:10", sleep=slept.append) == 0 and len(slept) == 1
+    # 06:05에 깨워 06:09에 영상이 다 만들어져도 07:10까지 기다린다 (1시간 넘게)
+    monkeypatch.setattr(daily, "now_kst", lambda: fixed.replace(hour=6, minute=9))
+    assert daily.wait_until("07:10", sleep=slept.append) == 3660 and slept[-1] == 3660
 
 
 def test_check_command(tmp_path, monkeypatch, capsys):

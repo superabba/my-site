@@ -6,6 +6,7 @@
 #   - 게시는 cardbot.shortspost가 한다 (계정 확인·카드뉴스 몫 남기기·하루 상한, shorts-upload.yml과 같은 안전장치).
 # 정시 실행은 cron-job.org가 workflow_dispatch(action=auto)로 KST 06:45에 깨운다. 아래 예약은 예비.
 # auto는 오늘(KST) 이미 게시했거나 KST 6~11시가 아니면 건너뛰어 중복·늦은 게시가 없다.
+# 6시대에 일찍 깨워도 영상을 먼저 만들어 두고 07:10까지 기다렸다가 게시한다.
 name: 매일 자동 쇼츠 (경제주막)
 run-name: "매일 자동 쇼츠 ${{ inputs.action || 'auto' }}"
 
@@ -36,7 +37,7 @@ concurrency:
 jobs:
   daily:
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 150 # 6시대 일찍 깨워도 만들고 07:10까지 기다렸다 게시할 시간
     env:
       ACTION: ${{ github.event_name == 'schedule' && 'auto' || inputs.action }}
       RECORDS_BRANCH: shorts-records

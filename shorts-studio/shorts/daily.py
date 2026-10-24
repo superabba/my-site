@@ -388,7 +388,8 @@ def _hours_ok(spec: str, hour: int) -> bool:
     return int(lo) <= hour <= int(hi or lo)
 
 
-def wait_until(hhmm: str, max_wait_s: int = 3600, sleep=time.sleep) -> float:
+def wait_until(hhmm: str, max_wait_s: int = 2 * 3600, sleep=time.sleep) -> float:
+    # 6시 정각에 깨워도(최대 70분 전) 게시 시각까지 기다리도록 넉넉하게. 지난 시각이면 바로 게시.
     h, m = (int(x) for x in hhmm.split(":"))
     now = now_kst()
     target = now.replace(hour=h, minute=m, second=0, microsecond=0)
