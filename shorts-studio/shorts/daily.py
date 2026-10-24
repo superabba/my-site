@@ -30,6 +30,7 @@ import anthropic
 import requests
 
 from . import aiimage
+from .blog import save_blog_images, write_blog
 from .publish import META_MAX_BYTES, YOUTUBE_MAX_BYTES, transcode
 from .render import RenderOptions, render
 from .writer import WriterError, _call_json, narration_chars, shorten_script, target_chars, write_script
@@ -351,9 +352,31 @@ def make(out: Path, records_dir: Path | None, cardnews_db: Path | None, theme_na
         lines += ["", "### 경고"] + [f"- {w}" for w in res.warnings]
     if facts:
         lines += ["", "<details><summary>팩트 시트</summary>", "", facts, "", "</details>"]
+    if _env("SHORTS_BLOG", "true").lower() != "false":
+        lines += ["", make_blog(out, video, res, script, facts, topic, theme[0], vid, post, api_key, model)]
     (out / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     log.info("완성: %s (%.1f초, AI 그림 %d장)", post["title"], res.duration, res.ai_images)
     return post
+
+
+def make_blog(out: Path, video: Path, res, script: dict, facts: str, topic: dict, theme_name: str, vid: str,
+              post: dict, api_key: str, model: str) -> str:
+    """같은 내용의 네이버 블로그 글(blog/blog.json + 사진)을 만든다. 실패해도 영상 게시는 막지 않는다.
+    네이버 발행은 카드뉴스와 같은 방식으로 Claude 루틴이 shorts-records 브랜치의 blog/<ID>/ 를 읽어 Uplika로 한다."""
+    blog_dir = out / "blog"
+    try:
+        names = save_blog_images(video, res.scenes, blog_dir)
+        blog = write_blog(api_key, model, script, facts, topic, theme_name, names)
+    except (WriterError, ValueError, RuntimeError, OSError) as e:
+        log.warning("블로그 글을 만들지 못했습니다 (영상은 그대로 게시): %s", e)
+        return f"### 블로그 글\n만들지 못했어요: {e}"
+    blog.update(video_id=vid, video_title=post["title"], theme=theme_name, topic=topic["topic"],
+                cover="cover.jpg" if (blog_dir / "cover.jpg").exists() else "", images=names)
+    (blog_dir / "blog.json").write_text(json.dumps(blog, ensure_ascii=False, indent=2), encoding="utf-8")
+    log.info("블로그 글: %s (소제목 %d개, 사진 %d장)", blog["titles"][0], len(blog["sections"]), len(names))
+    return (f"### 블로그 글: {blog['titles'][0]}\n"
+            f"소제목 {len(blog['sections'])}개 · 사진 {len(names)}장 · 태그 {len(blog['tags'])}개 "
+            "(네이버 발행은 07:20 Claude 루틴)")
 
 
 # ---------------------------------------------------------------- 명령
