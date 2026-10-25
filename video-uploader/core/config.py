@@ -16,9 +16,9 @@ for _d in (DATA_DIR, VIDEO_DIR, WORK_DIR, FRAME_DIR):
     _d.mkdir(parents=True, exist_ok=True)
 
 CLAUDE_MODELS = {
-    "claude-opus-5-5": "Claude Opus 5.5 (기본·가장 정확)",
-    "claude-sonnet-5-5": "Claude Sonnet 5.5 (빠르고 저렴)",
-    "claude-haiku-5-5": "Claude Haiku 5.5 (가장 저렴)",
+    "claude-haiku-5-5": "Claude Haiku 5.5 (기본·가장 저렴)",
+    "claude-sonnet-5-5": "Claude Sonnet 5.5 (중간)",
+    "claude-opus-5-5": "Claude Opus 5.5 (가장 정확·비쌈, Haiku의 약 40배)",
 }
 
 # 올릴 곳. reels·threads·youtube는 봇의 cardbot.videopost, naver_blog는 bot/naver_blog.py(Uplika)가 올린다.
@@ -34,7 +34,7 @@ NAVER_CATEGORIES = [
 DEFAULT_SETTINGS = {
     # Claude (영상 내용 분석)
     "anthropic_api_key": "",
-    "claude_model": "claude-opus-5-5",
+    "claude_model": "claude-haiku-5-5",
     "whisper_model": "small",
     # GitHub 카드뉴스 봇 저장소
     "github_repo": "superabba/my-site",
