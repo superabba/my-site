@@ -46,8 +46,9 @@ DEFAULT_SETTINGS = {
     # 네이버 블로그 (슈퍼아빠, Uplika로 발행)
     "naver_category": "가족기록",
     "naver_open_type": "public",
-    "naver_photo_count": 4,  # 영상에서 뽑아 글에 넣을 사진 수
+    "naver_photo_count": 4,  # AI 없이 쓸 때 영상에서 고르게 뽑을 사진 수 (AI 초안은 영상 길이에 맞게 고름)
     "naver_include_video": True,  # 글에 영상도 넣기
+    "naver_web_search": True,  # AI 초안을 쓸 때 주제 관련 정보를 웹에서 찾아 보강
 }
 
 

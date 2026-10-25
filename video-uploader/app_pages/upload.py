@@ -78,7 +78,37 @@ def get_whisper(model_size: str):
     return transcribe.load_model(model_size)
 
 
-def run_analysis(info: media.VideoInfo, hint: str, use_voice: bool) -> None:
+def current_sns() -> dict:
+    return {
+        "title": st.session_state.yt_title.strip(),
+        "youtube_description": st.session_state.yt_desc.strip(),
+        "instagram_caption": st.session_state.ig_caption.strip(),
+        "hashtags": parse_hashtags(st.session_state.hashtags),
+    }
+
+
+def draft_blog(info: media.VideoInfo, hint: str, transcript: str | None, sns: dict, summary: str | None) -> dict:
+    """블로그 초안: 후보 장면 → (웹 검색 자료) → 글 + 사진 장면 선택 → 미리보기 사진. st.status 안에서 부른다."""
+    st.write("블로그에 쓸 장면을 뽑는 중…")
+    count = media.blog_candidate_count(info.duration)
+    frames = media.extract_frames(info, config.FRAME_DIR, count=count, prefix="cand", box=768 if count > 8 else 1024)
+    brief = analyzer.sns_brief(sns, hint.strip() or None, summary)
+    research = None
+    if settings["naver_web_search"]:
+        st.write("주제와 관련된 정보를 웹에서 찾는 중… (1~2분)")
+        research = analyzer.research_topic(settings["anthropic_api_key"], settings["claude_model"], brief)
+        if not research:
+            st.caption("관련 자료를 찾지 못해 영상 내용 위주로 씁니다.")
+    st.write("Claude가 블로그 글을 쓰는 중…")
+    blog = analyzer.write_blog(settings["anthropic_api_key"], settings["claude_model"], frames, info.duration,
+                               brief, transcript, research, bool(settings["naver_include_video"]))
+    times = [p["time"] for p in blog["photos"]]
+    previews = media.extract_blog_photos(info, config.FRAME_DIR, times, prefix="preview", width=360)
+    blog["previews"] = [str(p) if p else "" for p in previews]
+    return blog
+
+
+def run_analysis(info: media.VideoInfo, hint: str, use_voice: bool, with_blog: bool) -> None:
     with st.status("영상 분석 중…", expanded=True) as status:
         try:
             st.write("영상에서 장면을 뽑는 중…")
@@ -95,21 +125,40 @@ def run_analysis(info: media.VideoInfo, hint: str, use_voice: bool) -> None:
                 transcript = transcribe.transcribe(get_whisper(settings["whisper_model"]), info.path)
             except Exception as e:
                 st.warning(f"음성 인식에 실패해 화면만 보고 작성합니다: {e}")
+        st.session_state.transcript = transcript
 
         st.write("Claude가 문구를 쓰는 중…")
         try:
             result = analyzer.analyze_video(
                 settings["anthropic_api_key"], settings["claude_model"],
                 frames, info.duration, transcript, hint.strip() or None,
-                blog_photo_times=media.blog_photo_times(info.duration, int(settings["naver_photo_count"])),
-                blog_video=bool(settings["naver_include_video"]),
             )
         except analyzer.AnalysisError as e:
             status.update(label="분석 실패", state="error")
             st.error(str(e))
             return
+        st.session_state.pending_fill = result
+        if with_blog:
+            try:
+                st.session_state.pending_blog = draft_blog(info, hint, transcript, result, result.get("summary"))
+            except (analyzer.AnalysisError, RuntimeError) as e:
+                st.warning(f"블로그 초안은 쓰지 못했습니다: {e} — 'AI로 블로그 초안 쓰기'로 다시 시도해 주세요.")
         status.update(label="분석 완료", state="complete")
-    st.session_state.pending_fill = result
+    st.rerun()
+
+
+def run_blog_draft(info: media.VideoInfo, hint: str) -> None:
+    """지금 칸에 있는 유튜브·인스타 문구와 해시태그로 블로그 초안만 다시 쓴다."""
+    with st.status("블로그 초안 쓰는 중…", expanded=True) as status:
+        try:
+            blog = draft_blog(info, hint, st.session_state.get("transcript"), current_sns(),
+                              st.session_state.ai_summary or None)
+        except (analyzer.AnalysisError, RuntimeError) as e:
+            status.update(label="블로그 초안 실패", state="error")
+            st.error(str(e))
+            return
+        status.update(label="블로그 초안 완료", state="complete")
+    st.session_state.pending_blog = blog
     st.rerun()
 
 
@@ -147,13 +196,16 @@ def run_publish(video: dict, targets: list[str], post: dict) -> None:
             if blog:
                 # 글에 넣을 사진은 영상에서 뽑고, 영상은 원본 화질 파일을 같이 쓴다 (봇이 Uplika에 올린다)
                 step.write("블로그 사진 뽑는 중…")
-                # AI가 본 사진 시점과 맞추려고 설정한 장수로 뽑는다 (본문이 더 큰 번호를 쓰면 그만큼)
+                # AI가 고른 장면을 쓰고, AI 초안이 아니거나 본문에 사진 자리를 더 넣었으면 영상에서 고르게 뽑는다
                 used = max([int(n) for n in BLOG_PHOTO_LINE.findall(blog["body"])], default=0)
-                count = max(int(settings["naver_photo_count"]), used) if used else 0
-                photos = media.extract_blog_photos(info, config.WORK_DIR, count)
+                times = st.session_state.get("blog_photo_times") or []
+                if used and len(times) < used:
+                    times = media.blog_photo_times(info.duration, max(int(settings["naver_photo_count"]), used))
+                photos = media.extract_blog_photos(info, config.WORK_DIR, times[:used])
                 for p in photos:
-                    names[p.name] = p
-                blog["photos"] = [p.name for p in photos]
+                    if p:
+                        names[p.name] = p
+                blog["photos"] = [p.name if p else "" for p in photos]
                 blog["video"] = post_files.get("youtube") if blog_video else None
 
             video_id = new_video_id()
@@ -217,6 +269,9 @@ st.session_state.setdefault("last_result", None)
 for key in ("yt_title", "yt_desc", "ig_caption", "threads_text", "blog_title", "blog_body", "blog_tags"):
     st.session_state.setdefault(key, "")
 st.session_state.setdefault("hashtags", settings["default_hashtags"])
+st.session_state.setdefault("blog_photo_times", None)  # AI가 고른 블로그 사진 장면(초). None이면 고르게 뽑는다
+st.session_state.setdefault("blog_previews", [])
+st.session_state.setdefault("transcript", None)
 
 # AI 결과는 입력칸이 그려지기 전에 넣어야 한다.
 if pending := st.session_state.pop("pending_fill", None):
@@ -227,9 +282,13 @@ if pending := st.session_state.pop("pending_fill", None):
     merged = parse_hashtags(settings["default_hashtags"]) + pending["hashtags"]
     st.session_state.hashtags = tag_line(parse_hashtags(" ".join(merged)))
     st.session_state.ai_summary = pending["summary"]
-    st.session_state.blog_title = pending.get("blog_title", "")[:100]
-    st.session_state.blog_body = pending.get("blog_body", "")
-    st.session_state.blog_tags = tag_line(parse_hashtags(" ".join(pending.get("blog_tags", []))))
+if blog := st.session_state.pop("pending_blog", None):
+    st.session_state.blog_title = blog["title"]
+    st.session_state.blog_body = blog["body"]
+    st.session_state.blog_tags = tag_line(blog["tags"])
+    st.session_state.blog_photo_times = [p["time"] for p in blog["photos"]]
+    st.session_state.blog_previews = [
+        (path, p["time"], p["caption"]) for path, p in zip(blog.get("previews", []), blog["photos"])]
 
 
 # ── 1. 영상 선택 ────────────────────────────────────────────
@@ -254,6 +313,8 @@ with st.container(border=True):
                             "blog_title", "blog_body", "blog_tags"):
                     st.session_state[key] = ""
                 st.session_state.hashtags = settings["default_hashtags"]
+                st.session_state.blog_photo_times, st.session_state.blog_previews = None, []
+                st.session_state.transcript = None
                 st.session_state.last_result = None
             except Exception as e:
                 st.session_state.video = None
@@ -298,8 +359,11 @@ with st.container(border=True):
             st.caption("계정 설정에서 Claude API 키를 넣으면 사용할 수 있습니다. 키가 없어도 아래 칸에 직접 쓰면 됩니다.")
         elif not video:
             st.caption("먼저 영상을 선택해 주세요.")
+        wants_blog = "naver_blog" in (st.session_state.get("targets") or settings["default_platforms"])
+        if wants_blog:
+            st.caption("올릴 곳에 네이버 블로그가 있어서 블로그 초안도 함께 씁니다 (관련 정보 웹 검색 포함, 1~3분).")
         if st.button("AI로 내용 채우기", icon=":material/auto_awesome:", disabled=not (has_key and video)):
-            run_analysis(video["info"], hint, use_voice)
+            run_analysis(video["info"], hint, use_voice, wants_blog)
 
     if st.session_state.ai_summary:
         st.caption(f":material/smart_toy: AI가 파악한 영상 내용: {st.session_state.ai_summary}")
@@ -319,19 +383,33 @@ with st.container(border=True):
     )
 
     blog_label = "네이버 블로그 글 (슈퍼아빠)" + (" · 작성됨" if st.session_state.blog_body.strip() else "")
-    with st.expander(blog_label, icon=":material/article:"):
-        photo_n = int(settings["naver_photo_count"])
+    with st.expander(blog_label, icon=":material/article:", expanded=bool(st.session_state.blog_previews)):
         st.caption(
-            f"본문의 [사진 1]~[사진 {photo_n}] 줄은 영상에서 고르게 뽑은 사진으로, [영상] 줄은 이 영상으로 바뀝니다. "
-            "줄을 옮기거나 지워도 됩니다. 사진 수와 영상 넣기는 계정 설정에서 바꿀 수 있습니다."
+            "AI 초안은 영상 내용과 위의 유튜브·인스타 문구, 해시태그로 주제를 정하고, 관련 정보를 웹에서 찾아 함께 씁니다. "
+            "사진은 영상 길이에 맞게 고릅니다 (짧은 영상 2~4장, 긴 영상은 글 흐름에 맞게 더). "
+            "본문의 [사진 N] 줄은 그 장면 사진으로, [영상] 줄은 이 영상으로 바뀌고, 줄을 옮기거나 지워도 됩니다."
         )
+        with st.container(horizontal=True):
+            if st.button("AI로 블로그 초안 쓰기", icon=":material/auto_awesome:",
+                         disabled=not (settings["anthropic_api_key"] and video),
+                         help="지금 칸에 있는 유튜브·인스타 문구와 해시태그를 바탕으로 씁니다. 지금 블로그 글은 바뀝니다."):
+                run_blog_draft(video["info"], st.session_state.get("ai_hint", ""))
+            st.button("기본 틀로 채우기 (AI 없이)", icon=":material/format_align_left:", type="tertiary",
+                      on_click=fill_blog_template,
+                      help="인스타 캡션과 사진·영상 자리로 본문 틀을 만듭니다. 지금 본문은 바뀝니다.")
         st.text_input("블로그 제목", key="blog_title", max_chars=100, persist_state="session")
-        st.text_area("블로그 본문", key="blog_body", height=320, persist_state="session",
+        st.text_area("블로그 본문", key="blog_body", height=360, persist_state="session",
                      help="'## 소제목'처럼 마크다운을 쓸 수 있습니다.")
         st.text_input("블로그 태그", key="blog_tags", persist_state="session", placeholder="#가족 #나들이 (띄어쓰기로 구분)")
-        st.button("기본 틀로 채우기 (AI 없이)", icon=":material/format_align_left:", type="tertiary",
-                  on_click=fill_blog_template,
-                  help="인스타 캡션과 사진·영상 자리로 본문 틀을 만듭니다. 지금 본문은 바뀝니다.")
+        previews = [p for p in st.session_state.blog_previews if p[0] and Path(p[0]).exists()]
+        if previews:
+            st.caption("AI가 고른 사진 (올릴 때 이 장면들을 고화질로 다시 뽑습니다)")
+            with st.container(horizontal=True, wrap=True):
+                for n, (path, t, caption) in enumerate(st.session_state.blog_previews, start=1):
+                    if path and Path(path).exists():
+                        st.image(path, caption=f"[사진 {n}] {t:.1f}초 · {caption}", width=140)
+        elif st.session_state.blog_photo_times is None and st.session_state.blog_body.strip():
+            st.caption(f"사진은 영상에서 고르게 {int(settings['naver_photo_count'])}장 뽑습니다 (계정 설정에서 바꿀 수 있음).")
 
 
 # ── 3. 업로드 ──────────────────────────────────────────────
