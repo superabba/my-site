@@ -95,24 +95,32 @@ def probe(path: Path) -> VideoInfo:
     )
 
 
-def extract_frames(info: VideoInfo, out_dir: Path, count: int = 8) -> list[tuple[float, Path]]:
+def extract_frames(info: VideoInfo, out_dir: Path, count: int = 8, prefix: str = "frame",
+                   box: int = 1024) -> list[tuple[float, Path]]:
     """영상 전체에서 고르게 count장을 뽑는다. 반환: [(초, 이미지 경로), ...]"""
     out_dir.mkdir(parents=True, exist_ok=True)
-    for old in out_dir.glob("frame_*.jpg"):
+    for old in out_dir.glob(f"{prefix}_*.jpg"):
         old.unlink()
     count = max(1, min(count, int(info.duration) + 1)) if info.duration else 1
     frames = []
     for i in range(count):
         t = info.duration * (i + 0.5) / count if info.duration else 0
-        target = out_dir / f"frame_{i:02d}.jpg"
+        target = out_dir / f"{prefix}_{i:02d}.jpg"
         try:
-            target.write_bytes(_grab_frame(info.path, t, scale_box=1024))
+            target.write_bytes(_grab_frame(info.path, t, scale_box=box))
         except RuntimeError:
             continue  # 손상된 구간은 건너뛴다
         frames.append((t, target))
     if not frames:
         raise RuntimeError("영상에서 프레임을 하나도 추출하지 못했습니다.")
     return frames
+
+
+def blog_candidate_count(duration: float) -> int:
+    """블로그 사진을 고를 후보 장면 수. 짧은 영상은 8장, 긴 영상은 약 10초마다 (최대 24장)."""
+    if duration <= 60:
+        return 8
+    return min(24, max(10, int(duration // 10) + 1))
 
 
 # ── 업로드용 파일 준비 ───────────────────────────────────────
@@ -160,19 +168,27 @@ def blog_photo_times(duration: float, count: int) -> list[float]:
     return [duration * (i + 0.5) / count for i in range(count)] if duration else [0.0]
 
 
-def extract_blog_photos(info: VideoInfo, out_dir: Path, count: int) -> list[Path]:
-    """블로그용 사진 count장 (너비 최대 1080, 고화질 JPEG). 반환: [blog_01.jpg, …]"""
+def _save_frame(path: Path, t: float, target: Path, width: int) -> bool:
+    cmd = [_ffmpeg(), "-y", "-loglevel", "error", "-ss", f"{max(t, 0):.2f}", "-i", str(path),
+           "-frames:v", "1", "-vf", f"scale=w='min({width},iw)':h=-2", "-q:v", "2", str(target)]
+    result = subprocess.run(cmd, capture_output=True, creationflags=_NO_WINDOW, timeout=60)
+    return result.returncode == 0 and target.exists()
+
+
+def extract_blog_photos(info: VideoInfo, out_dir: Path, times: list[float], prefix: str = "blog",
+                        width: int = 1080) -> list[Path | None]:
+    """times의 장면을 사진으로 (너비 최대 width, 고화질 JPEG). 반환 순서 = times 순서 = [사진 1], [사진 2] …
+
+    뽑지 못한 장면은 조금 앞에서 다시 뽑아 보고, 그래도 안 되면 None (번호가 밀리지 않게 자리는 남긴다).
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
-    for old in out_dir.glob("blog_*.jpg"):
+    for old in out_dir.glob(f"{prefix}_*.jpg"):
         old.unlink()
-    photos = []
-    for i, t in enumerate(blog_photo_times(info.duration, count), start=1):
-        target = out_dir / f"blog_{i:02d}.jpg"
-        cmd = [_ffmpeg(), "-y", "-loglevel", "error", "-ss", f"{max(t, 0):.2f}", "-i", str(info.path),
-               "-frames:v", "1", "-vf", "scale=w='min(1080,iw)':h=-2", "-q:v", "2", str(target)]
-        result = subprocess.run(cmd, capture_output=True, creationflags=_NO_WINDOW, timeout=60)
-        if result.returncode == 0 and target.exists():
-            photos.append(target)
+    photos: list[Path | None] = []
+    for i, t in enumerate(times, start=1):
+        target = out_dir / f"{prefix}_{i:02d}.jpg"
+        ok = _save_frame(info.path, t, target, width) or _save_frame(info.path, max(t - 1.0, 0), target, width)
+        photos.append(target if ok else None)
     return photos
 
 

@@ -331,13 +331,21 @@ def test_status_from_record_includes_naver_blog():
 
 def test_extract_blog_photos(tmp_path):
     info = media.probe(make_video(tmp_path / "v.mp4", size="1080x1920", seconds=4))
-    photos = media.extract_blog_photos(info, tmp_path / "work", 3)
+    photos = media.extract_blog_photos(info, tmp_path / "work", [0.5, 2.0, 3.5])
     assert [p.name for p in photos] == ["blog_01.jpg", "blog_02.jpg", "blog_03.jpg"]
     from PIL import Image
     with Image.open(photos[0]) as img:
         assert img.size == (1080, 1920)
-    assert media.extract_blog_photos(info, tmp_path / "work", 0) == []
+    previews = media.extract_blog_photos(info, tmp_path / "work", [1.0], prefix="preview", width=360)
+    with Image.open(previews[0]) as img:
+        assert img.size[0] == 360
+    assert media.extract_blog_photos(info, tmp_path / "work", []) == []
     assert media.blog_photo_times(8.0, 4) == [1.0, 3.0, 5.0, 7.0]
+
+
+def test_blog_candidate_count_grows_with_length():
+    assert media.blog_candidate_count(20) == 8 and media.blog_candidate_count(60) == 8
+    assert media.blog_candidate_count(120) == 13 and media.blog_candidate_count(600) == 24
 
 
 class BlogFakeBot(FakeBot):
@@ -376,8 +384,9 @@ def test_upload_sends_naver_blog_with_photos_and_video(tmp_path, monkeypatch):
     blog = bot.post["naver_blog"]
     assert blog["title"] == "아이들과 축제 나들이" and blog["tags"] == ["가족", "축제"]
     assert blog["category"] == "가족기록" and blog["open_type"] == "public"
-    assert blog["photos"] == ["blog_01.jpg", "blog_02.jpg", "blog_03.jpg", "blog_04.jpg"]
+    # AI 초안이 아니면 고르게 뽑은 장면 중 본문이 쓰는 사진만 보낸다
+    assert blog["photos"] == ["blog_01.jpg", "blog_02.jpg"]
     assert blog["video"] == "video.mp4"
-    assert bot.files == ["blog_01.jpg", "blog_02.jpg", "blog_03.jpg", "blog_04.jpg", "video.mp4"]
+    assert bot.files == ["blog_01.jpg", "blog_02.jpg", "video.mp4"]
     assert at.session_state["last_result"]["results"]["naver_blog"] == "https://blog.naver.com/zeusvigor/9"
     assert all(not any(d.iterdir()) for d in dirs.values()), "블로그 사진 사본도 지워야 한다"
