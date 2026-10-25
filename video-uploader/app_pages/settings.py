@@ -1,7 +1,7 @@
 import streamlit as st
 
 from core import accounts, config, transcribe
-from core.config import PLATFORM_LABELS, PRIVACY_LABELS
+from core.config import NAVER_CATEGORIES, NAVER_OPEN_LABELS, PLATFORM_LABELS, PRIVACY_LABELS
 from core.github_bot import GitHubBot, GitHubError, repo_problem, token_problem
 
 settings = config.load_settings()
@@ -149,6 +149,41 @@ with st.container(border=True):
     if not transcribe.available():
         st.caption(":material/info: 말소리 인식 기능이 설치되어 있지 않아 화면만 보고 작성합니다. "
                    "프로그램 폴더의 install_voice.bat 으로 설치할 수 있습니다.")
+
+
+# ── 네이버 블로그 (슈퍼아빠, Uplika) ─────────────────────────
+
+with st.container(border=True):
+    st.subheader("네이버 블로그 (슈퍼아빠)", icon=":material/article:")
+    st.caption(
+        "업로드할 때 같은 내용의 블로그 글을 Uplika로 슈퍼아빠 블로그(@zeusvigor)에 바로 발행합니다. "
+        "카드뉴스의 네이버 발행(경제주막)과는 별개입니다. 네이버 글은 이 PC의 Edge(Uplika 확장)가 대신 씁니다."
+    )
+    with st.expander("처음 한 번: Uplika API 키 넣기", icon=":material/key:"):
+        st.markdown(
+            "1. [Uplika 대시보드](https://uplika.com/dashboard)에서 워크스페이스를 **superabba**로 고르고 **API Keys**로 갑니다.\n"
+            "2. 새 키를 만듭니다. 이름: `video-uploader`, 워크스페이스: **superabba만**, "
+            "권한: `accounts:read`, `posts:read`, `posts:write`.\n"
+            "3. 한 번만 보이는 키(`uplk_live_…`)를 복사해 GitHub 저장소 "
+            f"[Secrets](https://github.com/{settings['github_repo']}/settings/secrets/actions)에 "
+            "**`VIDEO_UPLIKA_API_KEY`** 이름으로 넣습니다.\n\n"
+            "봇은 Uplika에 연결된 블로그 중 아이디가 `zeusvigor`인 블로그에만 올립니다 "
+            "(다른 블로그로 바꾸려면 Variables `VIDEO_NAVER_BLOG_ID`)."
+        )
+    with st.form("naver_form", border=False):
+        categories = NAVER_CATEGORIES if settings["naver_category"] in NAVER_CATEGORIES \
+            else [settings["naver_category"], *NAVER_CATEGORIES]
+        category = st.selectbox("기본 카테고리", categories, index=categories.index(settings["naver_category"]))
+        custom = st.text_input("목록에 없는 카테고리 (블로그에 있는 이름 그대로)", placeholder="비우면 위에서 고른 카테고리")
+        open_type = st.segmented_control("기본 공개 범위", list(NAVER_OPEN_LABELS), format_func=NAVER_OPEN_LABELS.get,
+                                         default=settings["naver_open_type"], required=True)
+        photo_count = st.number_input("글에 넣을 사진 수 (영상에서 고르게 뽑음)", min_value=0, max_value=10,
+                                      value=int(settings["naver_photo_count"]))
+        include_video = st.toggle("글에 영상도 넣기", value=bool(settings["naver_include_video"]))
+        if st.form_submit_button("저장", icon=":material/save:"):
+            save(naver_category=custom.strip() or category, naver_open_type=open_type,
+                 naver_photo_count=int(photo_count), naver_include_video=include_video)
+            st.toast("저장했습니다.", icon=":material/check:")
 
 
 # ── 업로드 기본값 ───────────────────────────────────────────

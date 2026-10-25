@@ -153,10 +153,35 @@ def transcode(info: VideoInfo, out_path: Path, max_bytes: int, max_video_kbps: i
     raise RuntimeError(f"영상을 {max_bytes // (1024 * 1024)}MB 이하로 줄이지 못했습니다. 영상 길이를 줄여 주세요.")
 
 
-def prepare_upload_files(info: VideoInfo, platforms: list[str], work_dir: Path,
-                         progress_cb: Callable[[str, float], None] | None = None) -> dict[str, Path]:
-    """봇에 보낼 파일을 만든다. 반환: {"meta": 인스타·스레드용, "youtube": 유튜브용} (필요한 것만).
+def blog_photo_times(duration: float, count: int) -> list[float]:
+    """블로그에 넣을 사진을 뽑을 시점 (영상 전체에 고르게)."""
+    if count <= 0:
+        return []
+    return [duration * (i + 0.5) / count for i in range(count)] if duration else [0.0]
 
+
+def extract_blog_photos(info: VideoInfo, out_dir: Path, count: int) -> list[Path]:
+    """블로그용 사진 count장 (너비 최대 1080, 고화질 JPEG). 반환: [blog_01.jpg, …]"""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for old in out_dir.glob("blog_*.jpg"):
+        old.unlink()
+    photos = []
+    for i, t in enumerate(blog_photo_times(info.duration, count), start=1):
+        target = out_dir / f"blog_{i:02d}.jpg"
+        cmd = [_ffmpeg(), "-y", "-loglevel", "error", "-ss", f"{max(t, 0):.2f}", "-i", str(info.path),
+               "-frames:v", "1", "-vf", "scale=w='min(1080,iw)':h=-2", "-q:v", "2", str(target)]
+        result = subprocess.run(cmd, capture_output=True, creationflags=_NO_WINDOW, timeout=60)
+        if result.returncode == 0 and target.exists():
+            photos.append(target)
+    return photos
+
+
+def prepare_upload_files(info: VideoInfo, platforms: list[str], work_dir: Path,
+                         progress_cb: Callable[[str, float], None] | None = None,
+                         need_full_video: bool = False) -> dict[str, Path]:
+    """봇에 보낼 파일을 만든다. 반환: {"meta": 인스타·스레드용, "youtube": 유튜브·블로그용 원본 화질} (필요한 것만).
+
+    need_full_video: 유튜브를 고르지 않아도 원본 화질 영상이 필요할 때 (네이버 블로그 글에 영상을 넣을 때).
     원본이 이미 조건(MP4, 크기)에 맞으면 다시 인코딩하지 않는다. 두 용도가 같은 파일이면 하나만 올라간다.
     """
     work_dir.mkdir(parents=True, exist_ok=True)
@@ -166,7 +191,7 @@ def prepare_upload_files(info: VideoInfo, platforms: list[str], work_dir: Path,
     files: dict[str, Path] = {}
     is_mp4 = info.path.suffix.lower() == ".mp4"
 
-    if "youtube" in platforms:
+    if "youtube" in platforms or need_full_video:
         if info.size_bytes <= YOUTUBE_MAX_BYTES:
             files["youtube"] = info.path
         else:

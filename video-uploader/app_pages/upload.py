@@ -6,11 +6,13 @@ from pathlib import Path
 import streamlit as st
 
 from core import analyzer, config, media, transcribe
-from core.config import PLATFORM_LABELS, PRIVACY_LABELS
+from core.config import NAVER_CATEGORIES, NAVER_OPEN_LABELS, PLATFORM_LABELS, PRIVACY_LABELS
 from core.github_bot import GitHubBot, GitHubError, new_video_id, token_problem
 
 settings = config.load_settings()
 PLATFORMS = list(PLATFORM_LABELS)
+BLOG_VIDEO_LINE = re.compile(r"^\s*\[영상\]\s*$", re.MULTILINE)
+BLOG_PHOTO_LINE = re.compile(r"^\s*\[사진\s*(\d+)\]\s*$", re.MULTILINE)
 
 
 # ── 도우미 ──────────────────────────────────────────────────
@@ -57,6 +59,20 @@ def copy_caption_to_threads():
     st.session_state.threads_text = st.session_state.ig_caption[:500]
 
 
+def fill_blog_template():
+    """AI 없이 쓸 때: 인스타 캡션과 사진·영상 자리로 블로그 글의 기본 틀을 만든다."""
+    caption = st.session_state.ig_caption.strip() or st.session_state.yt_desc.strip()
+    lines = [caption] if caption else []
+    if settings["naver_include_video"]:
+        lines.append("[영상]")
+    lines += [f"[사진 {i}]" for i in range(1, int(settings["naver_photo_count"]) + 1)]
+    st.session_state.blog_body = "\n\n".join(lines)
+    if not st.session_state.blog_title.strip():
+        st.session_state.blog_title = st.session_state.yt_title.strip()
+    if not st.session_state.blog_tags.strip():
+        st.session_state.blog_tags = st.session_state.hashtags
+
+
 @st.cache_resource(max_entries=1, show_spinner=False)
 def get_whisper(model_size: str):
     return transcribe.load_model(model_size)
@@ -85,6 +101,8 @@ def run_analysis(info: media.VideoInfo, hint: str, use_voice: bool) -> None:
             result = analyzer.analyze_video(
                 settings["anthropic_api_key"], settings["claude_model"],
                 frames, info.duration, transcript, hint.strip() or None,
+                blog_photo_times=media.blog_photo_times(info.duration, int(settings["naver_photo_count"])),
+                blog_video=bool(settings["naver_include_video"]),
             )
         except analyzer.AnalysisError as e:
             status.update(label="분석 실패", state="error")
@@ -107,9 +125,12 @@ def run_publish(video: dict, targets: list[str], post: dict) -> None:
             repo = bot.check()
 
             step.write("업로드할 영상 준비 중…")
+            blog = post.get("naver_blog")
+            blog_video = bool(blog and BLOG_VIDEO_LINE.search(blog["body"]))
             files = media.prepare_upload_files(
                 info, targets, config.WORK_DIR,
                 lambda label, p: bar.progress(p, text=f"{label} {p * 100:.0f}%"),
+                need_full_video=blog_video,
             )
             names: dict[str, Path] = {}
             post_files = {}
@@ -123,6 +144,17 @@ def run_publish(video: dict, targets: list[str], post: dict) -> None:
                 names.setdefault(meta_name, files["meta"])
                 post_files["meta"] = meta_name
             post["files"] = post_files
+            if blog:
+                # 글에 넣을 사진은 영상에서 뽑고, 영상은 원본 화질 파일을 같이 쓴다 (봇이 Uplika에 올린다)
+                step.write("블로그 사진 뽑는 중…")
+                # AI가 본 사진 시점과 맞추려고 설정한 장수로 뽑는다 (본문이 더 큰 번호를 쓰면 그만큼)
+                used = max([int(n) for n in BLOG_PHOTO_LINE.findall(blog["body"])], default=0)
+                count = max(int(settings["naver_photo_count"]), used) if used else 0
+                photos = media.extract_blog_photos(info, config.WORK_DIR, count)
+                for p in photos:
+                    names[p.name] = p
+                blog["photos"] = [p.name for p in photos]
+                blog["video"] = post_files.get("youtube") if blog_video else None
 
             video_id = new_video_id()
             step.write("GitHub에 영상 올리는 중…")
@@ -182,7 +214,7 @@ st.session_state.setdefault("ai_summary", "")
 st.session_state.setdefault("uploaded_keys", set())  # 이미 보낸 영상 (파일 이름:크기)
 st.session_state.setdefault("uploader_n", 0)  # 올린 뒤 업로더를 비우려고 위젯 key를 바꾼다
 st.session_state.setdefault("last_result", None)
-for key in ("yt_title", "yt_desc", "ig_caption", "threads_text"):
+for key in ("yt_title", "yt_desc", "ig_caption", "threads_text", "blog_title", "blog_body", "blog_tags"):
     st.session_state.setdefault(key, "")
 st.session_state.setdefault("hashtags", settings["default_hashtags"])
 
@@ -195,6 +227,9 @@ if pending := st.session_state.pop("pending_fill", None):
     merged = parse_hashtags(settings["default_hashtags"]) + pending["hashtags"]
     st.session_state.hashtags = tag_line(parse_hashtags(" ".join(merged)))
     st.session_state.ai_summary = pending["summary"]
+    st.session_state.blog_title = pending.get("blog_title", "")[:100]
+    st.session_state.blog_body = pending.get("blog_body", "")
+    st.session_state.blog_tags = tag_line(parse_hashtags(" ".join(pending.get("blog_tags", []))))
 
 
 # ── 1. 영상 선택 ────────────────────────────────────────────
@@ -215,7 +250,8 @@ with st.container(border=True):
                 st.session_state.video = {"file_id": uploaded.file_id, "key": f"{uploaded.name}:{uploaded.size}",
                                           "info": media.probe(path)}
                 # 새 영상이면 이전 영상용 문구를 비운다.
-                for key in ("yt_title", "yt_desc", "ig_caption", "threads_text", "ai_summary"):
+                for key in ("yt_title", "yt_desc", "ig_caption", "threads_text", "ai_summary",
+                            "blog_title", "blog_body", "blog_tags"):
                     st.session_state[key] = ""
                 st.session_state.hashtags = settings["default_hashtags"]
                 st.session_state.last_result = None
@@ -282,6 +318,21 @@ with st.container(border=True):
         placeholder="#일상 #브이로그  (띄어쓰기로 구분)",
     )
 
+    blog_label = "네이버 블로그 글 (슈퍼아빠)" + (" · 작성됨" if st.session_state.blog_body.strip() else "")
+    with st.expander(blog_label, icon=":material/article:"):
+        photo_n = int(settings["naver_photo_count"])
+        st.caption(
+            f"본문의 [사진 1]~[사진 {photo_n}] 줄은 영상에서 고르게 뽑은 사진으로, [영상] 줄은 이 영상으로 바뀝니다. "
+            "줄을 옮기거나 지워도 됩니다. 사진 수와 영상 넣기는 계정 설정에서 바꿀 수 있습니다."
+        )
+        st.text_input("블로그 제목", key="blog_title", max_chars=100, persist_state="session")
+        st.text_area("블로그 본문", key="blog_body", height=320, persist_state="session",
+                     help="'## 소제목'처럼 마크다운을 쓸 수 있습니다.")
+        st.text_input("블로그 태그", key="blog_tags", persist_state="session", placeholder="#가족 #나들이 (띄어쓰기로 구분)")
+        st.button("기본 틀로 채우기 (AI 없이)", icon=":material/format_align_left:", type="tertiary",
+                  on_click=fill_blog_template,
+                  help="인스타 캡션과 사진·영상 자리로 본문 틀을 만듭니다. 지금 본문은 바뀝니다.")
+
 
 # ── 3. 업로드 ──────────────────────────────────────────────
 
@@ -308,6 +359,19 @@ with st.container(border=True):
             default=settings["yt_privacy"], required=True, key="yt_privacy",
         )
 
+    blog_category, blog_open = settings["naver_category"], settings["naver_open_type"]
+    if "naver_blog" in targets:
+        categories = NAVER_CATEGORIES if blog_category in NAVER_CATEGORIES else [blog_category, *NAVER_CATEGORIES]
+        with st.container(horizontal=True):
+            blog_category = st.selectbox("블로그 카테고리", categories, index=categories.index(blog_category),
+                                         key="blog_category")
+            blog_open = st.segmented_control(
+                "블로그 공개 범위", list(NAVER_OPEN_LABELS), format_func=NAVER_OPEN_LABELS.get,
+                default=settings["naver_open_type"], required=True, key="blog_open",
+            )
+        st.caption(":material/info: 네이버 글은 Uplika(superabba)로 보내져 이 PC의 Edge(Uplika 확장)가 대신 씁니다. "
+                   "Edge가 꺼져 있으면 켤 때 올라갑니다.")
+
     tags = parse_hashtags(st.session_state.hashtags)
     ig_full = f"{st.session_state.ig_caption.strip()}\n\n{tag_line(tags, 30)}".strip()
     threads_final = (st.session_state.threads_text.strip() or st.session_state.ig_caption.strip())[:500]
@@ -332,6 +396,13 @@ with st.container(border=True):
             st.caption("인스타그램은 해시태그를 30개까지만 허용해서 앞의 30개만 올립니다.")
     if "threads" in targets and not threads_final:
         problems.append("스레드 글(또는 인스타 캡션)을 입력해 주세요.")
+    if "naver_blog" in targets:
+        if not st.session_state.blog_title.strip():
+            problems.append("네이버 블로그 제목을 입력해 주세요 ('2. 게시 내용'의 네이버 블로그 글).")
+        if not st.session_state.blog_body.strip():
+            problems.append("네이버 블로그 본문을 입력해 주세요. AI로 채우거나 '기본 틀로 채우기'를 누르세요.")
+        elif len(st.session_state.blog_body) > 29000:
+            problems.append("네이버 블로그 본문이 너무 깁니다 (3만 자 이하).")
 
     if video and targets:
         with st.expander("실제로 올라갈 문구 미리보기", icon=":material/visibility:"):
@@ -345,6 +416,11 @@ with st.container(border=True):
             if "threads" in targets:
                 st.markdown("**스레드**")
                 st.text(threads_final)
+            if "naver_blog" in targets:
+                st.markdown(f"**네이버 블로그** · {blog_category} · {NAVER_OPEN_LABELS.get(blog_open, blog_open)}")
+                blog_tags_preview = tag_line(parse_hashtags(st.session_state.blog_tags))
+                st.text(f"[제목] {st.session_state.blog_title.strip()}\n\n{st.session_state.blog_body.strip()}"
+                        f"\n\n[태그] {blog_tags_preview}")
 
     allow = True
     if video and video.get("key") in st.session_state.uploaded_keys:
@@ -356,17 +432,28 @@ with st.container(border=True):
 
     if st.button("업로드 시작", type="primary", icon=":material/upload:", width="stretch",
                  disabled=bool(problems) or not allow):
-        title = st.session_state.yt_title.strip() or (st.session_state.ig_caption.strip().split("\n")[0][:100])
-        run_publish(video, targets, {
+        title = (st.session_state.yt_title.strip() or st.session_state.blog_title.strip()
+                 or st.session_state.ig_caption.strip().split("\n")[0][:100])
+        post = {
             "title": title,
             "youtube_description": st.session_state.yt_desc.strip(),
             "instagram_caption": st.session_state.ig_caption.strip(),
             "threads_text": threads_final,
             "hashtags": tags,
-            "platforms": targets,
+            # naver_blog는 봇의 videopost가 아니라 bot/naver_blog.py가 아래 naver_blog 항목으로 올린다
+            "platforms": [t for t in targets if t != "naver_blog"],
             "youtube_privacy": privacy,
             "source_name": video["info"].path.name,
-        })
+        }
+        if "naver_blog" in targets:
+            post["naver_blog"] = {
+                "title": st.session_state.blog_title.strip()[:100],
+                "body": st.session_state.blog_body.strip(),
+                "tags": parse_hashtags(st.session_state.blog_tags)[:30],
+                "category": blog_category,
+                "open_type": blog_open,
+            }
+        run_publish(video, targets, post)
 
     result = st.session_state.last_result
     if result:
@@ -380,6 +467,8 @@ with st.container(border=True):
             label = PLATFORM_LABELS.get(platform, platform)
             if detail.startswith("실패"):
                 st.error(f"{label}: {detail}", icon=":material/error:")
+            elif detail.startswith("Uplika에 전달됨"):
+                st.info(f"{label}: {detail}", icon=":material/schedule_send:")
             else:
                 st.success(f"{label}: {detail}", icon=":material/check_circle:")
         if result.get("run_url"):
