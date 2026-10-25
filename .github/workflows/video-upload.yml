@@ -1,4 +1,4 @@
-# 직접 찍은 영상 업로드 (video-uploader 앱 → 인스타 릴스·스레드·유튜브 쇼츠)
+# 직접 찍은 영상 업로드 (video-uploader 앱 → 인스타 릴스·스레드·유튜브 쇼츠 + 네이버 블로그)
 # 카드뉴스 자동 발행(cardnews.yml)과 완전히 따로 동작한다.
 #   - 실행 순서 그룹(concurrency)이 달라 서로 기다리거나 멈추지 않는다.
 #   - 카드뉴스의 cardbot-data 브랜치·이력 DB를 건드리지 않는다 (영상은 video/<ID>, 결과는 video-records 브랜치).
@@ -84,6 +84,18 @@ jobs:
         run: |
           python -m cardbot.videopost "$GITHUB_WORKSPACE/video/videos/$VIDEO_ID" \
             --repo "$GITHUB_REPOSITORY" --sha "$VIDEO_SHA" \
+            --record "$GITHUB_WORKSPACE/records/records/$VIDEO_ID.json"
+
+      # 네이버 블로그(슈퍼아빠): PC 앱에서 블로그 글을 함께 보낸 경우만. Uplika REST API로 바로 발행한다.
+      # 카드뉴스의 네이버 발행(Claude 루틴, 경제주막)과는 별개다.
+      - name: 네이버 블로그 (Uplika)
+        if: always() && env.VIDEO_SHA != ''
+        working-directory: video-uploader
+        env:
+          VIDEO_UPLIKA_API_KEY: ${{ secrets.VIDEO_UPLIKA_API_KEY }} # Uplika superabba 워크스페이스 API 키
+          VIDEO_NAVER_BLOG_ID: ${{ vars.VIDEO_NAVER_BLOG_ID }} # 이 블로그가 아니면 올리지 않음 (기본 zeusvigor)
+        run: |
+          python -m bot.naver_blog "$GITHUB_WORKSPACE/video/videos/$VIDEO_ID" \
             --record "$GITHUB_WORKSPACE/records/records/$VIDEO_ID.json"
 
       - name: 결과 저장

@@ -314,3 +314,70 @@ def test_upload_does_not_retry_other_errors(tmp_path, monkeypatch):
     bot.session.request = request
     with pytest.raises(GitHubError, match="Validation Failed"):
         bot.upload("20261021-191129-0c0061e1", {"video.mp4": video}, {"title": "t"})
+
+
+def test_status_from_record_includes_naver_blog():
+    base = {"platforms": ["reels"], "posts": {"reels": {"media_id": "1", "permalink": "https://ig/x"}}, "errors": {}}
+    state, results = config.status_from_record({**base, "naver_blog": {"status": "published",
+                                                                        "permalink": "https://blog.naver.com/zeusvigor/1"}})
+    assert state == "완료" and results["naver_blog"] == "https://blog.naver.com/zeusvigor/1"
+    state, results = config.status_from_record({**base, "naver_blog": {"status": "queued"}})
+    assert state == "완료" and results["naver_blog"].startswith("Uplika에 전달됨")
+    state, results = config.status_from_record({**base, "naver_blog": {"status": "failed", "error": "키 없음"}})
+    assert state == "일부 실패" and results["naver_blog"] == "실패: 키 없음"
+    only_blog = {"platforms": [], "posts": {}, "errors": {}, "naver_blog": {"status": "failed", "error": "x"}}
+    assert config.status_from_record(only_blog)[0] == "실패"
+
+
+def test_extract_blog_photos(tmp_path):
+    info = media.probe(make_video(tmp_path / "v.mp4", size="1080x1920", seconds=4))
+    photos = media.extract_blog_photos(info, tmp_path / "work", 3)
+    assert [p.name for p in photos] == ["blog_01.jpg", "blog_02.jpg", "blog_03.jpg"]
+    from PIL import Image
+    with Image.open(photos[0]) as img:
+        assert img.size == (1080, 1920)
+    assert media.extract_blog_photos(info, tmp_path / "work", 0) == []
+    assert media.blog_photo_times(8.0, 4) == [1.0, 3.0, 5.0, 7.0]
+
+
+class BlogFakeBot(FakeBot):
+    def upload(self, video_id, files, post, progress_cb=None):
+        self.post, self.files = post, sorted(files)
+        return super().upload(video_id, files, post, progress_cb)
+
+    def read_record(self, video_id):
+        return {"platforms": [], "posts": {}, "errors": {},
+                "naver_blog": {"status": "published", "permalink": "https://blog.naver.com/zeusvigor/9"}}
+
+
+def test_upload_sends_naver_blog_with_photos_and_video(tmp_path, monkeypatch):
+    from streamlit.testing.v1 import AppTest
+
+    import core.github_bot as github_bot
+
+    dirs = use_tmp_data_dirs(monkeypatch, tmp_path)
+    config.save_settings({**config.DEFAULT_SETTINGS, "github_token": "github_pat_x", "github_repo": "o/r",
+                          "default_platforms": ["naver_blog"], "naver_photo_count": 4})
+    monkeypatch.setattr(github_bot, "GitHubBot", BlogFakeBot)
+    working_copy = make_video(dirs["VIDEO_DIR"] / "clip.mp4", seconds=4)
+
+    at = AppTest.from_file(str(APP_DIR / "app_pages" / "upload.py"), default_timeout=120)
+    at.session_state["video"] = {"file_id": "f2", "key": "clip.mp4:9", "info": media.probe(working_copy)}
+    at.session_state["blog_title"] = "아이들과 축제 나들이"
+    at.session_state["blog_body"] = "## 도착\n신나게 놀았어요.\n\n[영상]\n\n[사진 1]\n\n[사진 2]"
+    at.session_state["blog_tags"] = "#가족 #축제"
+    at.run()
+    next(b for b in at.button if b.label == "업로드 시작").click()
+    at.run()
+
+    assert not at.exception
+    bot = BlogFakeBot.instances[-1]
+    assert bot.post["platforms"] == []  # 네이버 블로그는 videopost가 아니라 bot/naver_blog.py가 올린다
+    blog = bot.post["naver_blog"]
+    assert blog["title"] == "아이들과 축제 나들이" and blog["tags"] == ["가족", "축제"]
+    assert blog["category"] == "가족기록" and blog["open_type"] == "public"
+    assert blog["photos"] == ["blog_01.jpg", "blog_02.jpg", "blog_03.jpg", "blog_04.jpg"]
+    assert blog["video"] == "video.mp4"
+    assert bot.files == ["blog_01.jpg", "blog_02.jpg", "blog_03.jpg", "blog_04.jpg", "video.mp4"]
+    assert at.session_state["last_result"]["results"]["naver_blog"] == "https://blog.naver.com/zeusvigor/9"
+    assert all(not any(d.iterdir()) for d in dirs.values()), "블로그 사진 사본도 지워야 한다"

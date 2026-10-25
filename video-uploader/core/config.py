@@ -21,9 +21,15 @@ CLAUDE_MODELS = {
     "claude-haiku-5-5": "Claude Haiku 5.5 (가장 저렴)",
 }
 
-# 카드뉴스 봇(cardbot.videopost)의 플랫폼 이름
-PLATFORM_LABELS = {"reels": "인스타 릴스", "threads": "스레드", "youtube": "유튜브 쇼츠"}
+# 올릴 곳. reels·threads·youtube는 봇의 cardbot.videopost, naver_blog는 bot/naver_blog.py(Uplika)가 올린다.
+PLATFORM_LABELS = {"reels": "인스타 릴스", "threads": "스레드", "youtube": "유튜브 쇼츠", "naver_blog": "네이버 블로그"}
 PRIVACY_LABELS = {"public": "공개", "unlisted": "일부 공개", "private": "비공개"}
+NAVER_OPEN_LABELS = {"public": "전체 공개", "neighbor": "이웃 공개", "mutual": "서로이웃 공개", "private": "비공개"}
+# 슈퍼아빠 블로그(@zeusvigor) 카테고리 (2026-10-25 Uplika에서 확인). 블로그에서 바꾸면 설정 화면에서 직접 입력
+NAVER_CATEGORIES = [
+    "가족기록", "육아, 같이 성장하기", "육아정보", "나들이, 가볼만한곳", "맛집, 카페", "해외여행",
+    "일상 / 유용한 정보", "운동일지", "나팔꽃 키우기", "코딩", "시작",
+]
 
 DEFAULT_SETTINGS = {
     # Claude (영상 내용 분석)
@@ -35,8 +41,13 @@ DEFAULT_SETTINGS = {
     "github_token": "",
     # 업로드 기본값
     "default_hashtags": "",
-    "default_platforms": ["reels", "threads", "youtube"],
+    "default_platforms": ["reels", "threads", "youtube", "naver_blog"],
     "yt_privacy": "public",
+    # 네이버 블로그 (슈퍼아빠, Uplika로 발행)
+    "naver_category": "가족기록",
+    "naver_open_type": "public",
+    "naver_photo_count": 4,  # 영상에서 뽑아 글에 넣을 사진 수
+    "naver_include_video": True,  # 글에 영상도 넣기
 }
 
 
@@ -112,15 +123,28 @@ def update_history(video_id: str, **fields) -> None:
 def status_from_record(record: dict) -> tuple[str, dict]:
     """봇의 결과 기록 → (상태, {플랫폼: 링크 또는 '실패: 사유'})."""
     results = {}
-    for name in record.get("platforms", []):
+    names = list(record.get("platforms", []))
+    failed = []
+    for name in names:
         if name in record.get("posts", {}):
             info = record["posts"][name]
             results[name] = info.get("permalink") or f"게시됨 (ID {info.get('media_id')})"
         else:
             results[name] = "실패: " + record.get("errors", {}).get(name, "알 수 없는 오류")
-    failed = [n for n in record.get("platforms", []) if n not in record.get("posts", {})]
+            failed.append(name)
+    blog = record.get("naver_blog")
+    if blog:  # 네이버 블로그는 bot/naver_blog.py가 따로 기록한다
+        names.append("naver_blog")
+        if blog.get("status") == "published":
+            results["naver_blog"] = blog.get("permalink") or "발행됨"
+        elif blog.get("status") == "failed":
+            results["naver_blog"] = "실패: " + (blog.get("error") or "알 수 없는 오류")
+            failed.append("naver_blog")
+        else:
+            results["naver_blog"] = ("Uplika에 전달됨 — PC의 Edge(Uplika 확장)가 켜져 있으면 곧 블로그에 올라갑니다"
+                                     " (Uplika 대시보드에서 확인)")
     if not failed:
         return "완료", results
-    if len(failed) == len(record.get("platforms", [])):
+    if len(failed) == len(names):
         return "실패", results
     return "일부 실패", results
