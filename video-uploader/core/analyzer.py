@@ -101,7 +101,21 @@ VIDEO_LINE = re.compile(r"^\s*\[영상\]\s*$")
 
 
 class AnalysisError(Exception):
-    pass
+    """fatal=True: 키·크레딧처럼 다시 해도 안 되는 문제 (웹 자료 단계에서도 숨기지 않고 바로 알린다)."""
+
+    def __init__(self, message: str, fatal: bool = False):
+        super().__init__(message)
+        self.fatal = fatal
+
+
+BILLING_URL = "https://console.anthropic.com/settings/billing"
+
+
+def _org(e: anthropic.APIStatusError) -> str:
+    try:
+        return e.response.headers.get("anthropic-organization-id") or ""
+    except AttributeError:
+        return ""
 
 
 def _image_block(path: Path) -> dict:
@@ -128,12 +142,18 @@ def _send(client: anthropic.Anthropic, request: dict):
     try:
         response = client.beta.messages.create(**request)
     except anthropic.AuthenticationError:
-        raise AnalysisError("Claude API 키가 올바르지 않습니다. 설정 탭에서 다시 확인해 주세요.")
+        raise AnalysisError("Claude API 키가 올바르지 않습니다. 설정 탭에서 다시 확인해 주세요.", fatal=True)
     except anthropic.PermissionDeniedError:
-        raise AnalysisError("이 API 키로는 선택한 모델을 사용할 수 없습니다.")
+        raise AnalysisError("이 API 키로는 선택한 모델을 사용할 수 없습니다.", fatal=True)
     except anthropic.RateLimitError:
         raise AnalysisError("요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.")
     except anthropic.BadRequestError as e:
+        if "credit balance" in str(e.message).lower():
+            org = _org(e)
+            raise AnalysisError(
+                "Claude API 크레딧이 부족합니다. Anthropic 콘솔의 Plans & Billing에서 충전해 주세요"
+                + (f" — 이 키는 조직 {org} 에 속해 있으니, 충전도 이 조직에 해야 합니다" if org else "")
+                + f". ({BILLING_URL})", fatal=True)
         raise AnalysisError(f"요청 오류: {e.message}")
     except anthropic.APIStatusError as e:
         raise AnalysisError(f"Claude 서버 오류({e.status_code}). 잠시 후 다시 시도해 주세요.")
@@ -171,6 +191,35 @@ def _frames_content(frames: list[tuple[float, Path]], duration: float, transcrip
     else:
         content.append({"type": "text", "text": "(음성 자막 없음 — 화면만 보고 작성)"})
     return content
+
+
+def check_key(api_key: str) -> str:
+    """아주 짧은 요청으로 키가 쓸 수 있는지 확인한다 (비용은 1원 미만). 반환: 키가 속한 조직 ID."""
+    client = _client(api_key)
+    try:
+        raw = client.messages.with_raw_response.create(
+            model="claude-haiku-5-5", max_tokens=5, messages=[{"role": "user", "content": "hi"}])
+    except anthropic.APIStatusError as e:
+        try:
+            _send_error(e)
+        except AnalysisError as err:
+            org = _org(e)
+            raise AnalysisError(f"{err}" + (f" (조직 {org})" if org and org not in str(err) else ""), fatal=err.fatal)
+        raise
+    except anthropic.APIConnectionError:
+        raise AnalysisError("인터넷 연결을 확인해 주세요.")
+    return raw.headers.get("anthropic-organization-id") or ""
+
+
+def _send_error(e: anthropic.APIStatusError) -> None:
+    """_send와 같은 규칙으로 API 오류를 AnalysisError로 바꾼다."""
+    class _Once:
+        class beta:
+            class messages:
+                @staticmethod
+                def create(**_kw):
+                    raise e
+    _send(_Once, {})
 
 
 # ── SNS 문구 ────────────────────────────────────────────────
@@ -216,17 +265,26 @@ def sns_brief(sns: dict, hint: str | None = None, summary: str | None = None) ->
     return "\n".join(lines)
 
 
+def web_search_tool(model: str) -> dict:
+    """새 웹 검색(동적 필터링)은 Opus·Sonnet 계열만 지원한다. Haiku는 기본 웹 검색을 쓴다."""
+    newer = model.startswith(("claude-opus", "claude-sonnet", "claude-fable", "claude-mythos"))
+    return {"type": "web_search_20260209" if newer else "web_search_20250305", "name": "web_search", "max_uses": 5}
+
+
 def research_topic(api_key: str, model: str, brief: str) -> str | None:
-    """웹 검색으로 주제 관련 자료를 모은다. 찾지 못하거나 거절되면 None (글은 자료 없이 쓴다)."""
+    """웹 검색으로 주제 관련 자료를 모은다. 찾지 못하거나 거절되면 None (글은 자료 없이 쓴다).
+    키·크레딧 문제(fatal)는 AnalysisError로 그대로 올린다."""
     client = _client(api_key)
     messages: list = [{"role": "user", "content": f"{brief}\n\n이 영상으로 쓸 블로그 글의 자료를 모아 주세요."}]
-    tools = [{"type": "web_search_20260209", "name": "web_search", "max_uses": 5}]
+    tools = [web_search_tool(model)]
     response = None
     for _ in range(4):  # 서버 도구가 길어지면 pause_turn으로 끊겨 오므로 이어서 요청
         try:
             response = _send(client, _request(model, system=RESEARCH_SYSTEM, tools=tools, messages=messages,
                                               output_config={"effort": "medium"}))
-        except AnalysisError:
+        except AnalysisError as e:
+            if e.fatal:  # 키·크레딧 문제는 '자료 없음'으로 넘기지 않고 알린다
+                raise
             return None
         if response.stop_reason != "pause_turn":
             break

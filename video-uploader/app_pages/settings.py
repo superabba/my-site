@@ -1,6 +1,6 @@
 import streamlit as st
 
-from core import accounts, config, transcribe
+from core import accounts, analyzer, config, transcribe
 from core.config import NAVER_CATEGORIES, NAVER_OPEN_LABELS, PLATFORM_LABELS, PRIVACY_LABELS
 from core.github_bot import GitHubBot, GitHubError, repo_problem, token_problem
 
@@ -146,6 +146,16 @@ with st.container(border=True):
         if st.form_submit_button("저장", icon=":material/save:"):
             save(anthropic_api_key=api_key.strip(), claude_model=model, whisper_model=whisper_model)
             st.toast("저장했습니다.", icon=":material/check:")
+    if settings["anthropic_api_key"] and st.button(
+            "Claude 연결 확인", icon=":material/check_circle:", type="tertiary",
+            help="아주 짧은 요청으로 키·크레딧을 확인하고, 키가 속한 조직 ID를 보여 줍니다 (비용 1원 미만)."):
+        try:
+            org = analyzer.check_key(settings["anthropic_api_key"])
+            st.success(f"사용할 수 있습니다. 이 키의 조직 ID: {org or '(확인 안 됨)'}", icon=":material/check_circle:")
+        except analyzer.AnalysisError as e:
+            st.error(str(e), icon=":material/error:")
+            st.caption("콘솔 왼쪽 위에서 조직을 바꿀 수 있습니다. Settings → Organization의 ID가 위 조직 ID와 같은 곳에 충전하거나, "
+                       "크레딧이 있는 조직에서 새 키를 만들어 넣으세요.")
     if not transcribe.available():
         st.caption(":material/info: 말소리 인식 기능이 설치되어 있지 않아 화면만 보고 작성합니다. "
                    "프로그램 폴더의 install_voice.bat 으로 설치할 수 있습니다.")
