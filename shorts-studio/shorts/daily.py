@@ -273,7 +273,7 @@ def make(out: Path, records_dir: Path | None, cardnews_db: Path | None, theme_na
     api_key = _env("ANTHROPIC_API_KEY")
     if not api_key:
         raise WriterError("ANTHROPIC_API_KEY가 없습니다.")
-    model = _env("SHORTS_MODEL", "claude-opus-5-5")
+    model = _env("SHORTS_MODEL", "claude-sonnet-5-5")
     today = now_kst().date()
     theme = next((t for t in themes() if t[0] == theme_name), None) or theme_for(today)
     log.info("오늘의 테마: %s", theme[0])
