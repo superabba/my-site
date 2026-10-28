@@ -390,3 +390,67 @@ def test_upload_sends_naver_blog_with_photos_and_video(tmp_path, monkeypatch):
     assert bot.files == ["blog_01.jpg", "blog_02.jpg", "video.mp4"]
     assert at.session_state["last_result"]["results"]["naver_blog"] == "https://blog.naver.com/zeusvigor/9"
     assert all(not any(d.iterdir()) for d in dirs.values()), "블로그 사진 사본도 지워야 한다"
+
+
+def test_big_files_are_pushed_with_git(tmp_path, monkeypatch):
+    """큰 파일은 blob API 대신 git으로 push한다. 결과 모양(videos/<ID>/파일 + post.json, 부모 없는 커밋)은 API와 같다."""
+    import shutil as _shutil
+
+    from core import github_bot as gb
+
+    git = _shutil.which("git")
+    remote = tmp_path / "remote.git"
+    subprocess.run([git, "init", "--bare", "-q", str(remote)], check=True)
+    monkeypatch.setattr(gb, "BLOB_API_MAX_BYTES", 10)  # 작은 파일로도 git 경로를 타게
+    big = tmp_path / "video.mp4"
+    big.write_bytes(b"v" * 5000)
+    photo = tmp_path / "blog_01.jpg"
+    photo.write_bytes(b"jpg")
+
+    bot = GitHubBot("github_pat_test", "o/r")
+    bot.remote_url = lambda: str(remote)
+    bot.session.request = lambda *a, **k: (_ for _ in ()).throw(AssertionError("API를 쓰면 안 된다"))
+    progress = []
+    vid = "20261029-101010-1a2b3c4d"
+    sha = bot.upload(vid, {"video.mp4": big, "blog_01.jpg": photo}, {"title": "큰 영상"}, progress.append)
+
+    def git_out(*args):
+        return subprocess.run([git, "--git-dir", str(remote), *args], capture_output=True, check=True).stdout
+
+    assert git_out("rev-parse", f"refs/heads/video/{vid}").decode().strip() == sha
+    files = git_out("ls-tree", "-r", "--name-only", f"video/{vid}").decode().split()
+    assert sorted(files) == [f"videos/{vid}/blog_01.jpg", f"videos/{vid}/post.json", f"videos/{vid}/video.mp4"]
+    assert git_out("show", f"video/{vid}:videos/{vid}/video.mp4") == big.read_bytes()
+    assert json.loads(git_out("show", f"video/{vid}:videos/{vid}/post.json").decode("utf-8")) == {"title": "큰 영상"}
+    assert git_out("rev-list", "--count", f"video/{vid}").decode().strip() == "1"  # 부모 없는 커밋
+    assert progress[-1] == 1.0
+    # 토큰은 명령줄이 아니라 환경 변수 설정으로만 넘긴다
+    env = bot._git_env()
+    assert env["GIT_CONFIG_KEY_0"] == "http.extraHeader" and "github_pat_test" not in env["GIT_CONFIG_VALUE_0"]
+
+
+def test_big_files_without_git_explain_install(tmp_path, monkeypatch):
+    import pytest
+
+    from core import github_bot as gb
+
+    monkeypatch.setattr(gb, "BLOB_API_MAX_BYTES", 10)
+    monkeypatch.setattr(gb.shutil, "which", lambda name: None)
+    big = tmp_path / "video.mp4"
+    big.write_bytes(b"v" * 100)
+    with pytest.raises(GitHubError, match="Git이 없습니다"):
+        GitHubBot("github_pat_test", "o/r").upload("20261029-101010-1a2b3c4d", {"video.mp4": big}, {})
+
+
+def test_small_files_still_use_api(tmp_path, monkeypatch):
+    from core import github_bot as gb
+
+    calls = []
+    bot = GitHubBot("github_pat_test", "o/r")
+    monkeypatch.setattr(bot, "_upload_with_git", lambda *a, **k: calls.append("git"))
+    small = tmp_path / "v.mp4"
+    small.write_bytes(b"v" * 100)
+    bot.session.request = lambda m, url, **kw: (calls.append(url.rsplit("/repos/o/r", 1)[1]) or
+                                                FakeResp({"sha": "s"}, 201))
+    bot.upload("20261029-101010-1a2b3c4d", {"v.mp4": small}, {})
+    assert "git" not in calls and "/git/blobs" in calls

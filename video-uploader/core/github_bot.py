@@ -9,8 +9,13 @@
 
 import base64
 import json
+import os
 import re
 import secrets
+import shutil
+import subprocess
+import sys
+import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
@@ -63,6 +68,12 @@ def repo_problem(repo: str) -> str | None:
 
 
 BLOB_RETRY_DELAYS = (2, 4, 8, 15)  # 방금 올린 파일을 GitHub가 못 찾을 때 기다릴 시간(초)
+# GitHub의 'blob 만들기' API는 큰 파일을 base64(크기 4/3배)로 받다 보니 40MB 영상도
+# '422 input was too large to process'로 거절한다. 이보다 큰 파일이 있으면 git으로 직접 push한다
+# (git push는 파일당 GitHub 한도 100MB까지 된다).
+BLOB_API_MAX_BYTES = 20 * 1024 * 1024
+GIT_NAME, GIT_EMAIL = "video-uploader", "video-uploader@users.noreply.github.com"
+_NO_WINDOW = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
 
 
 class _ProgressBody:
@@ -90,6 +101,7 @@ class GitHubBot:
         if problem := token_problem(token) or repo_problem(repo):
             raise GitHubError(problem)
         self.repo = repo.strip().strip("/")
+        self._token = token.strip()
         self.session = requests.Session()
         self.session.headers.update({
             "Authorization": f"Bearer {token.strip()}",
@@ -154,6 +166,8 @@ class GitHubBot:
     def upload(self, video_id: str, files: dict[str, Path], post: dict,
                progress_cb: Callable[[float], None] | None = None) -> str:
         """files: {저장소 안 파일 이름: 내 컴퓨터 경로}. 영상 브랜치를 만들고 커밋 sha를 돌려준다."""
+        if any(p.stat().st_size > BLOB_API_MAX_BYTES for p in files.values()):
+            return self._upload_with_git(video_id, files, post, progress_cb)
         total = sum(p.stat().st_size for p in files.values()) or 1
         sent = 0
 
@@ -178,6 +192,79 @@ class GitHubBot:
         if progress_cb:
             progress_cb(1.0)
         return commit
+
+    # ── 큰 영상: git으로 직접 push ──
+    def remote_url(self) -> str:
+        return f"https://github.com/{self.repo}.git"
+
+    def _git_env(self) -> dict:
+        """토큰은 명령줄이 아니라 환경 변수의 git 설정으로 넘긴다 (다른 프로그램의 명령줄 목록에 안 보이게)."""
+        basic = base64.b64encode(f"x-access-token:{self._token}".encode()).decode()
+        return {
+            **os.environ,
+            "GIT_TERMINAL_PROMPT": "0",
+            "GIT_CONFIG_COUNT": "2",
+            "GIT_CONFIG_KEY_0": "http.extraHeader", "GIT_CONFIG_VALUE_0": f"Authorization: Basic {basic}",
+            "GIT_CONFIG_KEY_1": "credential.helper", "GIT_CONFIG_VALUE_1": "",  # Windows 로그인 창이 뜨지 않게
+            "GIT_AUTHOR_NAME": GIT_NAME, "GIT_AUTHOR_EMAIL": GIT_EMAIL,
+            "GIT_COMMITTER_NAME": GIT_NAME, "GIT_COMMITTER_EMAIL": GIT_EMAIL,
+        }
+
+    def _upload_with_git(self, video_id: str, files: dict[str, Path], post: dict,
+                         progress_cb: Callable[[float], None] | None) -> str:
+        """API와 같은 모양(videos/<ID>/파일들 + post.json, 부모 없는 커밋)을 임시 저장소에서 만들어 push한다."""
+        git = shutil.which("git")
+        if not git:
+            raise GitHubError("영상이 커서(20MB 초과) Git으로 보내야 하는데, 이 PC에 Git이 없습니다. "
+                              "https://git-scm.com/download/win 에서 설치한 뒤 다시 시도해 주세요.")
+        env = self._git_env()
+        with tempfile.TemporaryDirectory(prefix="video-push-", ignore_cleanup_errors=True) as tmp:
+            gitdir = str(Path(tmp) / "push.git")
+
+            def run(*args: str, stdin: bytes | None = None) -> str:
+                r = subprocess.run([git, "--git-dir", gitdir, *args], input=stdin, capture_output=True,
+                                   env=env, creationflags=_NO_WINDOW, timeout=600)
+                if r.returncode != 0:
+                    err = r.stderr.decode("utf-8", "replace").strip()[-400:]
+                    raise GitHubError(f"git {args[0]} 실패: {err}")
+                return r.stdout.decode().strip()
+
+            run("init", "--bare", "-q")
+            post_path = Path(tmp) / "post.json"
+            post_path.write_text(json.dumps(post, ensure_ascii=False, indent=2), encoding="utf-8")
+            entries = "".join(f"100644 blob {run('hash-object', '-w', '--', str(path))}\t{name}\n"
+                              for name, path in {**files, "post.json": post_path}.items())
+            inner = run("mktree", stdin=entries.encode())
+            folder = run("mktree", stdin=f"040000 tree {inner}\t{video_id}\n".encode())
+            root = run("mktree", stdin=f"040000 tree {folder}\tvideos\n".encode())
+            commit = run("commit-tree", root, "-m", f"video: {video_id}")
+            self._git_push(git, gitdir, env, f"{commit}:refs/heads/video/{video_id}", progress_cb)
+        if progress_cb:
+            progress_cb(1.0)
+        return commit
+
+    def _git_push(self, git: str, gitdir: str, env: dict, refspec: str,
+                  progress_cb: Callable[[float], None] | None) -> None:
+        proc = subprocess.Popen([git, "--git-dir", gitdir, "push", "--progress", self.remote_url(), refspec],
+                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, env=env, creationflags=_NO_WINDOW)
+        buf, tail = b"", []
+        while chunk := proc.stderr.read1(4096):
+            buf += chunk
+            *lines, buf = re.split(rb"[\r\n]", buf)  # 진행률은 \r로 같은 줄을 덮어쓴다
+            for raw in lines:
+                line = raw.decode("utf-8", "replace").strip()
+                if not line:
+                    continue
+                tail = [*tail[-19:], line]
+                if progress_cb and (m := re.search(r"Writing objects:\s+(\d+)%", line)):
+                    progress_cb(int(m.group(1)) / 100)
+        if proc.wait() != 0:
+            text = "\n".join(tail)
+            if "Authentication failed" in text or "403" in text or "Permission" in text:
+                raise GitHubError("GitHub가 토큰을 거절했습니다. 계정 설정의 GitHub 토큰과 권한(Contents 'Read and write')을 확인해 주세요.")
+            if "file size limit" in text or "exceeds" in text:
+                raise GitHubError("영상 파일이 GitHub 한도(100MB)를 넘습니다. 영상 길이를 줄여 주세요.")
+            raise GitHubError(f"git push 실패: {tail[-1] if tail else '알 수 없는 오류'}")
 
     def delete_video_branch(self, video_id: str) -> None:
         self._req("DELETE", f"/git/refs/heads/video/{video_id}", ok=(204, 404, 422))
