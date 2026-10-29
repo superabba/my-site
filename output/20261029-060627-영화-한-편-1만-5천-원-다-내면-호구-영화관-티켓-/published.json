@@ -1,0 +1,34 @@
+{
+  "image_urls": [
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20261029-060627-c5d9d1a4/slide_01.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20261029-060627-c5d9d1a4/slide_02.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20261029-060627-c5d9d1a4/slide_03.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20261029-060627-c5d9d1a4/slide_04.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20261029-060627-c5d9d1a4/slide_05.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20261029-060627-c5d9d1a4/slide_06.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20261029-060627-c5d9d1a4/slide_07.jpg"
+  ],
+  "video_urls": [
+    "https://cdn.jsdelivr.net/gh/superabba/my-site@98881b4e9c7d50d47492e53f8741acb0db62a472/images/20261029-060627-c5d9d1a4/reel.mp4",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20261029-060627-c5d9d1a4/reel.mp4"
+  ],
+  "reel_cover_url": "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20261029-060627-c5d9d1a4/reel_cover.jpg",
+  "posts": {
+    "instagram": {
+      "media_id": "18134169403801722",
+      "permalink": "https://www.instagram.com/p/DfEVKkem6la/"
+    },
+    "reels": {
+      "media_id": "18133129921818270",
+      "permalink": "https://www.instagram.com/reel/DfEVR9nP1ao/"
+    },
+    "threads": {
+      "media_id": "18110224736366548",
+      "permalink": "https://www.threads.com/@economypub/post/DfEVZv5G6gB"
+    },
+    "youtube": {
+      "media_id": "OXXQqUZi3fE",
+      "permalink": "https://youtube.com/shorts/OXXQqUZi3fE"
+    }
+  }
+}
