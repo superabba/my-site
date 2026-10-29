@@ -21,8 +21,8 @@ for _d in (OUTPUT_DIR, UPLOAD_DIR, STOCK_DIR, WORK_DIR, MUSIC_DIR, FONT_DIR):
     _d.mkdir(parents=True, exist_ok=True)
 
 MODELS = {
+    "Claude Sonnet 5.5 (기본·빠르고 저렴)": "claude-sonnet-5-5",
     "Claude Opus 5.5 (가장 좋은 품질)": "claude-opus-5-5",
-    "Claude Sonnet 5.5 (더 빠르고 저렴)": "claude-sonnet-5-5",
 }
 
 DEFAULT_SETTINGS = {
@@ -32,7 +32,7 @@ DEFAULT_SETTINGS = {
     "gemini_api_key": "",
     "image_model": "gemini-nano-banana-2.1",
     "image_size": "2K",
-    "model": "claude-opus-5-5",
+    "model": "claude-sonnet-5-5",
     # 발행: 카드뉴스 봇 저장소 (video-uploader와 같은 저장소·토큰)
     "github_repo": "superabba/my-site",
     "github_token": "",
