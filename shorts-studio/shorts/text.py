@@ -119,9 +119,13 @@ def render_text(
     return img
 
 
+# 글씨 상자의 최대 너비 (화면 너비 대비). 오른쪽 좋아요·댓글 버튼 영역(약 12%)을 피하도록 좁게 둔다.
+TEXT_W = 0.78
+
+
 def subtitle_image(text: str, style: str, font_path: str, frame_w: int) -> Image.Image:
-    size = int(frame_w * 0.074)
-    max_w = int(frame_w * 0.84)
+    size = int(frame_w * 0.068)  # 12글자 한 줄이 TEXT_W 안에 들어가는 크기
+    max_w = int(frame_w * TEXT_W)
     if style == "box":
         return render_text(text, font_path, size, max_w, box=(0, 0, 0, 165), shadow=False)
     color = (255, 225, 77) if style == "yellow" else (255, 255, 255)
@@ -132,13 +136,13 @@ def headline_image(text: str, accent, font_path: str, frame_w: int) -> Image.Ima
     size = int(frame_w * 0.078)
     lum = 0.299 * accent[0] + 0.587 * accent[1] + 0.114 * accent[2]
     fill = (20, 20, 20) if lum > 150 else (255, 255, 255)
-    return render_text(text, font_path, size, int(frame_w * 0.8), fill=fill,
+    return render_text(text, font_path, size, int(frame_w * TEXT_W), fill=fill,
                        box=(*accent, 238), box_pad=0.3, shadow=False)
 
 
 def title_image(text: str, font_path: str, frame_w: int) -> Image.Image:
     size = int(frame_w * 0.04)
-    return render_text(text, font_path, size, int(frame_w * 0.8), fill=(255, 255, 255, 230),
+    return render_text(text, font_path, size, int(frame_w * TEXT_W), fill=(255, 255, 255, 230),
                        stroke=max(2, size // 12), shadow=True)
 
 

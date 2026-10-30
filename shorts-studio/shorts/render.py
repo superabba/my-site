@@ -28,6 +28,11 @@ _NO_WINDOW = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
 XFADE = 0.3      # 장면 전환(겹쳐 사라지기) 시간
 LEAD = 0.15      # 장면 시작 후 목소리가 나오기까지
 POP = 0.12       # 자막이 톡 튀어나오는 시간
+# 인스타 릴스·유튜브 쇼츠 앱 화면(위 계정줄, 아래 캡션·버튼)에 가리지 않는 위치 (화면 높이 대비)
+SAFE_TOP = 250 / 1920
+SAFE_BOTTOM = 360 / 1920
+HEAD_CY = 0.22   # 제목 상자 중심
+SUB_CY = 0.64    # 자막 중심
 
 
 @dataclass
@@ -313,12 +318,14 @@ def render(script: dict, opts: RenderOptions, progress: ProgressFn | None = None
                     # 첫 장면은 첫 프레임(썸네일)부터 글씨가 보이도록 애니메이션 없이 바로 표시
                     a = 1.0 if si == 0 else min(1.0, lt / 0.35)
                     ease = 1 - (1 - a) ** 3
-                    cy = opts.height * 0.2 + (1 - ease) * opts.height * 0.02
+                    cy = max(opts.height * HEAD_CY, opts.height * SAFE_TOP + p["head_img"].height / 2 + 12)
+                    cy += (1 - ease) * opts.height * 0.02
                     _paste_center(frame, p["head_img"], cy, alpha=ease)
                 for c in p["subs"]:
                     if c["img"] is not None and c["start"] <= lt < c["end"]:
                         a = min(1.0, (lt - c["start"]) / POP)
-                        _paste_center(frame, c["img"], opts.height * 0.66, scale=0.9 + 0.1 * a, alpha=0.4 + 0.6 * a)
+                        cy = min(opts.height * SUB_CY, opts.height * (1 - SAFE_BOTTOM) - c["img"].height / 2)
+                        _paste_center(frame, c["img"], cy, scale=0.9 + 0.1 * a, alpha=0.4 + 0.6 * a)
                         break
                 if opts.show_progress:
                     d = ImageDraw.Draw(frame)
