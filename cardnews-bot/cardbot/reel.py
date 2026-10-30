@@ -25,10 +25,14 @@ from .render import THEMES, Fonts, draw_lines, ensure_fonts, fit, render_slide, 
 log = logging.getLogger(__name__)
 
 RW, RH = 1080, 1920
-SLIDE_W = 900  # 오른쪽 릴스 버튼·아래쪽 캡션 영역을 피하도록 가운데에 작게 배치
+# 인스타 릴스·유튜브 쇼츠 앱 화면이 가리는 영역을 피하는 안전 영역 (위 계정줄, 아래 캡션, 오른쪽 버튼)
+SAFE_TOP, SAFE_BOTTOM, SAFE_RIGHT = 250, 360, 130
+TITLE_X = 100
+TITLE_Y = SAFE_TOP + 12
+SLIDE_W = 808  # 안전 영역 안에 들어오도록 가운데에 작게 배치 (왼쪽·오른쪽 여백 136px)
 SLIDE_H = SLIDE_W * 1350 // 1080
-SLIDE_Y = 300
-BAR_Y = SLIDE_Y + SLIDE_H + 50
+SLIDE_Y = 440
+BAR_Y = SLIDE_Y + SLIDE_H + 24
 FADE_S = 0.25  # 장면 전환(겹침) 시간
 
 
@@ -61,9 +65,9 @@ def compose_frame(slide_img: Image.Image, title: str, fonts: Fonts, theme_name: 
     frame = _gradient(theme)
     d = ImageDraw.Draw(frame)
 
-    # 위: 제목 (최대 2줄)
-    f, lines, lh = fit(d, title, fonts, "ExtraBold", 64, RW - 160, 170, min_size=40, spacing=1.25)
-    draw_lines(d, (80, 90), lines[:2], f, lh, theme["fg"])
+    # 위: 제목 (최대 2줄) — 위쪽 앱 영역 아래, 오른쪽 버튼 왼쪽에 둔다
+    f, lines, lh = fit(d, title, fonts, "ExtraBold", 64, RW - TITLE_X - SAFE_RIGHT, 170, min_size=40, spacing=1.25)
+    draw_lines(d, (TITLE_X, TITLE_Y), lines[:2], f, lh, theme["fg"])
 
     # 가운데: 슬라이드 + 그림자
     slide = slide_img.convert("RGB").resize((SLIDE_W, SLIDE_H), Image.LANCZOS)
@@ -76,14 +80,18 @@ def compose_frame(slide_img: Image.Image, title: str, fonts: Fonts, theme_name: 
     ImageDraw.Draw(mask).rounded_rectangle((0, 0, SLIDE_W, SLIDE_H), radius=28, fill=255)
     frame.paste(slide, (x, SLIDE_Y), mask)
 
-    # 아래: 저장 유도 + 핸들
+    # 아래: 저장 유도 + 핸들 (한 줄로 합쳐 아래쪽 앱 영역 위에 둔다)
     cta = "저장해두고 필요할 때 꺼내 보세요"
     cf = fonts.get("Bold", 40)
-    d.text(((RW - text_w(d, cta, cf)) / 2, BAR_Y + 50), cta, font=cf, fill=theme["accent"])
-    if handle:
-        hf = fonts.get("Regular", 32)
-        h = f"@{handle.lstrip('@')}"
-        d.text(((RW - text_w(d, h, hf)) / 2, BAR_Y + 115), h, font=hf, fill=theme["sub"])
+    hf = fonts.get("Regular", 32)
+    h = f"@{handle.lstrip('@')}" if handle else ""
+    gap = 28
+    total = text_w(d, cta, cf) + (gap + text_w(d, h, hf) if h else 0)
+    x0 = (RW - total) / 2
+    y0 = BAR_Y + 36
+    d.text((x0, y0), cta, font=cf, fill=theme["accent"])
+    if h:
+        d.text((x0 + text_w(d, cta, cf) + gap, y0 + 6), h, font=hf, fill=theme["sub"])
     return frame
 
 
