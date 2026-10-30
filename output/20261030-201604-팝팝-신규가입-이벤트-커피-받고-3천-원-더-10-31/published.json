@@ -4,6 +4,32 @@
       "media_id": "",
       "permalink": "",
       "skipped": "사용자 요청으로 피드 캐러셀 제외 (릴스·스레드·쇼츠만)"
+    },
+    "reels": {
+      "media_id": "17993529867063762",
+      "permalink": "https://www.instagram.com/reel/DfIa9Znv4rm/"
+    },
+    "threads": {
+      "media_id": "17926001112450061",
+      "permalink": "https://www.threads.com/@economypub/post/DfIbGwkHTMS"
+    },
+    "youtube": {
+      "media_id": "5qrkfZoKR6E",
+      "permalink": "https://youtube.com/shorts/5qrkfZoKR6E"
     }
-  }
+  },
+  "image_urls": [
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20261030-201604-3cc5328e/slide_01.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20261030-201604-3cc5328e/slide_02.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20261030-201604-3cc5328e/slide_03.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20261030-201604-3cc5328e/slide_04.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20261030-201604-3cc5328e/slide_05.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20261030-201604-3cc5328e/slide_06.jpg",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20261030-201604-3cc5328e/slide_07.jpg"
+  ],
+  "video_urls": [
+    "https://cdn.jsdelivr.net/gh/superabba/my-site@98c05e5b26073c8df7137f0f26e5d061bf129cfe/images/20261030-201604-3cc5328e/reel.mp4",
+    "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20261030-201604-3cc5328e/reel.mp4"
+  ],
+  "reel_cover_url": "https://raw.githubusercontent.com/superabba/my-site/cardbot-data/images/20261030-201604-3cc5328e/reel_cover.jpg"
 }
