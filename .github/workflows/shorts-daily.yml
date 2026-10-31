@@ -4,15 +4,15 @@
 #   - 실행 순서 그룹이 달라 서로 기다리거나 막지 않는다.
 #   - 카드뉴스 이력 DB(cardbot-data 브랜치)는 '최근 주제를 피하려고' 읽기만 하고, 쓰지 않는다.
 #   - 게시는 cardbot.shortspost가 한다 (계정 확인·카드뉴스 몫 남기기·하루 상한, shorts-upload.yml과 같은 안전장치).
-# 정시 실행은 cron-job.org가 workflow_dispatch(action=auto)로 KST 06:45에 깨운다. 아래 예약은 예비.
-# auto는 오늘(KST) 이미 게시했거나 KST 6~11시가 아니면 건너뛰어 중복·늦은 게시가 없다.
+# 정시 실행은 cron-job.org가 workflow_dispatch(action=auto)로 깨운다. 아래 GitHub 예약(KST 12:00)은 정시 깨우기가 실패했을 때만 쓰는 예비다.
+# auto는 오늘(KST) 이미 게시했거나 KST 6~12시가 아니면 건너뛰어 중복·늦은 게시가 없다.
 # 6시대에 일찍 깨워도 영상을 먼저 만들어 두고 07:10까지 기다렸다가 게시한다.
 name: 매일 자동 쇼츠 (경제주막)
 run-name: "매일 자동 쇼츠 ${{ inputs.action || 'auto' }}"
 
 on:
   schedule:
-    - cron: "55 21 * * *" # KST 06:55 (예비 — GitHub 예약은 늦어질 수 있음)
+    - cron: "0 3 * * *" # KST 12:00 (예비 — 정시 깨우기가 실패했을 때만 실행됨. GitHub 예약은 늦어질 수 있음)
   workflow_dispatch:
     inputs:
       action:
@@ -123,7 +123,7 @@ jobs:
         run: |
           if [ "$ACTION" = "auto" ]; then
             set +e
-            python -m shorts.daily check --records-dir "$GITHUB_WORKSPACE/records/records" --hours 6-11
+            python -m shorts.daily check --records-dir "$GITHUB_WORKSPACE/records/records" --hours 6-12
             code=$?
             set -e
             if [ $code -eq 10 ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0; fi
