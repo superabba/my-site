@@ -556,7 +556,7 @@ def test_publish_renders_reel_for_old_drafts(tmp_path, monkeypatch):
 
 
 # ---------- 릴스 배경음악 ----------
-from cardbot.music import compose, pick_user_track
+from cardbot.music import MOODS, compose, pick_mood, pick_user_track
 
 
 def test_compose_is_deterministic_and_varies_by_seed():
@@ -888,3 +888,18 @@ def test_performance_table(tmp_path):
     md = "\n".join(performance_table(tmp_path / "cardbot.db"))
     assert "유튜브 쇼츠" in md and "1,234" in md and "미집계" not in md
     assert performance_table(tmp_path / "none.db") == []
+
+
+def test_pick_mood_follows_content_and_defaults_to_calm():
+    assert pick_mood("금융사 해킹 통장 지키는 법") == "serious"
+    assert pick_mood("신규가입 이벤트 쿠폰") == "upbeat"
+    assert pick_mood("청년월세 지원 환급") == "hopeful"
+    assert pick_mood("보일러 난방비") == "cozy"
+    assert pick_mood("알뜰폰 요금제 비교") == "calm"
+
+
+def test_every_mood_composes_and_sounds_different():
+    tracks = {m: compose(2, "20261031-a", m) for m in MOODS}
+    assert all(abs(t).max() <= 0.7 + 1e-9 for t in tracks.values())
+    first = [t[:44100] for t in tracks.values()]
+    assert all((first[i] != first[j]).any() for i in range(len(first)) for j in range(i + 1, len(first)))

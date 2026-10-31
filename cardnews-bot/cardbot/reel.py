@@ -19,7 +19,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 from .config import ROOT
 from .llm import CardNews
-from .music import pick_user_track, write_track
+from .music import pick_mood, pick_user_track, write_track
 from .render import THEMES, Fonts, draw_lines, ensure_fonts, fit, render_slide, text_w
 
 log = logging.getLogger(__name__)
@@ -105,7 +105,7 @@ def _progress(frame: Image.Image, theme_name: str, ratio: float) -> Image.Image:
     return out
 
 
-def _audio_input(audio, out_path: Path, total: float) -> tuple[Path | None, str]:
+def _audio_input(audio, out_path: Path, total: float, text: str = "") -> tuple[Path | None, str]:
     """(음원 경로, ffmpeg 오디오 필터). 무음이면 (None, "")."""
     mode = str(audio or "auto").strip()
     fade_out = f"afade=t=out:st={max(0.0, total - 1.8):.2f}:d=1.8"
@@ -118,7 +118,9 @@ def _audio_input(audio, out_path: Path, total: float) -> tuple[Path | None, str]
             log.info("릴스 배경음: %s", track.name)
             return track, f"afade=t=in:d=0.5,{fade_out}"
         log.warning("REELS_AUDIO 음원을 찾지 못해 배경음악을 합성합니다: %s", src)
-    wav = write_track(out_path.with_name("reel_music.wav"), total + 1, out_path.parent.name)
+    mood = pick_mood(text)
+    log.info("릴스 배경음 분위기: %s", mood)
+    wav = write_track(out_path.with_name("reel_music.wav"), total + 1, out_path.parent.name, mood)
     # 은은한 공간감(에코) + 고음 살짝 깎기 + 자연스러운 시작·끝
     return wav, f"lowpass=f=6000,aecho=0.8:0.5:70|150:0.22|0.12,afade=t=in:d=1.2,{fade_out},volume=2.0"
 
@@ -154,7 +156,8 @@ def render_reel(
         imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error",
         "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{RW}x{RH}", "-r", str(fps), "-i", "-",
     ]
-    track, afilter = _audio_input(audio, out_path, total)
+    text = " ".join(f"{sl.heading} {sl.body or ''}" for sl in card.slides)
+    track, afilter = _audio_input(audio, out_path, total, text)
     if track:
         # 영상 길이에 맞춰 자르고(-shortest) 앞뒤를 부드럽게
         cmd += ["-stream_loop", "-1", "-i", str(track), "-af", afilter]

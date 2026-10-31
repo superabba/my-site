@@ -2,6 +2,7 @@
 
 - 부드러운 패드 화음 + 피아노풍 아르페지오 + 낮은 베이스
 - 게시물마다(seed) 키·코드 진행·빠르기를 조금씩 바꿔 매번 같은 곡이 되지 않게 한다
+- 글 내용(키워드)에 따라 분위기(mood)를 골라 코드·빠르기·연주 방식을 바꾼다 (pick_mood)
 - 결과는 44.1kHz 스테레오 16비트 WAV. 리버브·페이드는 인코딩할 때 ffmpeg 필터로 입힌다
 """
 
@@ -16,14 +17,69 @@ import numpy as np
 
 SR = 44100
 
-# 잔잔한 느낌의 코드 진행 (C 기준 MIDI 음 번호, 7th/add9 위주)
-PROGRESSIONS = [
-    [[48, 55, 59, 64], [45, 52, 55, 60], [41, 48, 52, 57], [43, 50, 55, 59]],  # Cmaj7-Am7-Fmaj7-G6
-    [[41, 48, 52, 57], [43, 50, 55, 59], [45, 52, 55, 60], [45, 52, 55, 60]],  # Fmaj7-G6-Am7-Am7
-    [[48, 55, 62, 64], [43, 50, 57, 59], [45, 52, 59, 60], [41, 48, 55, 57]],  # Cadd9-Gadd9-Am(add9)-Fadd9
-    [[45, 52, 55, 60], [41, 48, 52, 57], [48, 55, 59, 64], [43, 50, 55, 62]],  # Am7-Fmaj7-Cmaj7-G(add9)
+# 분위기별 설정: 코드 진행(C 기준 MIDI 음 번호), 조옮김 후보, 빠르기, 아르페지오 패턴(None=쉼)·울림·세기
+MOODS: dict[str, dict] = {
+    # 기본: 잔잔하고 편안한 느낌
+    "calm": dict(
+        progs=[
+            [[48, 55, 59, 64], [45, 52, 55, 60], [41, 48, 52, 57], [43, 50, 55, 59]],  # Cmaj7-Am7-Fmaj7-G6
+            [[41, 48, 52, 57], [43, 50, 55, 59], [45, 52, 55, 60], [45, 52, 55, 60]],  # Fmaj7-G6-Am7-Am7
+            [[48, 55, 62, 64], [43, 50, 57, 59], [45, 52, 59, 60], [41, 48, 55, 57]],  # Cadd9-Gadd9-Am(add9)-Fadd9
+            [[45, 52, 55, 60], [41, 48, 52, 57], [48, 55, 59, 64], [43, 50, 55, 62]],  # Am7-Fmaj7-Cmaj7-G(add9)
+        ],
+        keys=[-3, -2, 0, 2, 3, 5], bpm=(66, 78), arp=[0, 1, 2, 3, 2, 1, 3, 2], decay=3.2, vel=0.05,
+    ),
+    # 혜택·지원금·환급: 밝고 희망찬 느낌
+    "hopeful": dict(
+        progs=[
+            [[48, 55, 59, 64], [43, 50, 55, 59], [45, 52, 55, 60], [41, 48, 52, 57]],  # Cmaj7-G6-Am7-Fmaj7
+            [[41, 48, 52, 57], [48, 55, 59, 64], [43, 50, 55, 62], [45, 52, 57, 60]],  # Fmaj7-Cmaj7-Gadd9-Am
+        ],
+        keys=[0, 2, 4, 5, 7], bpm=(82, 94), arp=[0, 2, 1, 3, 2, 3, 1, 2], decay=3.6, vel=0.055,
+    ),
+    # 이벤트·할인·꿀팁: 경쾌하고 산뜻한 느낌 (튕기는 짧은 음)
+    "upbeat": dict(
+        progs=[
+            [[48, 55, 60, 64], [45, 52, 57, 60], [41, 48, 53, 57], [43, 50, 55, 62]],  # C-Am-F-G(add9)
+            [[48, 55, 60, 64], [43, 50, 55, 62], [45, 52, 57, 60], [41, 48, 53, 57]],  # C-G-Am-F
+        ],
+        keys=[0, 2, 3, 5, 7], bpm=(94, 106), arp=[0, 2, 1, 2, 3, 2, 1, 2], decay=5.5, vel=0.055,
+    ),
+    # 경고·세금·유출·소멸: 차분하고 진지한 느낌 (단조, 느리고 여백 있게)
+    "serious": dict(
+        progs=[
+            [[45, 52, 55, 60], [50, 57, 60, 65], [41, 48, 52, 57], [40, 47, 52, 55]],  # Am7-Dm7-Fmaj7-Em7
+            [[50, 57, 60, 65], [46, 53, 57, 62], [43, 50, 53, 58], [45, 52, 55, 60]],  # Dm7-Bbmaj7-Gm7-Am7
+        ],
+        keys=[-3, -2, 0, 2], bpm=(58, 68), arp=[0, None, 2, None, 3, None, 2, None], decay=2.4, vel=0.045,
+    ),
+    # 생활·계절·여가: 포근하고 따뜻한 느낌 (재즈풍 7th)
+    "cozy": dict(
+        progs=[
+            [[48, 55, 59, 64], [45, 52, 55, 60], [50, 57, 60, 65], [43, 50, 55, 65]],  # Cmaj7-Am7-Dm7-G7
+            [[41, 48, 52, 57], [40, 47, 52, 55], [45, 52, 55, 60], [38, 50, 53, 57]],  # Fmaj7-Em7-Am7-Dm7
+        ],
+        keys=[-2, 0, 2, 3, 5], bpm=(70, 80), arp=[0, 1, 2, 1, 3, 2, 1, 2], decay=2.8, vel=0.05,
+    ),
+}
+DEFAULT_MOOD = "calm"
+
+# 키워드 → 분위기. 위에 있는 분위기일수록 우선한다 (부담스러운 주제에 밝은 곡이 붙지 않게 serious를 먼저 본다)
+MOOD_KEYWORDS: list[tuple[str, tuple[str, ...]]] = [
+    ("serious", ("해킹", "유출", "사기", "피싱", "소멸", "마감", "과태료", "세금", "폭탄", "손해", "위험", "경고", "압류", "연체",
+                 "단전", "먹통", "놓쳤", "털리", "대출", "이자", "빚")),
+    ("upbeat", ("이벤트", "할인", "쿠폰", "특가", "무료", "꿀팁", "꿀조합", "적립", "페이백", "신규가입", "공짜", "득템")),
+    ("hopeful", ("지원", "환급", "혜택", "신청", "받는", "돌려", "절약", "아끼", "지급", "공제", "연금", "월세")),
+    ("cozy", ("겨울", "난방", "보일러", "영화", "커피", "여행", "단풍", "캠핑", "맛집", "휴가", "연휴", "택시")),
 ]
-ARP_PATTERN = [0, 1, 2, 3, 2, 1, 3, 2]  # 화음 구성음 순서 (8분음표)
+
+
+def pick_mood(text: str) -> str:
+    """글 내용(제목·본문)에서 키워드로 분위기를 고른다. 못 찾으면 기본(calm)."""
+    for mood, words in MOOD_KEYWORDS:
+        if any(w in text for w in words):
+            return mood
+    return DEFAULT_MOOD
 
 
 def _hz(midi: float) -> float:
@@ -44,12 +100,13 @@ def _envelope(n: int, attack: float, release: float) -> np.ndarray:
     return env
 
 
-def compose(seconds: float, seed: str) -> np.ndarray:
+def compose(seconds: float, seed: str, mood: str = DEFAULT_MOOD) -> np.ndarray:
     """(샘플 수, 2) float 배열을 만든다."""
+    cfg = MOODS.get(mood, MOODS[DEFAULT_MOOD])
     rng = random.Random(_seed(seed))
-    prog = rng.choice(PROGRESSIONS)
-    key = rng.choice([-3, -2, 0, 2, 3, 5])  # 조옮김
-    bpm = rng.uniform(66, 78)
+    prog = rng.choice(cfg["progs"])
+    key = rng.choice(cfg["keys"])  # 조옮김
+    bpm = rng.uniform(*cfg["bpm"])
     beat = 60 / bpm
     chord_len = beat * 4  # 한 화음 = 한 마디
 
@@ -85,17 +142,19 @@ def compose(seconds: float, seed: str) -> np.ndarray:
         right[start:start + pad_n] += bass
 
         # 아르페지오: 한 옥타브 위, 피아노처럼 치고 빠르게 줄어드는 소리
-        for k, idx in enumerate(ARP_PATTERN):
+        for k, idx in enumerate(cfg["arp"]):
             s = start + int(k * beat / 2 * SR)
             if s >= total:
                 break
+            if idx is None:  # 쉼표
+                continue
             n = min(total - s, int(1.6 * SR))
             tt = np.arange(n) / SR
             f = _hz(chord[idx] + 12)
-            decay = np.exp(-tt * 3.2) * _envelope(n, 0.004, 0.05)
+            decay = np.exp(-tt * cfg["decay"]) * _envelope(n, 0.004, 0.05)
             note = (np.sin(2 * np.pi * f * tt) + 0.35 * np.sin(2 * np.pi * 2 * f * tt)
                     + 0.1 * np.sin(2 * np.pi * 3 * f * tt))
-            vel = 0.05 * (0.8 + 0.4 * rng.random())
+            vel = cfg["vel"] * (0.8 + 0.4 * rng.random())
             pan = 0.3 if k % 2 == 0 else 0.7
             left[s:s + n] += vel * decay * note * (1 - pan)
             right[s:s + n] += vel * decay * note * pan
@@ -107,8 +166,8 @@ def compose(seconds: float, seed: str) -> np.ndarray:
     return mix / peak * 0.7
 
 
-def write_track(path: Path, seconds: float, seed: str) -> Path:
-    data = (compose(seconds, seed) * 32767).astype("<i2")
+def write_track(path: Path, seconds: float, seed: str, mood: str = DEFAULT_MOOD) -> Path:
+    data = (compose(seconds, seed, mood) * 32767).astype("<i2")
     with wave.open(str(path), "wb") as w:
         w.setnchannels(2)
         w.setsampwidth(2)
