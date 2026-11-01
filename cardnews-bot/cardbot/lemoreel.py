@@ -304,6 +304,7 @@ def _fake_voice(text: str) -> np.ndarray:
 
 def synthesize(lines: list[str], workdir: Path, voice: str = DEFAULT_VOICE, rate: str = "+0%", pitch: str = "+0Hz") -> list[np.ndarray]:
     """줄마다 mp3로 받아 앞뒤 무음을 잘라 낸 48kHz 모노 배열로 돌려준다."""
+    voice, rate = (voice or "").strip() or DEFAULT_VOICE, (rate or "").strip() or "+0%"  # 빈 값이 오면 기본값으로
     workdir.mkdir(parents=True, exist_ok=True)
     if os.environ.get("REELS_FAKE_TTS") == "1":
         log.warning("REELS_FAKE_TTS=1: 실제 목소리 대신 길이만 맞춘 소리를 씁니다 (개발용)")
@@ -779,7 +780,7 @@ def check_voice() -> int:
 
     with _tf.TemporaryDirectory() as td:
         try:
-            v = synthesize(["경제주막입니다. 목소리 점검 중이에요."], Path(td), voice=os.environ.get("REELS_VOICE", DEFAULT_VOICE))[0]
+            v = synthesize(["경제주막입니다. 목소리 점검 중이에요."], Path(td), voice=os.environ.get("REELS_VOICE", "").strip() or DEFAULT_VOICE)[0]  # Actions는 없는 변수를 빈 문자열로 넘긴다
         except Exception as e:
             print(f"목소리 합성 실패: {e}", file=sys.stderr)
             return 1
