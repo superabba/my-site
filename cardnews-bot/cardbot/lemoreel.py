@@ -368,7 +368,9 @@ def _voice_track(tl: Timeline, style: Style) -> np.ndarray:
         rng = np.random.default_rng(3)
         ir = rng.standard_normal(int(0.28 * SR)) * np.exp(-np.arange(int(0.28 * SR)) / (0.07 * SR))
         ir /= np.sqrt(np.sum(ir ** 2))
-        wet = np.convolve(x, ir.astype(np.float32))[:n]
+        from scipy.signal import fftconvolve
+
+        wet = fftconvolve(x, ir.astype(np.float32))[:n].astype(np.float32)
         x = x * (1 - style.room) + wet * style.room
     return np.clip(x, -0.95, 0.95)
 
