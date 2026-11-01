@@ -1,0 +1,23 @@
+{
+  "style": "caption-news",
+  "label": "뉴스 캡션",
+  "reason": "11월 1일 연말정산 미리보기 서비스 오픈이라는 속보성 이슈와 남은 두 달간의 카드 절세 공식을 빠르고 정확하게 전달하는 데 뉴스 캡션 스타일이 가장 적합합니다.",
+  "duration": 39.75012499999999,
+  "fps": 30,
+  "rate": "+0%",
+  "music": {
+    "mood": "bright",
+    "track": "bright/revolution-void-how-exciting.m4a",
+    "credit": "🎵 How Exciting - Revolution Void (CC BY 3.0, 편집) http://freemusicarchive.org/music/Revolution_Void/The_Politics_of_Desire/revolution_void_-_07_-_how_exciting"
+  },
+  "narration": [
+    "11월부터 카드 쓰는 법을 바꾸지 않으면 세금을 토해낼 수 있습니다.",
+    "카드 소득공제는 총급여의 25퍼센트를 넘긴 순간부터 시작합니다.",
+    "문턱을 넘겼다면 공제율이 두 배 높은 체크카드로 갈아타야 합니다.",
+    "기본 한도를 채웠다면 공제율 40퍼센트인 대중교통과 전통시장을 쓰세요.",
+    "세금과 아파트 관리비는 사용 실적과 소득공제에서 모두 제외됩니다.",
+    "지금 바로 홈택스에서 올해 카드 사용액을 미리 점검해 보세요.",
+    "놓치기 쉬운 절세 정보를 계속 받아보시려면 지금 저장하고 팔로우하세요."
+  ],
+  "cards": []
+}
