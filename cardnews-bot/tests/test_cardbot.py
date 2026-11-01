@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from cardbot import trends
@@ -556,7 +557,8 @@ def test_publish_renders_reel_for_old_drafts(tmp_path, monkeypatch):
 
 
 # ---------- 릴스 배경음악 ----------
-from cardbot.music import MOODS, compose, pick_mood, pick_user_track
+from cardbot import bgm
+from cardbot.music import compose, pick_user_track
 
 
 def test_compose_is_deterministic_and_varies_by_seed():
@@ -890,16 +892,46 @@ def test_performance_table(tmp_path):
     assert performance_table(tmp_path / "none.db") == []
 
 
-def test_pick_mood_follows_content_and_defaults_to_calm():
-    assert pick_mood("금융사 해킹 통장 지키는 법") == "serious"
-    assert pick_mood("신규가입 이벤트 쿠폰") == "upbeat"
-    assert pick_mood("청년월세 지원 환급") == "hopeful"
-    assert pick_mood("보일러 난방비") == "cozy"
-    assert pick_mood("알뜰폰 요금제 비교") == "calm"
+
+def test_pick_mood_follows_text():
+    assert bgm.pick_mood("신규가입 이벤트 쿠폰 할인") == "bright"
+    assert bgm.pick_mood("선착순 마감 임박") == "upbeat"
+    assert bgm.pick_mood("청년월세 지원금 신청") == "warm"
+    assert bgm.pick_mood("보이스피싱 사기 주의") == "tense"
+    assert bgm.pick_mood("알뜰폰 요금제 비교") == "calm"
 
 
-def test_every_mood_composes_and_sounds_different():
-    tracks = {m: compose(2, "20261031-a", m) for m in MOODS}
-    assert all(abs(t).max() <= 0.7 + 1e-9 for t in tracks.values())
-    first = [t[:44100] for t in tracks.values()]
-    assert all((first[i] != first[j]).any() for i in range(len(first)) for j in range(i + 1, len(first)))
+TRACK = {"file": "bright/a.m4a", "mood": "bright", "title": "Song", "artist": "Someone", "license": "CC-BY 4.0",
+         "attribution": True, "url": "https://freemusicarchive.org/music/x"}
+
+
+def test_library_track_and_credit(tmp_path):
+    import json
+
+    calm = {**TRACK, "file": "calm/b.m4a", "mood": "calm", "license": "CC0 1.0", "attribution": False}
+    (tmp_path / "library.json").write_text(json.dumps({"tracks": [TRACK, calm]}), encoding="utf-8")
+    assert bgm.pick_track("seed", "bright", tmp_path)["file"] == "bright/a.m4a"
+    assert bgm.pick_track("seed", "tense", tmp_path) is None  # 그 분위기 곡이 없으면 합성
+    assert bgm.credit(calm) == ""  # CC0는 표기 필요 없음
+    assert bgm.credit(TRACK) == "🎵 Song - Someone (CC BY 4.0, 편집) https://freemusicarchive.org/music/x"
+    assert bgm.pick_track("seed", "bright", tmp_path, track="calm/b.m4a")["mood"] == "calm"
+    assert bgm.pick_track("seed", "bright", tmp_path, track="synth") is None
+    with pytest.raises(ValueError):
+        bgm.pick_track("seed", "bright", tmp_path, track="nope.m4a")
+
+
+def test_with_credit_keeps_credit_within_limit(tmp_path):
+    import json
+
+    (tmp_path / "music.json").write_text(json.dumps({"credit": bgm.credit(TRACK)}, ensure_ascii=False), encoding="utf-8")
+    out = bgm.with_credit("가" * 495, tmp_path, 500)
+    assert len(out) <= 500 and out.endswith(bgm.credit(TRACK)) and "…" in out
+    assert bgm.with_credit("본문", tmp_path / "none", 500) == "본문"  # music.json이 없으면 그대로
+
+
+@pytest.mark.parametrize("mood", ["calm", *bgm.MOODS])
+def test_bgm_moods(mood):
+    a = bgm.compose(4, "seed", mood)
+    assert a.shape == (int(4.5 * bgm.SR), 2)
+    assert np.isfinite(a).all() and 0.3 < np.abs(a).max() <= 0.75
+    assert np.array_equal(a, bgm.compose(4, "seed", mood))  # 같은 게시물이면 같은 곡

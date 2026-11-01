@@ -238,8 +238,17 @@ def new_id() -> str:
     return f"{now_kst():%Y%m%d-%H%M%S}-{secrets.token_hex(4)}"
 
 
+def _with_credit(text: str, credit: str, limit: int) -> str:
+    """출처 표기를 글 끝에 붙인다. 넘치면 본문을 줄이고 표기는 지킨다."""
+    if not credit:
+        return text[:limit]
+    room = limit - len(credit) - 2
+    body = text if len(text) <= room else text[:room - 1].rstrip() + "…"
+    return f"{body}\n\n{credit}"
+
+
 def build_post(script: dict, topic: dict, theme_name: str, ai_images: int, credits: list[str],
-               files: dict[str, str]) -> dict:
+               files: dict[str, str], music_credit: str = "") -> dict:
     caption = (script.get("caption") or topic["topic"]).strip()
     tags = []
     for t in [*script.get("hashtags", []), "경제주막", "경제", "재테크"]:
@@ -249,11 +258,13 @@ def build_post(script: dict, topic: dict, theme_name: str, ai_images: int, credi
     yt_desc = f"{caption}\n\n{DISCLAIMER}"
     if credits:
         yt_desc += "\n\n배경 영상 출처\n" + "\n".join(credits)
+    if music_credit:
+        yt_desc += "\n\n" + music_credit
     return {
         "title": script.get("title") or topic["topic"],
         "youtube_description": yt_desc,
-        "instagram_caption": f"{caption}\n\n{DISCLAIMER}",
-        "threads_text": f"{caption}\n\n{DISCLAIMER}"[:500],
+        "instagram_caption": f"{caption}\n\n{DISCLAIMER}" + (f"\n\n{music_credit}" if music_credit else ""),
+        "threads_text": _with_credit(f"{caption}\n\n{DISCLAIMER}", music_credit, 500),
         "hashtags": tags[:12],
         "platforms": [p.strip() for p in _env("SHORTS_DAILY_PLATFORMS", "reels,threads,youtube").split(",")
                       if p.strip()],
@@ -319,6 +330,7 @@ def make(out: Path, records_dir: Path | None, cardnews_db: Path | None, theme_na
         voice=_env("SHORTS_VOICE", "ko-KR-SunHiNeural"),
         speed=int(_env("SHORTS_SPEED", "10")),
         output_dir=out / "render",
+        music_seed=int(now_kst().strftime("%Y%m%d")),  # 날마다 다른 곡 (0으로 고정되면 매일 같은 곡)
     )
     last = [0.0]
 
@@ -338,7 +350,7 @@ def make(out: Path, records_dir: Path | None, cardnews_db: Path | None, theme_na
         transcode(video, out / "meta.mp4", META_MAX_BYTES, 8000)
         files["meta"] = "meta.mp4"
 
-    post = build_post(script, topic, theme[0], res.ai_images, res.credits, files)
+    post = build_post(script, topic, theme[0], res.ai_images, res.credits, files, res.music_credit)
     vid = new_id()
     (out / "id.txt").write_text(vid, encoding="utf-8")
     (out / "post.json").write_text(json.dumps(post, ensure_ascii=False, indent=2), encoding="utf-8")

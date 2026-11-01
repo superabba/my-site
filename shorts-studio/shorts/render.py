@@ -75,6 +75,7 @@ class RenderResult:
     duration: float
     warnings: list[str]
     credits: list[str]
+    music_credit: str = ""  # CC BY 곡을 썼을 때 출처 표기 한 줄 (설명 끝에 붙인다)
     ai_images: int = 0  # 나노바나나로 그린 장면 수 (AI 합성 콘텐츠 표시에 씀)
     scenes: list[dict] = field(default_factory=list)  # 장면마다 {"media": 배경 파일, "start", "dur"} (블로그 사진용)
 
@@ -238,8 +239,14 @@ def render(script: dict, opts: RenderOptions, progress: ProgressFn | None = None
             seg = p["voice"][: max(0, n - s)]
             voice_track[s:s + len(seg)] += seg
     bgm = None
+    music_credit = ""
     if opts.music_mode == "auto":
-        bgm = music_mod.generate_bgm(mood, total, seed=opts.music_seed)
+        picked = music_mod.pick_library_track(mood, opts.music_seed)  # 곡 라이브러리에 그 분위기 곡이 있으면 그 곡
+        if picked:
+            bgm = music_mod.load_music_file(music_mod.LIBRARY / picked["file"], total)
+            music_credit = music_mod.credit_line(picked)
+        else:
+            bgm = music_mod.generate_bgm(mood, total, seed=opts.music_seed)
     elif opts.music_mode == "file" and opts.music_file:
         bgm = music_mod.load_music_file(opts.music_file, total)
     music_gain = opts.music_volume if opts.voice_on else min(1.0, opts.music_volume * 2.2)
@@ -375,4 +382,4 @@ def render(script: dict, opts: RenderOptions, progress: ProgressFn | None = None
     out_path.with_suffix(".json").write_text(json.dumps(saved, ensure_ascii=False, indent=2), encoding="utf-8")
     report(1.0, "완성!")
     scene_info = [{"media": p.get("media"), "start": p["start"], "dur": p["dur"]} for p in plans]
-    return RenderResult(out_path, srt_path, info_path, total, warnings, credits, len(ai_images), scene_info)
+    return RenderResult(out_path, srt_path, info_path, total, warnings, credits, music_credit, len(ai_images), scene_info)

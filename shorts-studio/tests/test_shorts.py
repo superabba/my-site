@@ -394,3 +394,29 @@ def test_blog_failure_does_not_stop_video(tmp_path, monkeypatch):
     msg = daily.make_blog(tmp_path, tmp_path / "v.mp4", res, {}, "", {"topic": "t"}, "테마", "id", {"title": "t"},
                           "k", "m")
     assert "만들지 못했어요" in msg and not (tmp_path / "blog" / "blog.json").exists()
+
+
+def test_library_track_pick_and_credit(tmp_path):
+    import json
+    from shorts import music
+
+    track = {"file": "bright/a.m4a", "mood": "bright", "title": "Song", "artist": "Someone",
+             "license": "CC-BY 4.0", "attribution": True, "url": "https://freemusicarchive.org/music/x"}
+    (tmp_path / "bright").mkdir()
+    (tmp_path / "bright" / "a.m4a").write_bytes(b"x")
+    (tmp_path / "library.json").write_text(json.dumps({"tracks": [track]}), encoding="utf-8")
+    assert music.pick_library_track("upbeat", 7, tmp_path)["file"] == "bright/a.m4a"  # 쇼츠 upbeat → 라이브러리 bright
+    assert music.pick_library_track("calm", 7, tmp_path) is None  # 그 분위기 곡이 없으면 합성
+    assert music.pick_library_track("upbeat", 7, tmp_path / "none") is None  # 라이브러리가 없어도 오류 없이 합성
+    assert music.credit_line(track) == "🎵 Song - Someone (CC BY 4.0, 편집) https://freemusicarchive.org/music/x"
+    assert music.credit_line({**track, "attribution": False}) == ""
+
+
+def test_daily_post_carries_music_credit():
+    from shorts import daily
+
+    line = "🎵 Song - Someone (CC BY 4.0, 편집) https://freemusicarchive.org/music/x"
+    post = daily.build_post({"caption": "가" * 600}, {"topic": "t", "keyword": "k"}, "theme", 0, [], {}, line)
+    assert post["youtube_description"].endswith(line) and post["instagram_caption"].endswith(line)
+    assert post["threads_text"].endswith(line) and len(post["threads_text"]) <= 500
+    assert line not in daily.build_post({"caption": "c"}, {"topic": "t", "keyword": "k"}, "theme", 0, [], {})["threads_text"]
