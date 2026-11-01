@@ -146,8 +146,8 @@ def transcode(info: VideoInfo, out_path: Path, max_bytes: int, max_video_kbps: i
                                 creationflags=_NO_WINDOW, text=True, encoding="utf-8", errors="replace")
         for line in proc.stdout:
             if line.startswith("out_time_us=") and progress_cb:
-                try:
-                    progress_cb(min(int(line.split("=", 1)[1]) / 1e6 / duration, 1.0))
+                try:  # 시작 시각이 0보다 앞선 영상(휴대폰 영상 등)은 처음에 음수가 나온다
+                    progress_cb(min(max(int(line.split("=", 1)[1]) / 1e6 / duration, 0.0), 1.0))
                 except ValueError:
                     pass
         err = proc.stderr.read()
