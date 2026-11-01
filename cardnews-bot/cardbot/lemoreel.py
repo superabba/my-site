@@ -509,6 +509,8 @@ def make_cues(style: Style, tl: Timeline) -> list[dict]:
 
 
 def choose_music_mood(style: Style, text: str) -> str:
+    if style.bpm:  # 박자가 정해진 스타일은 늘 그 스타일의 분위기(경쾌한 비트)로
+        return style.music
     mood = bgm.pick_mood(text)
     return style.music if mood == "calm" else mood
 

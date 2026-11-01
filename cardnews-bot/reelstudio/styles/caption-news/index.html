@@ -89,7 +89,7 @@ function captionBlock(ctx, s, lt, top, bottom, marks) {
     ctx.font = `900 ${size}px "${FAM}"`;
     const base = y + size * 0.95;
     const idx = inHeading ? line.indexOf(key) : -1;
-    const mk = marks && markFor(line, marks);
+    const mk = marks && markFor(line, marks.filter(m => !(key && (key.includes(m.text) || m.text.includes(key)))));
     if (mk) { wipeMark(ctx, line, SAFE.left, y, lh, size, 900, WHITE, mk, lt, 10); }
     else if (idx >= 0) {
       const pre = ctx.measureText(line.slice(0, idx)).width, kw = ctx.measureText(key).width;
@@ -173,7 +173,8 @@ function draw(ctx, c, t) {
   ctx.fillStyle = YEL; ctx.font = `800 30px "${FAM}"`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   const cy = top + 64;
   ctx.fillText(String(sc.s.index).padStart(2, '0') + ' / ' + String(c.shots || c.scenes.length).padStart(2, '0'), SAFE.left, cy);
-  const marks = c.beat ? (sc.s.marks || []).map(m => ({ text: m.text, t: m.t - g0 })) : null;
+  // 같은 컷(정적 카드를 사이에 둔 앞뒤 토막)의 핵심 어구를 모아 둔다: 뒷부분에서 앞부분의 마커가 사라지지 않게
+  const marks = c.beat ? c.scenes.filter(x => (x.group_t0 ?? x.t0) === g0).flatMap(x => (x.marks || []).map(m => ({ text: m.text, t: m.t - g0 }))) : null;
   const top2 = cy + 30, bot2 = SAFE.bottom - 190;
   const hEnd = captionBlock(meas, sc.s, 99, top2, bot2, marks);   // 먼저 크기를 재서 비어 보이지 않게 위아래 가운데쪽에 놓는다
   const dy = Math.max(0, (bot2 - hEnd) * 0.42);
