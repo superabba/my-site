@@ -121,9 +121,9 @@ class Pipeline:
         # 사람이 캡션 파일을 수정했으면 그걸 사용
         caption = (folder / "caption.txt").read_text(encoding="utf-8").strip()
         threads_text = (folder / "threads.txt").read_text(encoding="utf-8").strip()[:500]
-        # CC BY 곡을 썼으면 출처 표기를 붙인다 (직접 합성한 곡이면 아무것도 붙지 않는다)
+        # CC BY 곡을 썼으면 영상이 올라가는 곳(인스타 릴스·유튜브)의 설명에만 출처 표기를 붙인다.
+        # 스레드에는 영상이 없으니 붙이지 않는다. 직접 합성한 곡이면 아무것도 붙지 않는다.
         caption = with_credit(caption, folder, 2200)
-        threads_text = with_credit(threads_text, folder, 500)
 
         images = sorted(folder.glob("slide_*.jpg"))
         # 비ASCII URL은 Meta가 가져오지 못하므로(이전 버전에서 올린 경우) 다시 올린다
