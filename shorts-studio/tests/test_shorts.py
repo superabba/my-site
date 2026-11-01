@@ -418,4 +418,5 @@ def test_daily_post_carries_music_credit():
     line = "🎵 Song - Someone (CC BY 4.0, 편집) https://freemusicarchive.org/music/x"
     post = daily.build_post({"caption": "가" * 600}, {"topic": "t", "keyword": "k"}, "theme", 0, [], {}, line)
     assert post["youtube_description"].endswith(line) and post["instagram_caption"].endswith(line)
-    assert line not in post["threads_text"] and len(post["threads_text"]) <= 500  # 스레드에는 영상이 없다
+    assert post["threads_text"].endswith(line) and len(post["threads_text"]) <= 500  # 쇼츠 영상은 스레드에도 올라간다
+    assert line not in daily.build_post({"caption": "c"}, {"topic": "t", "keyword": "k"}, "theme", 0, [], {})["threads_text"]

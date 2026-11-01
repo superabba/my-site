@@ -185,13 +185,19 @@ jobs:
             --records-dir "$GITHUB_WORKSPACE/records/records"
 
       # 네이버 블로그 발행은 카드뉴스와 같은 방식: Claude 루틴 '쇼츠 블로그 글 → 네이버 자동 발행'(KST 07:20)이
-      # shorts-records 브랜치의 blog/<영상 ID>/ (blog.json + 사진)를 읽어 Uplika로 경제주막 블로그에 올린다.
+      # shorts-records 브랜치의 blog/<영상 ID>/ (blog.json + 사진)를 읽어 Uplika로 경제주막 블로그에 올리고,
+      # 같은 폴더의 short.mp4를 네이버 경제주막 클립에도 올린다.
       - name: 블로그 글 자료 저장 (네이버 발행용)
         if: steps.check.outputs.skip != 'true' && env.ACTION != 'draft' && !cancelled()
         run: |
           if [ ! -f out/blog/blog.json ]; then echo "블로그 글 없음, 건너뜀"; exit 0; fi
           mkdir -p "records/blog/$VIDEO_ID"
           cp out/blog/blog.json out/blog/*.jpg "records/blog/$VIDEO_ID/"
+          # 네이버 클립용: 영상(short.mp4), 스레드 글·곡 출처(post.json, music.json). 지난 영상 파일은 지워 브랜치가 커지지 않게 한다
+          find records/blog -name short.mp4 -delete
+          cp out/video.mp4 "records/blog/$VIDEO_ID/short.mp4"
+          cp out/post.json "records/blog/$VIDEO_ID/"
+          [ -f out/music.json ] && cp out/music.json "records/blog/$VIDEO_ID/" || true
           ls "records/blog/$VIDEO_ID"
 
       - name: 결과 저장
