@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#0b1020}canvas{display:block;width:1080px;height:1920px}</style>
+</head><body><canvas id="c"></canvas>
+<script type="module">
+// 뉴스 캡션 스타일 (lemo-opuscar의 Caption News 문법을 세로 화면에 맞춘 것):
+// 소리를 꺼도 읽히는 큰 자막, 핵심 어구에 노란 블록, 숫자는 굴러서 올라가고, 장면은 칼같이 바뀐다.
+import { W, H, SAFE, SAFE_W, clamp, lerp, seg, ss, eo, back, wrap, fitText, roundRect, rollNumber, sceneAt, drawSubtitle, start } from '/styles/common.js';
+
+const INK = '#0b1020', YEL = '#ffd400', WHITE = '#ffffff';
+const FAM = 'Pretendard';
+
+function bg(ctx, t, i) {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#0b1020'); g.addColorStop(1, '#141c3a');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // 천천히 흐르는 사선 줄무늬 + 장면마다 위치가 다른 은은한 빛
+  ctx.save(); ctx.globalAlpha = 0.05; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+  const off = (t * 40) % 120;
+  for (let x = -H; x < W + 120; x += 120) { ctx.beginPath(); ctx.moveTo(x + off, 0); ctx.lineTo(x + off + H * 0.6, H); ctx.stroke(); }
+  ctx.restore();
+  const gx = [0.2, 0.8, 0.35, 0.7][i % 4] * W;
+  const rg = ctx.createRadialGradient(gx, 900, 0, gx, 900, 800);
+  rg.addColorStop(0, 'rgba(255,212,0,.10)'); rg.addColorStop(1, 'rgba(255,212,0,0)');
+  ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H);
+}
+
+// 맨 위(앱 영역 아래): 채널 칩 + 제목 상자 + 장면 진행 막대
+function titleBox(ctx, c, t, sc) {
+  const x = SAFE.left, y = SAFE.top, w = SAFE_W;
+  ctx.fillStyle = YEL; roundRect(ctx, x, y, 252, 46, 23); ctx.fill();
+  ctx.fillStyle = INK; ctx.font = `800 26px "${FAM}"`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(c.channel || '경제주막 · 오늘의 이슈', x + 20, y + 24);
+  const ty = y + 62;
+  const fit = fitText(ctx, c.title.replace(/\n/g, ' '), { family: FAM, weight: 800, maxW: w - 56, maxLines: 2, sizes: [50, 46, 42, 38] });
+  const lh = fit.size * 1.22, bh = fit.lines.length * lh + 36;
+  ctx.fillStyle = 'rgba(255,255,255,.08)'; roundRect(ctx, x, ty, w, bh, 20); ctx.fill();
+  ctx.fillStyle = YEL; roundRect(ctx, x, ty, 10, bh, 5); ctx.fill();
+  ctx.fillStyle = WHITE; ctx.font = `800 ${fit.size}px "${FAM}"`;
+  fit.lines.forEach((l, k) => ctx.fillText(l, x + 34, ty + 18 + lh * (k + 0.5)));
+  // 진행 막대
+  const n = c.scenes.length, py = ty + bh + 18, gap = 8, bw = (w - gap * (n - 1)) / n;
+  c.scenes.forEach((s, k) => {
+    const p = k < sc.i ? 1 : k === sc.i ? sc.prog : 0;
+    ctx.fillStyle = 'rgba(255,255,255,.22)'; roundRect(ctx, x + k * (bw + gap), py, bw, 8, 4); ctx.fill();
+    if (p > 0) { ctx.fillStyle = YEL; roundRect(ctx, x + k * (bw + gap), py, Math.max(8, bw * p), 8, 4); ctx.fill(); }
+  });
+  return py + 8;
+}
+
+// 큰 자막: 줄마다 시차를 두고 박히듯 들어오고, 핵심 어구는 노란 블록 위에 올린다
+function captionBlock(ctx, s, lt, top, bottom) {
+  const boxW = SAFE_W;
+  const fit = fitText(ctx, s.heading, { family: FAM, weight: 900, maxW: boxW, maxLines: 4, sizes: [112, 104, 96, 88, 80, 72] });
+  const size = fit.size, lh = size * 1.18;
+  const key = (s.highlight || '').trim();
+  // 제목 안에 핵심 어구가 있으면 그 줄에 블록을 깔고, 없으면 따로 한 줄을 만든다
+  const inHeading = key && s.heading.includes(key);
+  const lines = fit.lines.slice();
+  let y = top;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  lines.forEach((line, k) => {
+    const a0 = 0.05 + k * 0.11, p = seg(lt, a0, a0 + 0.22);
+    if (p <= 0) return;
+    const sc = lerp(1.18, 1, back(p, 1.2)), alpha = ss(p * 2);
+    ctx.save(); ctx.globalAlpha = alpha;
+    const cy = y + lh * 0.5;
+    ctx.translate(SAFE.left, cy); ctx.scale(sc, sc); ctx.translate(-SAFE.left, -cy);
+    ctx.font = `900 ${size}px "${FAM}"`;
+    const base = y + size * 0.95;
+    const idx = inHeading ? line.indexOf(key) : -1;
+    if (idx >= 0) {
+      const pre = ctx.measureText(line.slice(0, idx)).width, kw = ctx.measureText(key).width;
+      ctx.fillStyle = YEL; ctx.fillRect(SAFE.left + pre - 10, y + 6, kw + 20, lh - 8);
+      ctx.fillStyle = WHITE; ctx.fillText(line.slice(0, idx), SAFE.left, base);
+      ctx.fillStyle = INK; ctx.fillText(key, SAFE.left + pre, base);
+      ctx.fillStyle = WHITE; ctx.fillText(line.slice(idx + key.length), SAFE.left + pre + kw, base);
+    } else { ctx.fillStyle = WHITE; ctx.fillText(line, SAFE.left, base); }
+    ctx.restore();
+    y += lh;
+  });
+  y += 18;
+  if (key && !inHeading) {
+    const t0 = 0.05 + lines.length * 0.11 + 0.1, p = seg(lt, t0, t0 + 0.3);
+    if (p > 0) {
+      const roll = seg(lt, t0, t0 + 0.9);
+      const txt = /\d/.test(key) ? rollNumber(key, eo(roll)) : key;
+      const kfit = fitText(ctx, txt, { family: FAM, weight: 900, maxW: boxW - 56, maxLines: 1, sizes: [120, 104, 92, 80, 68, 58, 50] });
+      ctx.font = `900 ${kfit.size}px "${FAM}"`;
+      const full = fitText(ctx, key, { family: FAM, weight: 900, maxW: boxW - 56, maxLines: 1, sizes: [120, 104, 92, 80, 68, 58, 50] });
+      ctx.font = `900 ${full.size}px "${FAM}"`;
+      const bw = Math.min(boxW, ctx.measureText(key).width + 56), bh = full.size * 1.3;
+      ctx.save(); ctx.globalAlpha = ss(p * 2);
+      const sc = lerp(1.12, 1, back(p, 1.2)); ctx.translate(SAFE.left, y + bh / 2); ctx.scale(sc, sc); ctx.translate(-SAFE.left, -(y + bh / 2));
+      ctx.fillStyle = YEL; roundRect(ctx, SAFE.left, y, bw, bh, 14); ctx.fill();
+      ctx.fillStyle = INK; ctx.textBaseline = 'middle'; ctx.fillText(txt, SAFE.left + 28, y + bh / 2 + 3);
+      ctx.restore(); ctx.textBaseline = 'alphabetic';
+      y += bh + 20;
+    }
+  }
+  // 본문: 작은 글씨로 뒤따라 들어온다
+  const bodyStart = 0.05 + lines.length * 0.11 + 0.55;
+  const bp = seg(lt, bodyStart, bodyStart + 0.3);
+  const body = (s.bullets && s.bullets.length) ? s.bullets.map(b => '·  ' + b).join('\n') : s.body;
+  if (body && bp > 0) {
+    ctx.save(); ctx.globalAlpha = ss(bp); ctx.translate(0, (1 - ss(bp)) * 18);
+    let bs = 46, blines;
+    for (; bs >= 34; bs -= 2) { ctx.font = `600 ${bs}px "${FAM}"`; blines = wrap(ctx, body, boxW - 8); if (y + 14 + blines.length * bs * 1.42 <= bottom) break; }
+    ctx.fillStyle = 'rgba(255,255,255,.82)'; ctx.textBaseline = 'alphabetic';
+    blines.forEach((l, k) => ctx.fillText(l, SAFE.left, y + 14 + bs * 1.05 + k * bs * 1.42));
+    ctx.restore();
+    y += 14 + blines.length * bs * 1.42;
+  }
+  return y;
+}
+const meas = new OffscreenCanvas(W, H).getContext('2d');
+
+function draw(ctx, c, t) {
+  const sc = sceneAt(c, t);
+  bg(ctx, t, sc.i);
+  const top = titleBox(ctx, c, t, sc);
+  // 장면 번호
+  ctx.fillStyle = YEL; ctx.font = `800 30px "${FAM}"`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  const cy = top + 64;
+  ctx.fillText(String(sc.s.index).padStart(2, '0') + ' / ' + String(c.scenes.length).padStart(2, '0'), SAFE.left, cy);
+  // 장면이 바뀔 때 노란 줄이 한 번 지나간다
+  const top2 = cy + 30, bot2 = SAFE.bottom - 190;
+  const hEnd = captionBlock(meas, sc.s, 99, top2, bot2);   // 먼저 크기를 재서 비어 보이지 않게 위아래 가운데쪽에 놓는다
+  const dy = Math.max(0, (bot2 - hEnd) * 0.42);
+  captionBlock(ctx, sc.s, sc.lt, top2 + dy, bot2);
+  const wp = seg(sc.lt, 0, 0.18);
+  if (wp < 1 && sc.i > 0) { ctx.fillStyle = YEL; ctx.globalAlpha = 1 - wp; ctx.fillRect(0, 0, W * ss(wp * 1.6), 10); ctx.globalAlpha = 1; }
+  drawSubtitle(ctx, c, t, { family: FAM, weight: 800, size: 50, bg: 'rgba(0,0,0,.70)', color: WHITE, radius: 16, bottom: SAFE.bottom - 20 });
+  // 마지막 장 꼬리: 화면 끝에서 부드럽게 어두워짐
+  const fo = seg(t, c.duration - 0.5, c.duration);
+  if (fo > 0) { ctx.fillStyle = `rgba(11,16,32,${fo})`; ctx.fillRect(0, 0, W, H); }
+}
+
+start({ fonts: [
+  { family: FAM, weight: 600, url: 'fonts/Pretendard-Regular.otf' },
+  { family: FAM, weight: 700, url: 'fonts/Pretendard-Bold.otf' },
+  { family: FAM, weight: 800, url: 'fonts/Pretendard-ExtraBold.otf' },
+  { family: FAM, weight: 900, url: 'fonts/Pretendard-ExtraBold.otf' },
+], draw });
+</script></body></html>

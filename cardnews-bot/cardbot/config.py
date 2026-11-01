@@ -77,6 +77,10 @@ class Settings:
     platforms: list[str] = field(default_factory=lambda: ["instagram", "reels", "threads"])
     reels_audio: str = "auto"  # auto=배경음악 합성, none=무음, 그 외=음원 파일/폴더 경로
     reels_fps: int = 30
+    reels_engine: str = "classic"  # classic=카드 이미지를 넘기는 기존 릴스, lemo=스타일 영상(내레이션·믹싱, lemo-opuscar 렌더 도구)
+    reels_style: str = "auto"  # lemo 엔진일 때 auto=주제에 맞게 고름, 또는 caption-news | chalkboard | swiss-motion
+    reels_voice: str = "ko-KR-SunHiNeural"  # 한국어 여성 아나운서 내레이션
+    reels_voice_rate: str = "+0%"
     reels_seconds_per_slide: float | None = None  # None이면 글자 수 기준 자동
     ig_user_id: str = ""
     ig_access_token: str = ""
@@ -141,6 +145,10 @@ class Settings:
         fixed = _env("REELS_SECONDS_PER_SLIDE", "auto").lower()
         s.reels_seconds_per_slide = None if fixed == "auto" else max(0.5, float(fixed))
         s.reels_audio = _env("REELS_AUDIO", s.reels_audio)
+        s.reels_engine = _env("REELS_ENGINE", s.reels_engine).lower()
+        s.reels_style = _env("REELS_STYLE", s.reels_style).lower()
+        s.reels_voice = _env("REELS_VOICE", s.reels_voice)
+        s.reels_voice_rate = _env("REELS_VOICE_RATE", s.reels_voice_rate)
         s.ig_user_id = _env("IG_USER_ID")
         s.ig_access_token = _env("IG_ACCESS_TOKEN")
         s.ig_graph_base = _env("IG_GRAPH_BASE", s.ig_graph_base).rstrip("/")

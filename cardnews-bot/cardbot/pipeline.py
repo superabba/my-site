@@ -69,6 +69,12 @@ class Pipeline:
     # ----- 릴스 영상 -----
     def make_reel(self, folder: Path) -> Path:
         card = CardNews.model_validate_json((folder / "card.json").read_text(encoding="utf-8"))
+        if self.s.reels_engine == "lemo":
+            try:
+                return self.make_styled_reel(folder, card)
+            except Exception as e:  # 스타일 영상이 실패해도 릴스·쇼츠는 예전 방식으로 올린다
+                log.error("스타일 릴스 생성 실패, 기존 방식으로 만듭니다: %s", e)
+                (folder / "reel_error.txt").write_text(f"lemo: {e}", encoding="utf-8")
         slides = sorted(folder.glob("slide_*.jpg"))
         log.info("릴스 영상 렌더링")
         video, _ = render_reel(
@@ -77,6 +83,21 @@ class Pipeline:
             seconds_per_slide=self.s.reels_seconds_per_slide,
         )
         (folder / "reel_error.txt").unlink(missing_ok=True)
+        return video
+
+    def make_styled_reel(self, folder: Path, card: CardNews | None = None, style: str = "") -> Path:
+        """주제에 맞는 스타일을 골라 내레이션·믹싱을 입힌 세로 영상을 만든다 (cardbot/lemoreel.py)."""
+        from . import lemoreel
+
+        card = card or CardNews.model_validate_json((folder / "card.json").read_text(encoding="utf-8"))
+        topic = TopicIdea.model_validate_json((folder / "topic.json").read_text(encoding="utf-8"))
+        forced = style or (self.s.reels_style if self.s.reels_style != "auto" else "")
+        video, _, info = lemoreel.make_reel(
+            card, topic, folder, self.writer, self.s.fonts_dir, self.s.brand_handle or "@economypub",
+            style=forced, voice=self.s.reels_voice, rate=self.s.reels_voice_rate, fps=self.s.reels_fps,
+        )
+        (folder / "reel_error.txt").unlink(missing_ok=True)
+        log.info("릴스 스타일: %s", info["label"])
         return video
 
     def try_make_reel(self, folder: Path) -> bool:

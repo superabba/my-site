@@ -75,6 +75,19 @@ def cmd_blog(s, a):
     print(f"블로그 글 생성: {folder}/blog_naver.txt, blog_tistory.html, blog_guide.md")
 
 
+def cmd_reel(s, a):
+    """초안 폴더의 릴스를 스타일 영상으로 (다시) 만든다. 게시는 하지 않는다."""
+    p = _pipeline(s)
+    folder = Path(a.folder)
+    if a.style and a.style != "auto":
+        from .lemoreel import STYLES
+
+        if a.style not in STYLES:
+            sys.exit(f"알 수 없는 스타일: {a.style} ({' | '.join(STYLES)})")
+    video = p.make_styled_reel(folder, style="" if a.style == "auto" else a.style)
+    print(f"릴스 생성: {video}")
+
+
 def cmd_run(s, a):
     p = _pipeline(s)
     p.run_once(publish=a.publish or s.auto_publish)
@@ -158,6 +171,11 @@ def main(argv=None):
     x = sub.add_parser("blog", help="초안 폴더로 네이버/티스토리 블로그 글 (재)생성")
     x.add_argument("folder")
     x.set_defaults(fn=cmd_blog)
+
+    x = sub.add_parser("reel", help="초안 폴더의 릴스를 스타일 영상(내레이션·믹싱 포함)으로 다시 만들기")
+    x.add_argument("folder")
+    x.add_argument("--style", default="auto", help="auto(주제에 맞게) | caption-news | chalkboard | swiss-motion")
+    x.set_defaults(fn=cmd_reel)
 
     x = sub.add_parser("run", help="추천→제작(→게시) 1회 실행")
     x.add_argument("--publish", action="store_true", help="실제로 게시")

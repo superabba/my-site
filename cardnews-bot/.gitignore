@@ -4,3 +4,4 @@ output/
 data/
 __pycache__/
 *.pyc
+reelstudio/node_modules/

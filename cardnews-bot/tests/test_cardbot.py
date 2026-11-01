@@ -1,7 +1,7 @@
 import json
+import os
 from pathlib import Path
 
-import json
 import numpy as np
 import pytest
 
@@ -939,3 +939,105 @@ def test_bgm_moods(mood):
     assert a.shape == (int(4.5 * bgm.SR), 2)
     assert np.isfinite(a).all() and 0.3 < np.abs(a).max() <= 0.75
     assert np.array_equal(a, bgm.compose(4, "seed", mood))  # 같은 게시물이면 같은 곡
+
+
+# ---------- 스타일 릴스 (lemoreel) ----------
+
+from cardbot import lemoreel
+
+
+def _styled_card():
+    return sample_card()
+
+
+def test_heuristic_style_follows_topic():
+    from cardbot.llm import Slide
+
+    topic = TopicIdea(title="x", keyword="k", angle="a", hook="h", why_now="w", score=1, risk="")
+    def card(text):
+        return CardNews(slides=[Slide(kind="cover", heading=text, body="", highlight=""),
+                                Slide(kind="cta", heading="저장", body="", highlight="")],
+                        caption="c", hashtags=[], threads_text="t", sources=[])
+    assert lemoreel.heuristic_style(topic, card("정책이 개정되어 이번 주 시행")) == "caption-news"
+    assert lemoreel.heuristic_style(topic, card("연말정산 신청 방법 총정리 절세 체크")) == "chalkboard"
+    assert lemoreel.heuristic_style(topic, card("금리 비교 수수료 차이 얼마")) == "swiss-motion"
+    assert lemoreel.heuristic_style(topic, card("아무 말")) == lemoreel.DEFAULT_STYLE
+
+
+def test_clean_plan_fills_missing_lines_and_rejects_unknown_style():
+    card = _styled_card()
+    plan = lemoreel.ReelPlan(style="없는-스타일", reason="r", lines=[lemoreel.NarrationLine(slide=2, text="두 번째 😀 #태그")])
+    out = lemoreel._clean_plan(plan, card)
+    assert out.style == lemoreel.DEFAULT_STYLE
+    assert [ln.slide for ln in out.lines] == list(range(1, len(card.slides) + 1))
+    assert out.lines[1].text == "두 번째 태그" and all(ln.text for ln in out.lines)
+
+
+def test_plan_reel_falls_back_when_llm_fails():
+    class Boom:
+        def _parse(self, *a, **k):
+            raise RuntimeError("quota")
+
+    card = _styled_card()
+    topic = TopicIdea(title="연말정산 꿀팁", keyword="k", angle="a", hook="h", why_now="w", score=1, risk="")
+    plan = lemoreel.plan_reel(Boom(), topic, card)
+    assert plan.style in lemoreel.STYLES and len(plan.lines) == len(card.slides)
+    assert lemoreel.plan_reel(Boom(), topic, card, forced_style="chalkboard").style == "chalkboard"
+
+
+def test_split_subtitle_covers_the_whole_time_and_keeps_chunks_short():
+    text = "보험사별 기준 점수 공략. 최근 500~1,000km 주행 기록이 필요해요. DB손보 61점, KB 70점, 삼성화재 76점 이상이면 최대 20%까지 깎아줘요."
+    subs = lemoreel.split_subtitle(text, 2.0, 12.0)
+    assert subs[0]["t0"] == 2.0 and abs(subs[-1]["t1"] - 12.0) < 0.01
+    assert all(a["t1"] == b["t0"] for a, b in zip(subs, subs[1:]))
+    assert all(len(u["text"]) <= 21 for u in subs) and all(len(u["text"]) > 3 for u in subs)
+    assert " ".join(u["text"] for u in subs) == text
+
+
+def test_bullets_keep_numbers_but_drop_list_markers():
+    assert lemoreel.bullets_of("500km 이상 쌓기\n1. 점수 확인\n· 신청하기") == ["500km 이상 쌓기", "점수 확인", "신청하기"]
+    assert lemoreel.bullets_of("한 줄뿐") == []
+
+
+def test_timeline_places_scenes_after_each_voice():
+    card = _styled_card()
+    topic = TopicIdea(title="제목", keyword="k", angle="a", hook="h", why_now="w", score=1, risk="")
+    plan = lemoreel.fallback_plan(topic, card)
+    voices = [np.zeros(int((2 + i) * lemoreel.SR), np.float32) for i in range(len(card.slides))]
+    tl = lemoreel.build_timeline(card, plan, voices, topic, "@x")
+    sc = tl.content["scenes"]
+    assert sc[0]["t0"] == 0 and all(a["t1"] == b["t0"] for a, b in zip(sc, sc[1:]))
+    assert all(s["voice_t1"] - s["voice_t0"] == pytest.approx(2 + i) for i, s in enumerate(sc))
+    assert tl.duration == pytest.approx(sc[-1]["t1"]) and tl.content["duration"] == pytest.approx(tl.duration, abs=0.01)
+    assert all(s["subs"][0]["t0"] == s["voice_t0"] for s in sc)
+
+
+def test_safe_zone_constants_keep_text_inside_the_app_buttons():
+    js = (lemoreel.STUDIO / "styles" / "common.js").read_text(encoding="utf-8")
+    # 위 250px, 아래 360px, 오른쪽 130px 밖으로 글자가 나가지 않는 기준값
+    assert "top: 262" in js and "bottom: 1920 - 372" in js and "right: 1080 - 142" in js
+
+
+def test_styled_reel_failure_falls_back_to_classic(tmp_path, monkeypatch):
+    p = _pipeline(tmp_path, monkeypatch, FakeWriter())
+    p.s.platforms = ["instagram", "reels", "threads"]
+    p.s.reels_fps = 4
+    p.s.reels_engine = "lemo"
+    monkeypatch.setattr(Pipeline, "make_styled_reel", lambda self, folder, card=None, style="": (_ for _ in ()).throw(RuntimeError("chrome 없음")))
+    folder = p.make(p.recommend()[0][0], [])
+    assert (folder / "reel.mp4").exists() and (folder / "reel_cover.jpg").exists()  # 예전 방식으로 만들어짐
+    assert "chrome 없음" not in (folder / "reel_error.txt").read_text(encoding="utf-8") if (folder / "reel_error.txt").exists() else True
+
+
+@pytest.mark.skipif(os.environ.get("LEMO_E2E") != "1", reason="브라우저 렌더링(수 분)이라 LEMO_E2E=1일 때만")
+@pytest.mark.parametrize("style", list(lemoreel.STYLES))
+def test_styled_reel_renders_every_style(tmp_path, monkeypatch, style):
+    monkeypatch.setenv("REELS_FAKE_TTS", "1")
+    topic = TopicIdea(title="연말정산 꿀팁", keyword="k", angle="a", hook="h", why_now="w", score=1, risk="")
+
+    class Boom:
+        def _parse(self, *a, **k):
+            raise RuntimeError("no llm")
+
+    out, cover, info = lemoreel.make_reel(_styled_card(), topic, tmp_path, Boom(), Path(__file__).parent.parent / "fonts", style=style, fps=6)
+    assert out.exists() and out.stat().st_size > 10_000 and cover.exists() and info["style"] == style
