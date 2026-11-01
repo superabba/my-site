@@ -544,8 +544,8 @@ def test_pipeline_renders_and_publishes_reel(tmp_path, monkeypatch):
     # 릴스는 인스타 캡션 사용. CC BY 곡을 썼으면 끝에 출처 표기가 붙는다
     credit = json.loads((folder / "music.json").read_text(encoding="utf-8")).get("credit", "")
     assert text == bgm.with_credit((folder / "caption.txt").read_text().strip(), folder, 2200)
-    assert th.last[1] == bgm.with_credit((folder / "threads.txt").read_text().strip()[:500], folder, 500)
-    assert text.endswith(credit) and th.last[1].endswith(credit)
+    assert th.last[1] == (folder / "threads.txt").read_text().strip()[:500]  # 스레드에는 영상이 없어 출처를 붙이지 않는다
+    assert text.endswith(credit) and credit not in th.last[1]
 
 
 def test_publish_renders_reel_for_old_drafts(tmp_path, monkeypatch):

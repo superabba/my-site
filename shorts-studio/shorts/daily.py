@@ -264,7 +264,7 @@ def build_post(script: dict, topic: dict, theme_name: str, ai_images: int, credi
         "title": script.get("title") or topic["topic"],
         "youtube_description": yt_desc,
         "instagram_caption": f"{caption}\n\n{DISCLAIMER}" + (f"\n\n{music_credit}" if music_credit else ""),
-        "threads_text": _with_credit(f"{caption}\n\n{DISCLAIMER}", music_credit, 500),
+        "threads_text": _with_credit(f"{caption}\n\n{DISCLAIMER}", music_credit, 500),  # 쇼츠 영상이 스레드에도 올라간다
         "hashtags": tags[:12],
         "platforms": [p.strip() for p in _env("SHORTS_DAILY_PLATFORMS", "reels,threads,youtube").split(",")
                       if p.strip()],
@@ -351,6 +351,7 @@ def make(out: Path, records_dir: Path | None, cardnews_db: Path | None, theme_na
         files["meta"] = "meta.mp4"
 
     post = build_post(script, topic, theme[0], res.ai_images, res.credits, files, res.music_credit)
+    (out / "music.json").write_text(json.dumps({"credit": res.music_credit}, ensure_ascii=False), encoding="utf-8")
     vid = new_id()
     (out / "id.txt").write_text(vid, encoding="utf-8")
     (out / "post.json").write_text(json.dumps(post, ensure_ascii=False, indent=2), encoding="utf-8")
