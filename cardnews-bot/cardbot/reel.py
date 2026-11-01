@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import subprocess
 from pathlib import Path
@@ -19,7 +20,8 @@ from PIL import Image, ImageDraw, ImageFilter
 
 from .config import ROOT
 from .llm import CardNews
-from .music import pick_mood, pick_user_track, write_track
+from . import bgm
+from .music import pick_user_track
 from .render import THEMES, Fonts, draw_lines, ensure_fonts, fit, render_slide, text_w
 
 log = logging.getLogger(__name__)
@@ -105,24 +107,28 @@ def _progress(frame: Image.Image, theme_name: str, ratio: float) -> Image.Image:
     return out
 
 
-def _audio_input(audio, out_path: Path, total: float, text: str = "") -> tuple[Path | None, str]:
-    """(음원 경로, ffmpeg 오디오 필터). 무음이면 (None, "")."""
+def _audio_input(audio, out_path: Path, total: float, text: str = "") -> tuple[Path | None, str, dict]:
+    """(음원 경로, ffmpeg 오디오 필터, music.json에 남길 정보). 무음이면 (None, "", {})."""
     mode = str(audio or "auto").strip()
     fade_out = f"afade=t=out:st={max(0.0, total - 1.8):.2f}:d=1.8"
     if mode.lower() in {"none", "off", "silent", "false"}:
-        return None, ""
+        return None, "", {}
     if mode.lower() not in {"auto", "generated"}:
         src = Path(mode) if Path(mode).is_absolute() else ROOT / mode
         track = pick_user_track(src, out_path.parent.name)
         if track:
             log.info("릴스 배경음: %s", track.name)
-            return track, f"afade=t=in:d=0.5,{fade_out}"
+            return track, f"afade=t=in:d=0.5,{fade_out}", {"track": track.name}
         log.warning("REELS_AUDIO 음원을 찾지 못해 배경음악을 합성합니다: %s", src)
-    mood = pick_mood(text)
-    log.info("릴스 배경음 분위기: %s", mood)
-    wav = write_track(out_path.with_name("reel_music.wav"), total + 1, out_path.parent.name, mood)
-    # 은은한 공간감(에코) + 고음 살짝 깎기 + 자연스러운 시작·끝
-    return wav, f"lowpass=f=6000,aecho=0.8:0.5:70|150:0.22|0.12,afade=t=in:d=1.2,{fade_out},volume=2.0"
+    mood = bgm.pick_mood(text)
+    picked = bgm.pick_track(out_path.parent.name, mood)  # 곡 라이브러리(music/)에 그 분위기 곡이 있으면 그 곡
+    if picked:
+        log.info("릴스 배경음: %s (분위기 %s)", picked["file"], mood)
+        info = {"mood": mood, "track": picked["file"], "credit": bgm.credit(picked)}
+        return bgm.LIBRARY / picked["file"], bgm.track_filter(total), info
+    log.info("릴스 배경음: 분위기 %s 합성", mood)
+    wav = bgm.write_track(out_path.with_name("reel_music.wav"), total + 1, out_path.parent.name, mood)
+    return wav, bgm.audio_filter(mood, total), {"mood": mood, "track": "synth", "credit": ""}
 
 
 def render_reel(
@@ -157,7 +163,8 @@ def render_reel(
         "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{RW}x{RH}", "-r", str(fps), "-i", "-",
     ]
     text = " ".join(f"{sl.heading} {sl.body or ''}" for sl in card.slides)
-    track, afilter = _audio_input(audio, out_path, total, text)
+    track, afilter, music_info = _audio_input(audio, out_path, total, text)
+    out_path.with_name("music.json").write_text(json.dumps(music_info, ensure_ascii=False), encoding="utf-8")
     if track:
         # 영상 길이에 맞춰 자르고(-shortest) 앞뒤를 부드럽게
         cmd += ["-stream_loop", "-1", "-i", str(track), "-af", afilter]

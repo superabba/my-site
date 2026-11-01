@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import trends
+from .bgm import with_credit
 from .blog import caption_hashtags, has_blog, refresh_blog, save_blog
 from .hosting import make_host
 from .llm import BaseWriter, CardNews, TopicIdea, instagram_caption, make_writer
@@ -120,6 +121,9 @@ class Pipeline:
         # 사람이 캡션 파일을 수정했으면 그걸 사용
         caption = (folder / "caption.txt").read_text(encoding="utf-8").strip()
         threads_text = (folder / "threads.txt").read_text(encoding="utf-8").strip()[:500]
+        # CC BY 곡을 썼으면 출처 표기를 붙인다 (직접 합성한 곡이면 아무것도 붙지 않는다)
+        caption = with_credit(caption, folder, 2200)
+        threads_text = with_credit(threads_text, folder, 500)
 
         images = sorted(folder.glob("slide_*.jpg"))
         # 비ASCII URL은 Meta가 가져오지 못하므로(이전 버전에서 올린 경우) 다시 올린다

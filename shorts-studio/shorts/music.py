@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import numpy as np
 
-from .config import MUSIC_DIR
+from .config import MUSIC_DIR, ROOT
 from .ffmpeg import SR, decode_audio
+
+# 곡 라이브러리: 저장소 맨 위 music/library.json + music/<분위기>/*.m4a (카드뉴스봇과 같이 씀, tools/fma.py로 채움)
+LIBRARY = ROOT.parent / "music"
+# 쇼츠 분위기 → 라이브러리 분위기
+LIBRARY_MOOD = {"calm": "calm", "emotional": "warm", "upbeat": "bright", "energetic": "upbeat", "mysterious": "tense"}
 
 MUSIC_EXTS = {".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac"}
 
@@ -227,6 +233,27 @@ def _finish(music: np.ndarray, fade_in: float = 0.8, fade_out: float = 1.5) -> n
     if fo:
         music[n - fo:] *= np.linspace(1, 0, fo)[:, None]
     return music.astype(np.float32)
+
+
+def pick_library_track(mood: str, seed: int, folder: Path | None = None) -> dict | None:
+    """라이브러리에서 그 분위기 곡을 seed로 하나 고른다. 곡이 없으면 None (그러면 합성한다)."""
+    path = (folder or LIBRARY) / "library.json"
+    try:
+        tracks = json.loads(path.read_text(encoding="utf-8"))["tracks"] if path.exists() else []
+    except (OSError, ValueError, KeyError):
+        return None
+    base = folder or LIBRARY
+    want = LIBRARY_MOOD.get(mood, "calm")
+    same = [t for t in tracks if t.get("mood") == want and (base / t["file"]).exists()]
+    return same[seed % len(same)] if same else None
+
+
+def credit_line(track: dict | None) -> str:
+    """CC BY 곡의 출처 표기 한 줄 (CC0·퍼블릭 도메인이면 빈 문자열). 자르고 음량을 맞췄으니 '편집'을 밝힌다."""
+    if not track or not track.get("attribution"):
+        return ""
+    lic = track["license"].replace("CC-BY", "CC BY")
+    return f"🎵 {track['title']} - {track['artist']} ({lic}, 편집) {track['url']}"
 
 
 def load_music_file(path: str | Path, duration: float) -> np.ndarray:
