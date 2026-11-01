@@ -122,12 +122,23 @@ jobs:
           cache: npm
           cache-dependency-path: cardnews-bot/reelstudio/package-lock.json
 
-      - name: 릴스 스타일 영상 도구 설치
+      - name: 릴스 스타일 영상 도구 설치 (edge-tts는 늘 최신으로)
         if: vars.REELS_ENGINE == 'lemo' || inputs.action == 'reel'
         working-directory: cardnews-bot/reelstudio
         run: |
+          pip install -U edge-tts  # Microsoft 쪽 변경에 맞춰 자주 고쳐지는 비공식 라이브러리라 항상 최신으로
           npm ci --no-audit --no-fund
           test -x "$PLAYWRIGHT_CHROME" || { echo "::warning::$PLAYWRIGHT_CHROME 가 없어 Chromium을 내려받습니다"; npx playwright-core install chromium; echo "PLAYWRIGHT_CHROME=" >> "$GITHUB_ENV"; }
+
+      - name: "목소리 점검 (실패해도 계속 진행, 릴스는 기존 방식으로 대신 만든다)"
+        if: vars.REELS_ENGINE == 'lemo' || inputs.action == 'reel'
+        run: |
+          ok=""
+          for i in 1 2 3; do
+            python -m cardbot.lemoreel check-voice && ok=1 && break
+            echo "목소리 점검 실패 $i/3, 기다렸다 다시 시도합니다"; sleep $((i * 10))
+          done
+          [ -n "$ok" ] || echo "::warning::edge-tts 목소리를 만들 수 없습니다. 이번 릴스는 기존 방식으로 만들어질 수 있어요"
 
       - name: 폰트 캐시
         uses: actions/cache@v4

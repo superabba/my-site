@@ -967,7 +967,7 @@ def test_heuristic_style_follows_topic():
 def test_clean_plan_fills_missing_lines_and_rejects_unknown_style():
     card = _styled_card()
     plan = lemoreel.ReelPlan(style="없는-스타일", reason="r", lines=[lemoreel.NarrationLine(slide=2, text="두 번째 😀 #태그")])
-    out = lemoreel._clean_plan(plan, card)
+    out = lemoreel._clean_plan(plan, card.slides)
     assert out.style == lemoreel.DEFAULT_STYLE
     assert [ln.slide for ln in out.lines] == list(range(1, len(card.slides) + 1))
     assert out.lines[1].text == "두 번째 태그" and all(ln.text for ln in out.lines)
@@ -1002,14 +1002,18 @@ def test_bullets_keep_numbers_but_drop_list_markers():
 def test_timeline_places_scenes_after_each_voice():
     card = _styled_card()
     topic = TopicIdea(title="제목", keyword="k", angle="a", hook="h", why_now="w", score=1, risk="")
-    plan = lemoreel.fallback_plan(topic, card)
-    voices = [np.zeros(int((2 + i) * lemoreel.SR), np.float32) for i in range(len(card.slides))]
-    tl = lemoreel.build_timeline(card, plan, voices, topic, "@x")
+    plan = lemoreel.fallback_plan(topic, card, "caption-news")
+    st = lemoreel.STYLES["caption-news"]
+    items = lemoreel.make_items(st, lemoreel.shots_for(st, card), plan)
+    for i, it in enumerate(items):
+        it.voice = np.zeros(int((2 + i) * lemoreel.SR), np.float32)
+    tl = lemoreel.build_timeline(items, plan, st, topic, "@x")
     sc = tl.content["scenes"]
     assert sc[0]["t0"] == 0 and all(a["t1"] == b["t0"] for a, b in zip(sc, sc[1:]))
     assert all(s["voice_t1"] - s["voice_t0"] == pytest.approx(2 + i) for i, s in enumerate(sc))
     assert tl.duration == pytest.approx(sc[-1]["t1"]) and tl.content["duration"] == pytest.approx(tl.duration, abs=0.01)
     assert all(s["subs"][0]["t0"] == s["voice_t0"] for s in sc)
+    assert tl.content["shots"] == len(card.slides) and not tl.content["beat"]
 
 
 def test_safe_zone_constants_keep_text_inside_the_app_buttons():
@@ -1041,3 +1045,87 @@ def test_styled_reel_renders_every_style(tmp_path, monkeypatch, style):
 
     out, cover, info = lemoreel.make_reel(_styled_card(), topic, tmp_path, Boom(), Path(__file__).parent.parent / "fonts", style=style, fps=6)
     assert out.exists() and out.stat().st_size > 10_000 and cover.exists() and info["style"] == style
+
+
+def test_fake_voice_is_speechlike_not_silent_and_estimated_like_real_speech():
+    v = lemoreel._fake_voice("보험료를 돌려받을 수 있어요, 정말이에요")
+    assert 0.15 <= float(np.abs(v).max()) <= 0.2 and float(np.sqrt(np.mean(v ** 2))) > 0.02  # 무음이 아니라 말소리 크기
+    chars, commas = len("보험료를돌려받을수있어요,정말이에요"), 1
+    assert len(v) / lemoreel.SR == pytest.approx(chars * 0.19 + commas * 0.25, abs=0.01)
+    assert abs(lemoreel.fake_duration("가나다") - 3 * 0.19) < 1e-9
+
+
+def test_fit_rates_only_speed_up():
+    assert lemoreel.fit_rates("+0%") == ["+0%", "+15%", "+30%"]
+    assert lemoreel.fit_rates("+20%") == ["+20%", "+30%"]
+    assert lemoreel.fit_rates("+40%") == ["+40%"]
+
+
+def test_long_voice_speeds_up_until_it_fits(monkeypatch):
+    card = _styled_card()
+    topic = TopicIdea(title="제목", keyword="k", angle="a", hook="h", why_now="w", score=1, risk="")
+    st = lemoreel.STYLES["caption-news"]
+    plan = lemoreel.fallback_plan(topic, card, "caption-news")
+    shots = lemoreel.shots_for(st, card)
+    scale = {"+0%": 14.0, "+15%": 12.0, "+30%": 9.0}  # 컷마다 이만큼 말한다 (초)
+    seen = []
+
+    def synth(lines, rate):
+        seen.append(rate)
+        return [np.zeros(int(scale[rate] * lemoreel.SR), np.float32) for _ in lines]
+
+    tl, used = lemoreel.fit_timeline(st, shots, plan, topic, "@x", "+0%", 58.0, synth)
+    assert seen == ["+0%", "+15%", "+30%"] and used == "+30%" and tl.duration > 0
+    seen.clear()
+    tl, used = lemoreel.fit_timeline(st, shots, plan, topic, "@x", "+0%", 1000.0, synth)
+    assert seen == ["+0%"] and used == "+0%"  # 안 넘치면 그대로
+
+
+def test_parse_marks_strips_braces_and_locates_keywords():
+    clean, marks = lemoreel.parse_marks("보험료를 {15만 원}까지 돌려받는 {방법}")
+    assert clean == "보험료를 15만 원까지 돌려받는 방법" and marks == [("15만 원", 5), ("방법", 18)]
+    assert lemoreel.parse_marks("{열린 괄호만")[0] == "열린 괄호만"
+
+
+def _beat_card():
+    from cardbot.llm import Slide
+
+    sl = [Slide(kind="cover", heading="훅", body="", highlight="")]
+    sl += [Slide(kind="content", heading=f"팁{i}", body=f"내용{i}", highlight="") for i in range(1, 7)]
+    sl += [Slide(kind="summary", heading="요약", body="하나\n둘\n셋", highlight=""), Slide(kind="cta", heading="저장하세요", body="", highlight="")]
+    return CardNews(slides=sl, caption="c", hashtags=[], threads_text="t", sources=[])
+
+
+def test_beat_style_cuts_to_six_shots_with_cards_around_first_and_last():
+    st = lemoreel.STYLES["caption-beat"]
+    shots = lemoreel.shots_for(st, _beat_card())
+    assert len(shots) == 6 and shots[0].kind == "cover" and shots[-1].kind == "cta" and shots[-1].body == "하나\n둘\n셋"
+    plan = lemoreel.ReelPlan(style="caption-beat", reason="r", card_mid="그런데", card_last="결론은?",
+                             lines=[lemoreel.NarrationLine(slide=i, text=f"{i}번 컷 문장이에요. 둘째 문장도 있어요.") for i in range(1, 7)])
+    items = lemoreel.make_items(st, shots, plan)
+    kinds = ["card" if it.slide is None else ("cont" if it.cont else "shot") for it in items]
+    assert kinds == ["shot", "card", "cont", "shot", "shot", "shot", "shot", "card", "shot"]
+    assert items[1].card == "그런데" and items[-2].card == "결론은?"
+    assert items[0].text == "1번 컷 문장이에요." and items[2].text == "둘째 문장도 있어요."
+
+
+def test_beat_timeline_snaps_to_120bpm_and_cards_are_silent():
+    st = lemoreel.STYLES["caption-beat"]
+    shots = lemoreel.shots_for(st, _beat_card())
+    topic = TopicIdea(title="제목", keyword="k", angle="a", hook="h", why_now="w", score=1, risk="")
+    plan = lemoreel.ReelPlan(style="caption-beat", reason="r", card_mid="그런데", card_last="결론은?",
+                             lines=[lemoreel.NarrationLine(slide=i, text=f"{i}번 컷이에요. {{핵심}} 둘째 문장이에요.") for i in range(1, 7)])
+    items = lemoreel.make_items(st, shots, plan)
+    for it in items:
+        if it.slide is not None:
+            it.voice = np.zeros(int(2.3 * lemoreel.SR), np.float32)
+    tl = lemoreel.build_timeline(items, plan, st, topic, "@x")
+    sc = tl.content["scenes"]
+    assert all(abs(s["t1"] / 0.5 - round(s["t1"] / 0.5)) < 1e-6 for s in sc)  # 모든 컷이 박자 격자에서 끝난다
+    cards = [s for s in sc if s["kind"] == "card"]
+    assert len(cards) == 2 and all(not s["subs"] and s["t1"] - s["t0"] == 1.0 for s in cards)
+    assert tl.content["bpm"] == 120 and tl.content["shots"] == 6 and tl.content["beat"] is True
+    cont = next(s for s in sc if s.get("cont"))
+    assert cont["group_t0"] == sc[0]["t0"]  # 중간 정적 뒤에도 같은 컷의 시계를 쓴다
+    marked = [s for s in sc if s["marks"]]
+    assert marked and all(s["voice_t0"] <= m["t"] <= s["voice_t1"] for s in marked for m in s["marks"])
