@@ -1129,3 +1129,23 @@ def test_beat_timeline_snaps_to_120bpm_and_cards_are_silent():
     assert cont["group_t0"] == sc[0]["t0"]  # 중간 정적 뒤에도 같은 컷의 시계를 쓴다
     marked = [s for s in sc if s["marks"]]
     assert marked and all(s["voice_t0"] <= m["t"] <= s["voice_t1"] for s in marked for m in s["marks"])
+
+
+def test_check_voice_uses_default_when_actions_passes_empty_variables(monkeypatch):
+    """Actions는 설정하지 않은 변수를 빈 문자열로 넘긴다 (실제로 'Invalid voice' 오류가 났던 경우)."""
+    seen = {}
+
+    def fake_synth(lines, workdir, voice="", rate="+0%", pitch="+0Hz"):
+        seen["voice"] = voice
+        return [np.zeros(int(2 * lemoreel.SR), np.float32)]
+
+    monkeypatch.setenv("REELS_VOICE", "")
+    monkeypatch.setattr(lemoreel, "synthesize", fake_synth)
+    assert lemoreel.check_voice() == 0
+    assert seen["voice"] == lemoreel.DEFAULT_VOICE
+
+
+def test_synthesize_replaces_empty_voice_and_rate(monkeypatch, tmp_path):
+    monkeypatch.setenv("REELS_FAKE_TTS", "1")
+    out = lemoreel.synthesize(["테스트 문장입니다"], tmp_path, voice="", rate="")
+    assert len(out) == 1 and len(out[0]) > 0
