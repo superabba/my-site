@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import json
 import numpy as np
 import pytest
 
@@ -540,8 +541,11 @@ def test_pipeline_renders_and_publishes_reel(tmp_path, monkeypatch):
     assert set(meta["posts"]) == {"instagram", "reels", "threads"}
     assets, text = reels.last
     assert assets["video_urls"][0] == "https://cdn/reel.mp4" and assets["reel_cover_url"].endswith("reel_cover.jpg")
-    assert text == (folder / "caption.txt").read_text().strip()  # 릴스는 인스타 캡션 사용
-    assert th.last[1] == (folder / "threads.txt").read_text().strip()[:500]
+    # 릴스는 인스타 캡션 사용. CC BY 곡을 썼으면 끝에 출처 표기가 붙는다
+    credit = json.loads((folder / "music.json").read_text(encoding="utf-8")).get("credit", "")
+    assert text == bgm.with_credit((folder / "caption.txt").read_text().strip(), folder, 2200)
+    assert th.last[1] == bgm.with_credit((folder / "threads.txt").read_text().strip()[:500], folder, 500)
+    assert text.endswith(credit) and th.last[1].endswith(credit)
 
 
 def test_publish_renders_reel_for_old_drafts(tmp_path, monkeypatch):

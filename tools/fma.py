@@ -310,6 +310,25 @@ def _auto_start(src: Path) -> float:
     return hit / 2
 
 
+LICENSE_URLS = {
+    "CC0 1.0": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "Public Domain Mark 1.0": "https://creativecommons.org/publicdomain/mark/1.0/",
+    **{f"CC-BY {v}": f"https://creativecommons.org/licenses/by/{v}/" for v in ("1.0", "2.0", "2.5", "3.0", "4.0")},
+}
+
+
+def write_credits(tracks: list[dict]) -> None:
+    """공개 저장소에 발췌본을 두므로 곡마다 출처·라이선스·편집 내용을 music/CREDITS.md에 남긴다."""
+    lines = ["# 배경음악 출처", "",
+             "Free Music Archive 곡을 70초 발췌하고 음량을 −16 LUFS로 맞춘 것입니다 (`tools/fma.py add`가 자동으로 씀).", "",
+             "| 파일 | 곡 | 작곡가 | 라이선스 | 편집 | 원곡 |", "|---|---|---|---|---|---|"]
+    for t in tracks:
+        lic = t["license"].replace("CC-BY", "CC BY")
+        lines.append(f"| `{t['file']}` | {t['title']} | {t['artist']} | [{lic}]({LICENSE_URLS.get(t['license'], '')}) "
+                     f"| {t['start']:g}초부터 {t['seconds']}초 발췌, 음량 조정 | {t['url']} |")
+    (ROOT / "music" / "CREDITS.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def cmd_add(a) -> int:
     import subprocess
 
@@ -324,7 +343,7 @@ def cmd_add(a) -> int:
     cut = ["-ss", f"{start:.2f}", "-t", str(EXCERPT_S), "-i", str(src)]
     r = subprocess.run([_ffmpeg(), "-hide_banner", "-nostats", *cut, "-af", f"loudnorm={TARGET}:print_format=json",
                         "-f", "null", "-"], capture_output=True, text=True, encoding="utf-8", errors="replace")
-    m = json.loads(r.stderr[r.stderr.rindex("{"):])
+    m = json.loads(r.stderr[r.stderr.rindex("{"):r.stderr.rindex("}") + 1])  # 측정값 JSON 뒤에도 출력이 붙는다
     norm = (f"loudnorm={TARGET}:measured_I={m['input_i']}:measured_TP={m['input_tp']}:measured_LRA={m['input_lra']}"
             f":measured_thresh={m['input_thresh']}:offset={m['target_offset']}:linear=true")
     subprocess.run([_ffmpeg(), "-y", "-loglevel", "error", *cut, "-af", norm, "-ar", "44100", "-ac", "2",
@@ -339,6 +358,7 @@ def cmd_add(a) -> int:
     lib["tracks"] = [t for t in lib["tracks"] if t["file"] != rel] + [entry]
     lib["tracks"].sort(key=lambda t: t["file"])
     lib_path.write_text(json.dumps(lib, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    write_credits(lib["tracks"])
     print(f"추가: music/{rel} ({start:.1f}초부터 {EXCERPT_S}초, 원래 {float(m['input_i']):.1f} LUFS → -16)")
     return 0
 
