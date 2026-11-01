@@ -2,6 +2,7 @@ import base64
 import json
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import imageio_ffmpeg
 import pytest
@@ -130,6 +131,28 @@ def test_prepare_large_video_compresses_meta_copy(tmp_path, monkeypatch):
     assert progress and progress[-1] == 1.0
     out = media.probe(files["meta"])
     assert (out.width, out.height) == (1080, 1920) and abs(out.duration - info.duration) < 0.5
+
+
+def test_transcode_progress_stays_between_0_and_1(tmp_path, monkeypatch):
+    # 휴대폰 영상처럼 시작 시각이 0보다 앞서면 ffmpeg가 처음에 음수 시간을 알려 준다 → 진행 막대 오류였다
+    out = tmp_path / "meta.mp4"
+
+    class FakeProc:
+        stdout = iter(["out_time_us=-1147865\n", "out_time_us=N/A\n", "out_time_us=2000000\n",
+                       "out_time_us=9000000\n", "progress=end\n"])
+        stderr = SimpleNamespace(read=lambda: "")
+
+        def __init__(self, cmd, **kw):
+            out.write_bytes(b"x")
+
+        def wait(self):
+            return 0
+
+    monkeypatch.setattr(media.subprocess, "Popen", FakeProc)
+    info = media.VideoInfo(path=tmp_path / "in.mp4", duration=4.0, width=1080, height=1920, fps=30.0, size_bytes=1)
+    progress = []
+    media.transcode(info, out, 1000, 800, progress.append)
+    assert progress == [0.0, 0.5, 1.0, 1.0]
 
 
 def test_prepare_mov_is_converted_for_meta_only(tmp_path):
