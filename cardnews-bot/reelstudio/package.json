@@ -1,0 +1,14 @@
+{
+  "name": "cardbot-reelstudio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "카드뉴스 릴스를 스타일별 웹 페이지로 그려 프레임 단위로 렌더링한다 (렌더 도구는 lemomo-ai/lemo-opuscar 에서 가져옴)",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@fontsource/gaegu": "^5.3.0",
+    "playwright-core": "^1.63.0"
+  }
+}

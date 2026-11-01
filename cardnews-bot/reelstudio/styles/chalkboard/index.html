@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<link rel="stylesheet" href="/node_modules/@fontsource/gaegu/700.css">
+<style>html,body{margin:0;background:#1d3a31}canvas{display:block;width:1080px;height:1920px}</style>
+</head><body><canvas id="c"></canvas>
+<script type="module">
+// 칠판 수업 스타일 (lemo-opuscar의 Chalkboard 문법을 세로 화면에 맞춘 것):
+// 깨끗이 닦은 진한 초록 칠판, 분필 글씨가 손으로 쓰듯 왼쪽에서 오른쪽으로 써지고,
+// 핵심에는 노란 분필로 동그라미나 밑줄을 긋는다. 분필은 세 가지(흰색, 노란색, 연한 색)만 쓴다.
+import { W, H, SAFE, SAFE_W, clamp, lerp, seg, ss, eo, eio, mulberry, wrap, fitText, roundRect, sceneAt, drawSubtitle, start } from '/styles/common.js';
+
+const HAND = 'Gaegu', FAM = 'Pretendard';
+const WHITE = '#f4f1e6', YEL = '#ffd95a', PALE = '#b9d8c8';
+
+// 분필 가루가 긁힌 듯한 무늬(한 번만 만든다)
+const grain = (() => {
+  const c = new OffscreenCanvas(256, 256), g = c.getContext('2d'), im = g.createImageData(256, 256), r = mulberry(11);
+  for (let i = 0; i < im.data.length; i += 4) { const v = r() < 0.34 ? 255 : 0; im.data[i] = im.data[i + 1] = im.data[i + 2] = 0; im.data[i + 3] = v; }
+  g.putImageData(im, 0, 0); return c;
+})();
+const boardNoise = (() => {
+  const c = new OffscreenCanvas(W, H), g = c.getContext('2d'), r = mulberry(5);
+  g.fillStyle = '#21423a'; g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 9000; i++) { g.fillStyle = `rgba(255,255,255,${0.012 + r() * 0.02})`; g.fillRect(r() * W, r() * H, 1 + r() * 3, 1 + r() * 2); }
+  for (let i = 0; i < 40; i++) { const x = r() * W, y = r() * H, rad = 90 + r() * 260; const rg = g.createRadialGradient(x, y, 0, x, y, rad); rg.addColorStop(0, 'rgba(255,255,255,.018)'); rg.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = rg; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); }
+  const v = g.createRadialGradient(W / 2, H * 0.45, W * 0.3, W / 2, H * 0.45, H * 0.75); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.42)'); g.fillStyle = v; g.fillRect(0, 0, W, H);
+  return c;
+})();
+
+// 글자를 분필 스프라이트로 만들어 두고(캐시), 쓰는 진행도만큼 왼쪽부터 보여 준다
+const sprites = new Map();
+function sprite(text, size, color, family = HAND, weight = 700) {
+  const key = `${text}|${size}|${color}|${family}`;
+  if (sprites.has(key)) return sprites.get(key);
+  const m = new OffscreenCanvas(10, 10).getContext('2d'); m.font = `${weight} ${size}px "${family}"`;
+  const w = Math.ceil(m.measureText(text).width) + 16, h = Math.ceil(size * 1.5);
+  const c = new OffscreenCanvas(w, h), g = c.getContext('2d');
+  g.font = `${weight} ${size}px "${family}"`; g.textBaseline = 'alphabetic'; g.fillStyle = color;
+  g.lineJoin = 'round'; g.lineWidth = size * 0.035; g.strokeStyle = color;
+  g.fillText(text, 8, size * 1.05); g.strokeText(text, 8, size * 1.05);
+  g.globalCompositeOperation = 'destination-out';
+  g.fillStyle = g.createPattern(grain, 'repeat'); g.globalAlpha = 0.42; g.fillRect(0, 0, w, h);
+  const s = { c, w, h, size }; sprites.set(key, s); return s;
+}
+function chalkText(ctx, text, x, y, size, color, p, family = HAND, weight = 700) {
+  if (p <= 0) return 0;
+  const s = sprite(text, size, color, family, weight);
+  const shown = Math.min(s.w, s.w * clamp(p));
+  ctx.drawImage(s.c, 0, 0, shown, s.h, x - 8, y - size * 1.05, shown, s.h);
+  return s.w - 16;
+}
+
+// 손으로 그은 듯 흔들리는 선 / 타원 (진행도 p만큼만)
+function chalkStroke(ctx, pts, p, color, lw) {
+  if (p <= 0) return;
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.globalAlpha = 0.9;
+  const n = Math.max(2, Math.floor(pts.length * clamp(p)));
+  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < n; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.stroke();
+  ctx.globalAlpha = 0.5; ctx.lineWidth = lw * 0.5; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1] + 2); for (let i = 1; i < n; i++) ctx.lineTo(pts[i][0], pts[i][1] + 2); ctx.stroke();
+  ctx.restore();
+}
+function underline(x, y, w, seed) {
+  const r = mulberry(seed), pts = []; for (let i = 0; i <= 40; i++) pts.push([x + w * i / 40, y + Math.sin(i * 0.5) * 3 + (r() - 0.5) * 3 - i * 0.05]); return pts;
+}
+function circle(cx, cy, rx, ry, seed) {
+  const r = mulberry(seed), pts = []; for (let i = 0; i <= 64; i++) { const a = -2.4 + i / 64 * (Math.PI * 2 + 0.5); const k = 1 + (r() - 0.5) * 0.04 + i * 0.0008; pts.push([cx + Math.cos(a) * rx * k, cy + Math.sin(a) * ry * k]); } return pts;
+}
+function check(x, y, s) { return [[x, y + s * 0.55], [x + s * 0.28, y + s * 0.85], [x + s * 0.95, y]]; }
+
+function titleBox(ctx, c, sc) {
+  const x = SAFE.left, y = SAFE.top, w = SAFE_W;
+  const fit = fitText(ctx, c.title.replace(/\n/g, ' '), { family: HAND, weight: 700, maxW: w - 70, maxLines: 2, sizes: [64, 58, 52, 46] });
+  const lh = fit.size * 1.12, bh = fit.lines.length * lh + 40;
+  // 분필로 그린 네모 칸
+  const pts = []; const r = mulberry(21);
+  const rect = [[x, y], [x + w, y], [x + w, y + bh], [x, y + bh], [x, y - 2]];
+  for (let k = 0; k < 4; k++) for (let i = 0; i < 24; i++) { const a = rect[k], b = rect[k + 1]; pts.push([lerp(a[0], b[0], i / 24) + (r() - 0.5) * 2.5, lerp(a[1], b[1], i / 24) + (r() - 0.5) * 2.5]); }
+  chalkStroke(ctx, pts, 1, PALE, 4);
+  fit.lines.forEach((l, k) => chalkText(ctx, l, x + 32, y + 20 + fit.size * 1.05 + lh * k, fit.size, WHITE, 1));
+  // 진행: 분필 점
+  const n = c.scenes.length, py = y + bh + 34, gap = Math.min(54, (w - 20) / n);
+  c.scenes.forEach((s, k) => {
+    ctx.beginPath(); ctx.arc(x + 14 + k * gap, py, k === sc.i ? 11 : 7, 0, 7);
+    ctx.fillStyle = k < sc.i ? PALE : k === sc.i ? YEL : 'rgba(185,216,200,.35)'; ctx.fill();
+  });
+  return py + 20;
+}
+
+function scene(ctx, s, lt, top, bottom) {
+  const boxW = SAFE_W;
+  const fit = fitText(ctx, s.heading, { family: HAND, weight: 700, maxW: boxW, maxLines: 3, sizes: [124, 114, 104, 94, 84] });
+  const lh = fit.size * 1.12;
+  const key = (s.highlight || '').trim();
+  const bodyText = (s.bullets && s.bullets.length) ? null : s.body;
+  // 위치 계산(전체 높이를 가늠해 가운데쪽에 놓는다)
+  ctx.font = `700 62px "${HAND}"`;
+  const blines = bodyText ? wrap(ctx, bodyText, boxW - 10) : [];
+  const bulletH = (s.bullets || []).length * 96;
+  const keyH = key && !s.heading.includes(key) ? 130 : 0;
+  const total = fit.lines.length * lh + keyH + blines.length * 70 + bulletH + 40;
+  let y = top + Math.max(10, (bottom - top - total) * 0.35) + fit.size;
+  let t = 0.1;
+  const dur = Math.min(1.1, 0.35 + s.heading.length * 0.045);
+  // 제목: 줄마다 이어서 쓴다
+  const per = dur / fit.lines.length;
+  fit.lines.forEach((l, k) => {
+    const p = seg(lt, t + k * per, t + (k + 1) * per);
+    const w = chalkText(ctx, l, SAFE.left, y + k * lh, fit.size, WHITE, p);
+    // 핵심 어구에는 노란 동그라미
+    if (key && l.includes(key) && p >= 1) {
+      ctx.font = `700 ${fit.size}px "${HAND}"`;
+      const pre = ctx.measureText(l.slice(0, l.indexOf(key))).width, kw = ctx.measureText(key).width;
+      const cp = seg(lt, t + dur + 0.05, t + dur + 0.55);
+      chalkStroke(ctx, circle(SAFE.left + pre + kw / 2, y + k * lh - fit.size * 0.34, kw / 2 + 26, fit.size * 0.62, 7 + k), eio(cp), YEL, 7);
+    }
+  });
+  y += (fit.lines.length - 1) * lh;
+  t += dur + 0.15;
+  // 제목에 없는 핵심 어구: 노란 분필로 크게 쓰고 밑줄
+  if (keyH) {
+    y += 20 + 96;
+    const kfit = fitText(ctx, key, { family: HAND, weight: 700, maxW: boxW - 20, maxLines: 1, sizes: [120, 108, 96, 84, 72, 62] });
+    const p = seg(lt, t, t + 0.55);
+    const w = chalkText(ctx, key, SAFE.left, y, kfit.size, YEL, p);
+    ctx.font = `700 ${kfit.size}px "${HAND}"`;
+    const kw = ctx.measureText(key).width;
+    chalkStroke(ctx, underline(SAFE.left, y + 18, kw, 3), eio(seg(lt, t + 0.55, t + 0.95)), YEL, 6);
+    t += 1.0; y += 24;
+  }
+  // 본문
+  if (blines.length) {
+    y += 30;
+    blines.forEach((l, k) => { chalkText(ctx, l, SAFE.left, y + 62 + k * 70, 62, PALE, seg(lt, t + k * 0.35, t + k * 0.35 + 0.5)); });
+    y += blines.length * 70;
+  }
+  // 체크리스트: 분필로 체크 표시를 그리며 한 줄씩
+  (s.bullets || []).forEach((b, k) => {
+    const t0 = t + k * 0.5, yy = y + 74 + k * 96;
+    chalkStroke(ctx, check(SAFE.left, yy - 50, 50), eio(seg(lt, t0, t0 + 0.25)), YEL, 7);
+    const f = fitText(ctx, b, { family: HAND, weight: 700, maxW: boxW - 86, maxLines: 1, sizes: [68, 62, 56, 50, 44] });
+    chalkText(ctx, b, SAFE.left + 76, yy, f.size, WHITE, seg(lt, t0 + 0.2, t0 + 0.7));
+  });
+}
+
+function draw(ctx, c, t) {
+  ctx.drawImage(boardNoise, 0, 0);
+  const sc = sceneAt(c, t);
+  const top = titleBox(ctx, c, sc);
+  // 장면이 바뀌면 칠판을 한 번 쓱 닦는다: 이전 글씨가 사라지고 새 글씨가 시작
+  scene(ctx, sc.s, sc.lt, top + 40, SAFE.bottom - 200);
+  const wp = seg(sc.lt, 0, 0.22);
+  if (sc.i > 0 && wp < 1) { ctx.save(); ctx.globalAlpha = (1 - wp) * 0.5; ctx.fillStyle = '#d9e8e0'; ctx.fillRect(W * wp - 160, 0, 220, H); ctx.restore(); }
+  // 분필 받침대(앱 아래 버튼 영역에 놓여 글자와 겹치지 않음)
+  ctx.fillStyle = '#6b4a2b'; ctx.fillRect(0, H - 150, W, 150); ctx.fillStyle = '#8a6238'; ctx.fillRect(0, H - 150, W, 14);
+  ctx.fillStyle = WHITE; ctx.fillRect(120, H - 176, 120, 22); ctx.fillStyle = YEL; ctx.fillRect(280, H - 172, 90, 18);
+  drawSubtitle(ctx, c, t, { family: FAM, weight: 800, size: 50, bg: 'rgba(8,22,18,.72)', color: '#f7f5ea', radius: 22, bottom: SAFE.bottom - 20 });
+  const fo = seg(t, c.duration - 0.5, c.duration);
+  if (fo > 0) { ctx.fillStyle = `rgba(20,40,34,${fo})`; ctx.fillRect(0, 0, W, H); }
+}
+
+start({ fonts: [
+  { family: FAM, weight: 700, url: 'fonts/Pretendard-Bold.otf' },
+  { family: FAM, weight: 800, url: 'fonts/Pretendard-ExtraBold.otf' },
+  { family: HAND, weight: 700, css: true },
+], draw });
+</script></body></html>

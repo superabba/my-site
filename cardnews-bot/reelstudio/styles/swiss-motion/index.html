@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#f1efe8}canvas{display:block;width:1080px;height:1920px}</style>
+</head><body><canvas id="c"></canvas>
+<script type="module">
+// 스위스 타이포 스타일 (lemo-opuscar의 Swiss Motion Graphics 문법을 세로 화면에 맞춘 것):
+// 격자 위에 글자 하나의 서체, 포인트 색 하나. 모든 움직임은 격자에 딱 맞게 멈추고 튕기지 않는다.
+// 숫자는 크게, 설명은 작게: 극단적인 크기 대비가 이 스타일의 얼굴이다.
+import { W, H, SAFE, SAFE_W, clamp, lerp, seg, ss, eo, wrap, fitText, rollNumber, sceneAt, subAt, start } from '/styles/common.js';
+
+const FAM = 'Pretendard';
+const PAPER = '#f1efe8', INK = '#111111', SIG = '#ff3b1f', GREY = '#6d6a62', LINE = 'rgba(17,17,17,.12)';
+const COLS = 6, COLW = SAFE_W / COLS;
+
+// 격자(아주 연한 세로 선과 눈금)
+function grid(ctx, sc) {
+  ctx.fillStyle = PAPER; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = LINE; ctx.lineWidth = 1.5;
+  for (let i = 0; i <= COLS; i++) { const x = SAFE.left + i * COLW; ctx.beginPath(); ctx.moveTo(x, SAFE.top - 30); ctx.lineTo(x, SAFE.bottom + 10); ctx.stroke(); }
+}
+
+// 맨 위(앱 영역 아래): 포인트색 네모 + 채널 이름 + 제목, 가로 눈금 진행 막대
+function head(ctx, c, sc) {
+  const x = SAFE.left, y = SAFE.top;
+  ctx.fillStyle = SIG; ctx.fillRect(x, y, 34, 34);
+  ctx.fillStyle = INK; ctx.font = `800 26px "${FAM}"`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText((c.channel || '경제주막').toUpperCase(), x + 50, y + 18);
+  ctx.font = `600 24px "${FAM}"`; ctx.fillStyle = GREY; ctx.textAlign = 'right';
+  ctx.fillText(String(sc.s.index).padStart(2, '0') + ' — ' + String(c.scenes.length).padStart(2, '0'), SAFE.right, y + 18);
+  ctx.textAlign = 'left';
+  const fit = fitText(ctx, c.title.replace(/\n/g, ' '), { family: FAM, weight: 800, maxW: SAFE_W, maxLines: 2, sizes: [46, 42, 38, 34] });
+  const lh = fit.size * 1.2, ty = y + 60;
+  ctx.fillStyle = INK; ctx.textBaseline = 'alphabetic';
+  fit.lines.forEach((l, k) => ctx.fillText(l, x, ty + fit.size * 1.0 + lh * k));
+  const ry = ty + fit.lines.length * lh + 14;
+  ctx.fillStyle = INK; ctx.fillRect(x, ry, SAFE_W, 5);
+  // 진행: 검은 줄 위에 포인트색이 장면 수만큼 칸으로 쌓인다
+  const n = c.scenes.length, seg0 = SAFE_W / n;
+  ctx.fillStyle = SIG; ctx.fillRect(x, ry, seg0 * (sc.i + sc.prog), 5);
+  return ry + 5;
+}
+
+function sceneBody(ctx, s, lt, c, top, bottom) {
+  const key = (s.highlight || '').trim();
+  const hasNum = /\d/.test(key);
+  const snap = (a, b) => 1 - Math.pow(1 - seg(lt, a, b), 2);   // 튕김 없는 감속
+  let y = top + 46;
+  // 큰 숫자(핵심 수치) 또는 큰 장면 번호
+  const big = key || String(s.index).padStart(2, '0');
+  const bigTxt = hasNum ? rollNumber(big, snap(0.05, 0.85)) : big;
+  const bf = fitText(ctx, key || big, { family: FAM, weight: 900, maxW: SAFE_W, maxLines: 1, sizes: [210, 190, 170, 150, 130, 110, 90, 76, 64] });
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.font = `900 ${bf.size}px "${FAM}"`;
+  const bx = SAFE.left - 8 + (1 - snap(0, 0.22)) * -60;
+  ctx.save(); ctx.globalAlpha = clamp(seg(lt, 0, 0.12));
+  ctx.fillStyle = key ? SIG : 'rgba(17,17,17,.14)';
+  ctx.fillText(bigTxt, bx, y + bf.size * 0.82);
+  ctx.restore();
+  y += bf.size * 0.82 + 34;
+  // 가로 굵은 선이 왼쪽에서 격자 끝까지 그어진다
+  ctx.fillStyle = INK; ctx.fillRect(SAFE.left, y, SAFE_W * snap(0.1, 0.4), 6);
+  y += 44;
+  // 제목: 왼쪽 정렬, 오른쪽으로 흐르지 않고 제자리에서 나타난다
+  const hf = fitText(ctx, s.heading, { family: FAM, weight: 800, maxW: SAFE_W, maxLines: 3, sizes: [88, 80, 72, 66, 60, 54] });
+  ctx.font = `800 ${hf.size}px "${FAM}"`;
+  const lh = hf.size * 1.16;
+  hf.lines.forEach((l, k) => {
+    const a = 0.2 + k * 0.09, p = snap(a, a + 0.2);
+    if (p <= 0) return;
+    ctx.save(); ctx.globalAlpha = clamp(p * 1.5);
+    ctx.fillStyle = INK; ctx.fillText(l, SAFE.left + (1 - p) * -44, y + hf.size * 0.95 + k * lh);
+    ctx.restore();
+  });
+  y += hf.lines.length * lh + 26;
+  // 본문/체크리스트: 작은 글씨, 격자 두 칸 아래에서 시작
+  const t0 = 0.2 + hf.lines.length * 0.09 + 0.3;
+  const items = (s.bullets && s.bullets.length) ? s.bullets : null;
+  if (items) {
+    items.forEach((b, k) => {
+      const p = snap(t0 + k * 0.18, t0 + k * 0.18 + 0.2); if (p <= 0) return;
+      const yy = y + k * 96;
+      ctx.save(); ctx.globalAlpha = clamp(p * 1.5);
+      ctx.fillStyle = SIG; ctx.fillRect(SAFE.left, yy + 22, 34, 34);
+      ctx.fillStyle = PAPER; ctx.font = `800 24px "${FAM}"`; ctx.textAlign = 'center'; ctx.fillText(String(k + 1), SAFE.left + 17, yy + 47);
+      ctx.fillStyle = INK; ctx.textAlign = 'left';
+      const f = fitText(ctx, b, { family: FAM, weight: 700, maxW: SAFE_W - 70, maxLines: 2, sizes: [46, 42, 38, 34] });
+      ctx.font = `700 ${f.size}px "${FAM}"`;
+      f.lines.forEach((l, j) => ctx.fillText(l, SAFE.left + 60 + (1 - p) * -30, yy + 50 + j * f.size * 1.2));
+      ctx.restore();
+    });
+    y += items.length * 96;
+  } else if (s.body) {
+    let bs = 42, bl;
+    for (; bs >= 32; bs -= 2) { ctx.font = `600 ${bs}px "${FAM}"`; bl = wrap(ctx, s.body, SAFE_W * 0.82); if (y + bl.length * bs * 1.45 <= bottom) break; }
+    const p = snap(t0, t0 + 0.3);
+    ctx.save(); ctx.globalAlpha = clamp(p * 1.5); ctx.fillStyle = GREY; ctx.textAlign = 'left';
+    bl.forEach((l, k) => ctx.fillText(l, SAFE.left + COLW * 0.0, y + bs * 1.05 + k * bs * 1.45 + (1 - p) * 18));
+    ctx.restore();
+    y += bl.length * bs * 1.45;
+  }
+  return y;
+}
+const meas = new OffscreenCanvas(W, H).getContext('2d');
+
+// 자막: 격자 폭에 맞춘 검은 띠, 흰 글씨 왼쪽 정렬 (아래 버튼 영역 위, 오른쪽 버튼 영역 왼쪽)
+function sub(ctx, c, t) {
+  const { s } = sceneAt(c, t); const hit = subAt(s, t); if (!hit) return;
+  const a = ss(hit.lt / 0.1);
+  ctx.save(); ctx.globalAlpha = a; ctx.font = `800 50px "${FAM}"`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  const lines = wrap(ctx, hit.u.text, SAFE_W - 56), lh = 66, bh = lines.length * lh + 30;
+  const y0 = SAFE.bottom - 20 - bh;
+  ctx.fillStyle = INK; ctx.fillRect(SAFE.left, y0, SAFE_W, bh);
+  ctx.fillStyle = SIG; ctx.fillRect(SAFE.left, y0, 10, bh);
+  ctx.fillStyle = '#fff'; lines.forEach((l, k) => ctx.fillText(l, SAFE.left + 34, y0 + 15 + lh * (k + 0.5)));
+  ctx.restore();
+}
+
+function draw(ctx, c, t) {
+  const sc = sceneAt(c, t);
+  grid(ctx, sc);
+  const top = head(ctx, c, sc);
+  const bot = SAFE.bottom - 230;
+  const hEnd = sceneBody(meas, sc.s, 99, c, top, bot);   // 먼저 높이를 재서 위아래 가운데쪽에 놓는다
+  ctx.save(); ctx.translate(0, Math.max(0, (bot - hEnd) * 0.38));
+  sceneBody(ctx, sc.s, sc.lt, c, top, bot);
+  ctx.restore();
+  // 장면 전환: 포인트색 사각형이 격자 칸 폭만큼 지나간다
+  const wp = seg(sc.lt, 0, 0.16);
+  if (sc.i > 0 && wp < 1) { ctx.fillStyle = SIG; ctx.fillRect(SAFE.left, SAFE.top - 30 + (SAFE.bottom - SAFE.top + 40) * wp, SAFE_W, 10); }
+  sub(ctx, c, t);
+  const fo = seg(t, c.duration - 0.5, c.duration);
+  if (fo > 0) { ctx.fillStyle = `rgba(241,239,232,${fo})`; ctx.fillRect(0, 0, W, H); }
+}
+
+start({ fonts: [
+  { family: FAM, weight: 600, url: 'fonts/Pretendard-Regular.otf' },
+  { family: FAM, weight: 700, url: 'fonts/Pretendard-Bold.otf' },
+  { family: FAM, weight: 800, url: 'fonts/Pretendard-ExtraBold.otf' },
+  { family: FAM, weight: 900, url: 'fonts/Pretendard-ExtraBold.otf' },
+], draw });
+</script></body></html>

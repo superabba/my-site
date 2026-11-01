@@ -69,6 +69,32 @@ python -m cardbot refresh-token instagram   # 장기 토큰(60일) 갱신
 - **영상 호스팅**: GitHub raw 주소는 영상 형식을 알려주지 않아서, jsDelivr CDN 주소를 먼저 쓰고 실패하면 raw 주소로 다시 시도합니다.
 - 스레드에는 카드뉴스(이미지)만 올립니다.
 
+### 스타일 릴스 (한국어 여성 아나운서 내레이션) — `REELS_ENGINE=lemo`
+
+카드 이미지를 넘기는 기본 릴스(`classic`) 대신, **주제에 맞는 스타일**을 골라 내레이션·자막·배경음악·효과음까지 입힌 세로 영상(1080×1920)을 만든다.
+릴스·유튜브 쇼츠·네이버 클립이 같은 영상을 쓴다. 렌더 도구는 [lemo-opuscar](https://github.com/lemomo-ai/lemo-opuscar)(MIT)에서 가져왔다 (`reelstudio/`, 라이선스 `reelstudio/LICENSE-lemo-opuscar`).
+
+```
+카드뉴스 원고 → (LLM) 스타일 고르기 + 슬라이드별 내레이션 쓰기
+              → 목소리 합성 (ko-KR-SunHiNeural, edge-tts) → 장면·자막 타임라인
+              → 스타일 페이지를 프레임마다 렌더링 (headless Chrome)
+              → 스타일별 믹싱(목소리·배경음악 덕킹·효과음) → −14 LUFS → reel.mp4
+```
+
+| 스타일 | 어울리는 주제 | 소리 |
+|---|---|---|
+| `caption-news` 뉴스 캡션 | 새 제도·정책·이슈, 한 줄 결론이 강한 주제 | 경쾌한 음악, 장면마다 whoosh·thump |
+| `chalkboard` 칠판 수업 | 방법·신청 요령·오해와 진실·절세 팁 | 잔잔한 음악, 분필 긁는 소리, 교실 같은 공간감 |
+| `swiss-motion` 스위스 타이포 | 금리·세율·수수료 같은 숫자와 비교 | 리듬감 있는 음악, 자막마다 tick |
+
+- **제목 상자·자막은 앱 버튼 영역을 피한 안쪽**에만 둔다 (위 250px, 아래 360px, 오른쪽 130px). 기준값은 `reelstudio/styles/common.js`의 `SAFE`.
+- 배경음악은 `music/` 곡 라이브러리의 분위기 곡(없으면 합성). CC BY 곡이면 캡션·설명에 출처가 붙는다.
+- 스타일 고르기·내레이션 쓰기가 실패하면 규칙(단어)으로 대신하고, 영상 제작 자체가 실패하면 기존 방식 릴스로 대신한다 (`reel_error.txt`에 이유).
+- 환경변수: `REELS_ENGINE`(classic|lemo), `REELS_STYLE`(auto|스타일 이름), `REELS_VOICE`(기본 ko-KR-SunHiNeural), `REELS_VOICE_RATE`(기본 +0%).
+- 초안 하나를 다시 만들어 보기(게시 안 함): `python -m cardbot reel <초안 폴더> [--style chalkboard]`, Actions에서는 action `reel`.
+- 설치: `cd reelstudio && npm ci` (Node 20+), 크롬(`PLAYWRIGHT_CHROME`, Actions 러너에는 설치되어 있음). 인터넷이 막힌 곳에서는 `REELS_FAKE_TTS=1`로 길이만 맞춘 소리를 써서 화면만 시험할 수 있다 (개발용).
+- 스타일 추가: `reelstudio/styles/<이름>/index.html`을 만들고(페이지 규약은 `styles/common.js`) `cardbot/lemoreel.py`의 `STYLES`에 등록.
+
 ### 블로그 글 초안 (네이버 블로그 · 티스토리)
 
 카드뉴스를 만들 때마다 **같은 주제의 검색용 블로그 글 초안**도 함께 만듭니다 (`BLOG_ENABLED=false`로 끌 수 있음).

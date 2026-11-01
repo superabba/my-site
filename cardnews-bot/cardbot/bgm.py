@@ -207,8 +207,8 @@ def _noise_hit(rng: np.random.Generator, seconds: float, decay: float, hp: int, 
     return _hp(rng.standard_normal(n), hp) * env
 
 
-def compose(seconds: float, seed: str, mood: str) -> np.ndarray:
-    """(샘플 수, 2) float 배열을 만든다."""
+def compose(seconds: float, seed: str, mood: str, bpm: float | None = None) -> np.ndarray:
+    """(샘플 수, 2) float 배열을 만든다. bpm을 주면 그 빠르기로 고정한다 (calm은 제외)."""
     if mood == "calm":
         return music.compose(seconds, seed)
     p = {**DEFAULTS, **MOODS[mood]}
@@ -216,7 +216,8 @@ def compose(seconds: float, seed: str, mood: str) -> np.ndarray:
     noise = np.random.default_rng(_seed(seed))
     prog = rng.choice(p["progs"])
     key = rng.choice(p["keys"])
-    step = 60 / rng.uniform(*p["bpm"]) / 4  # 16분음표 길이
+    tempo = rng.uniform(*p["bpm"])
+    step = 60 / (bpm or tempo) / 4  # 16분음표 길이
     bar = step * 16
 
     total = int((seconds + 0.5) * SR)
@@ -281,8 +282,8 @@ def compose(seconds: float, seed: str, mood: str) -> np.ndarray:
     return 0.75 * np.tanh(mix / 0.75)  # 드럼 순간 최댓값만 부드럽게 눌러 줌
 
 
-def write_track(path: Path, seconds: float, seed: str, mood: str) -> Path:
-    data = (compose(seconds, seed, mood) * 32767).astype("<i2")
+def write_track(path: Path, seconds: float, seed: str, mood: str, bpm: float | None = None) -> Path:
+    data = (compose(seconds, seed, mood, bpm) * 32767).astype("<i2")
     with wave.open(str(path), "wb") as w:
         w.setnchannels(2)
         w.setsampwidth(2)
