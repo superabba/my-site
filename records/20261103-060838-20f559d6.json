@@ -1,0 +1,34 @@
+{
+  "id": "20261103-060838-20f559d6",
+  "created_at": "2026-11-02T22:10:00",
+  "title": "고향사랑기부 20만원, 44%의 진실",
+  "platforms": [
+    "reels",
+    "threads",
+    "youtube"
+  ],
+  "posts": {
+    "reels": {
+      "media_id": "18456509179193397",
+      "permalink": "https://www.instagram.com/reel/DfQWPWWRwLI/",
+      "published_at": "2026-11-02T22:10:00+00:00"
+    },
+    "threads": {
+      "media_id": "17904490617602753",
+      "permalink": "https://www.threads.com/@economypub/post/DfQWVQKjRyt",
+      "published_at": "2026-11-02T22:10:00+00:00"
+    },
+    "youtube": {
+      "media_id": "4BCi_wOt_RI",
+      "permalink": "https://youtube.com/shorts/4BCi_wOt_RI",
+      "published_at": "2026-11-02T22:10:00+00:00"
+    }
+  },
+  "errors": {},
+  "updated_at": "2026-11-02T22:11:43",
+  "account": "economypub",
+  "daily": true,
+  "topic": "고향사랑기부 20만원, 세액공제 44%?",
+  "keyword": "고향사랑기부 세액공제",
+  "theme": "세금·연말정산"
+}
