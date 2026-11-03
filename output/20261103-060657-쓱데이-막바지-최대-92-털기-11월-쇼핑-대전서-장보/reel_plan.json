@@ -1,0 +1,23 @@
+{
+  "style": "chalkboard",
+  "label": "칠판 수업",
+  "reason": "대형 할인 기간에 적용해야 할 단계별 결제 절차와 혜택 중복 조합을 차분하게 하나씩 짚어 주는 실전 절약 수업 콘셉트에 가장 적합하기 때문입니다.",
+  "duration": 39.844645833333324,
+  "fps": 30,
+  "rate": "+0%",
+  "music": {
+    "mood": "bright",
+    "track": "bright/revolution-void-scattered-knowledge.m4a",
+    "credit": "🎵 Scattered Knowledge - Revolution Void (CC BY 3.0, 편집) http://freemusicarchive.org/music/Revolution_Void/The_Politics_of_Desire/revolution_void_-_10_-_scattered_knowledge"
+  },
+  "narration": [
+    "남들 옷 살 때 짠테크족은 생필품을 사서 장보기 고정비를 반토막 냅니다.",
+    "먼저 원 플러스 원 품목에 포인트 적립을 더해 기본 반값을 만듭니다.",
+    "여기에 유니버스 멤버십 전용 십오 퍼센트 중복 쿠폰을 함께 얹습니다.",
+    "결제 직전 행사 카드를 선택해 십 퍼센트 청구 할인을 추가로 챙깁니다.",
+    "간편결제 적립과 모아둔 포인트 복합 결제로 현금 지출을 최소화합니다.",
+    "유통기한과 카드사 예산 소진 여부 등 네 가지 체크를 꼭 확인하세요.",
+    "장보기 전 영상 저장해 두시고 알뜰한 소비 팁을 매일 받아보세요."
+  ],
+  "cards": []
+}
