@@ -191,6 +191,9 @@ jobs:
         if: steps.check.outputs.skip != 'true' && env.ACTION != 'draft' && !cancelled()
         run: |
           if [ ! -f out/blog/blog.json ]; then echo "블로그 글 없음, 건너뜀"; exit 0; fi
+          # 게시 단계까지 가지 못해 결과 기록(records/<ID>.json)이 없으면 블로그 자료도 남기지 않는다.
+          # (남기면 같은 날 재시도가 새 영상을 또 만들어 블로그 글이 2건 나간다)
+          if [ ! -f "records/records/$VIDEO_ID.json" ]; then echo "게시 기록 없음(게시 전에 실패), 블로그 자료 저장 건너뜀"; exit 0; fi
           mkdir -p "records/blog/$VIDEO_ID"
           cp out/blog/blog.json out/blog/*.jpg "records/blog/$VIDEO_ID/"
           # 네이버 클립용: 영상(short.mp4), 스레드 글·곡 출처(post.json, music.json). 지난 영상 파일은 지워 브랜치가 커지지 않게 한다
