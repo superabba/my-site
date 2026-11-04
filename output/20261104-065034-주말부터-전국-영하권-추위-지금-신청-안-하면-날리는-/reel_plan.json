@@ -1,0 +1,23 @@
+{
+  "style": "caption-news",
+  "label": "뉴스 캡션",
+  "reason": "영하권 한파 대비와 정부 캐시백 정책을 빠르게 전달하는 속보성 생활 정보에 가장 적합하기 때문입니다.",
+  "duration": 34.632979166666665,
+  "fps": 30,
+  "rate": "+0%",
+  "music": {
+    "mood": "warm",
+    "track": "warm/josh-woodward-once-tomorrow-instrumental-version.m4a",
+    "credit": "🎵 Once Tomorrow (Instrumental Version) - Josh Woodward (CC BY 3.0, 편집) http://freemusicarchive.org/music/Josh_Woodward/Breadcrumbs/JoshWoodward-Breadcrumbs-NoVox-09-OnceTomorrow"
+  },
+  "narration": [
+    "이번 주말 영하 추위 전 가스비 30퍼센트를 아끼는 특급 비결입니다.",
+    "지난해보다 덜 쓰면 최대 200원을 현금으로 돌려받습니다.",
+    "외출할 때는 끄지 마시고 평소보다 2도만 낮추세요.",
+    "온수 온도를 45도로 설정해야 쓸데없는 가스 낭비를 막습니다.",
+    "동파를 막기 위해 안 쓰는 방 밸브는 완전히 잠그지 마세요.",
+    "캐시백 신청과 온도 조절 등 난방비 4단계를 꼭 기억하세요.",
+    "난방비 폭탄을 피하려면 이 영상을 저장하고 공유해 두세요."
+  ],
+  "cards": []
+}
