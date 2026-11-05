@@ -1,0 +1,23 @@
+{
+  "style": "caption-news",
+  "label": "뉴스 캡션",
+  "reason": "수능 직후 집중되는 수험생과 가족 대상 할인 정책 및 생활비 절감 정보를 뉴스 속보처럼 신속하고 신뢰감 있게 전달하기에 가장 적합합니다.",
+  "duration": 39.94712499999999,
+  "fps": 30,
+  "rate": "+0%",
+  "music": {
+    "mood": "bright",
+    "track": "bright/josh-woodward-under-the-stairs.m4a",
+    "credit": "🎵 Under the Stairs - Josh Woodward (CC BY 3.0, 편집) http://freemusicarchive.org/music/Josh_Woodward/Breadcrumbs/JoshWoodward-Breadcrumbs-05-UnderTheStairs"
+  },
+  "narration": [
+    "수험표를 그냥 버리면 온 가족이 최소 50만 원을 날리게 됩니다.",
+    "국내선 항공권과 기차표는 동반 일인까지 최대 25퍼센트 할인됩니다.",
+    "통신사 특별 사은품은 물론 합격증으로 전자기기 할인도 가능합니다.",
+    "주요 안과에서는 수험생과 가족의 정밀 검사비 면제 혜택을 제공합니다.",
+    "청년문화예술패스로 최대 20만 원 지원과 면허 학원비도 아끼세요.",
+    "사진 캡처본은 쓸 수 없으니 반드시 실물 수험표 원본을 챙겨야 합니다.",
+    "놓치기 아까운 생활비 절약 혜택, 지금 저장하고 공유해 알뜰하게 쓰세요."
+  ],
+  "cards": []
+}
