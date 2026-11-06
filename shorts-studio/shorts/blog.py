@@ -5,8 +5,7 @@
                sections[{heading, body, image, experience_hint}], faq[{question, answer}],
                conclusion, sources, tags, video_id, cover, images
   - cover.jpg: 영상 첫 장면(제목·자막이 보이는 화면)
-  - scene_01.jpg …: 장면마다 나노바나나 그림 (없으면 그 장면의 영상 화면)
-사진은 블로그에서 보기 좋게 4:5로 가운데를 잘라 쓴다.
+  - scene_01.jpg …: 장면마다 영상에서 제목·자막이 보이는 화면을 그대로 캡처 (실패하면 나노바나나 그림을 4:5로 잘라 대신 사용)
 """
 
 from __future__ import annotations
@@ -112,26 +111,44 @@ def grab_frame(video: Path, t: float, dest: Path) -> Path:
     return dest
 
 
+def frame_for_blog(video: Path, t: float, dest: Path, tmp: Path) -> Path:
+    """영상 화면(제목·자막이 들어간 장면)을 잘라 내지 않고 그대로 블로그 폭(1080)에 맞춰 JPEG로 저장한다."""
+    grab_frame(video, t, tmp)
+    with Image.open(tmp) as im:
+        im = im.convert("RGB")
+        if im.width != BLOG_WIDTH:
+            im = im.resize((BLOG_WIDTH, int(im.height * BLOG_WIDTH / im.width)), Image.LANCZOS)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        im.save(dest, "JPEG", quality=86, optimize=True)
+    return dest
+
+
 def save_blog_images(video: Path, scenes: list[dict], blog_dir: Path) -> list[str]:
     """cover.jpg + scene_XX.jpg를 만들고, 장면 사진 파일 이름 목록을 돌려준다.
+
+    사진은 영상에서 제목과 자막이 보이는 장면을 그대로 캡처한 것이다(세로 전체 화면).
+    캡처에 실패한 장면만 나노바나나 그림을 4:5로 잘라 대신 쓴다.
 
     scenes: [{"media": 나노바나나 그림 경로 또는 None, "start": 초, "dur": 초}, ...]
     """
     blog_dir.mkdir(parents=True, exist_ok=True)
     tmp = blog_dir / "_frame.png"
     try:
-        crop_for_blog(grab_frame(video, 0.5, tmp), blog_dir / "cover.jpg", center_y=0.43)
+        frame_for_blog(video, 0.5, blog_dir / "cover.jpg", tmp)
     except (RuntimeError, OSError) as e:
         log.warning("표지 사진을 만들지 못했습니다: %s", e)
     names = []
     for i, sc in enumerate(scenes, 1):
         name = f"scene_{i:02d}.jpg"
         try:
-            media = sc.get("media")
-            if media and Path(media).suffix.lower() in (".png", ".jpg", ".jpeg", ".webp"):
+            try:  # 장면 한가운데 화면 = 그 장면의 자막이 떠 있는 때
+                frame_for_blog(video, sc["start"] + sc["dur"] / 2, blog_dir / name, tmp)
+            except (RuntimeError, OSError) as e:
+                media = sc.get("media")
+                if not (media and Path(media).suffix.lower() in (".png", ".jpg", ".jpeg", ".webp")):
+                    raise
+                log.warning("장면 %d 영상 화면을 못 따서 그림으로 대신합니다: %s", i, e)
                 crop_for_blog(Path(media), blog_dir / name)
-            else:  # 그림이 없는 장면은 그 장면 가운데 화면을 쓴다
-                crop_for_blog(grab_frame(video, sc["start"] + sc["dur"] / 2, tmp), blog_dir / name, center_y=0.43)
             names.append(name)
         except (RuntimeError, OSError, KeyError) as e:
             log.warning("장면 %d 사진을 만들지 못했습니다: %s", i, e)
