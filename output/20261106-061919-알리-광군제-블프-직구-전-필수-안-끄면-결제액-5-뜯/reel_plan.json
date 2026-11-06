@@ -1,0 +1,23 @@
+{
+  "style": "chalkboard",
+  "label": "칠판 수업",
+  "reason": "해외 직구 시 발생하는 이중 환전 원리와 DCC 차단 설정법, 수수료 절약 팁을 차근차근 짚어 주며 설명하기에 가장 적합합니다.",
+  "duration": 38.465291666666666,
+  "fps": 30,
+  "rate": "+0%",
+  "music": {
+    "mood": "bright",
+    "track": "bright/kevin-macleod-vibe-ace.m4a",
+    "credit": "🎵 Vibe Ace - Kevin MacLeod (CC BY 3.0, 편집) http://freemusicarchive.org/music/Kevin_MacLeod/Jazz_Sampler/Vibe_Ace_1278"
+  },
+  "narration": [
+    "해외 직구할 때 원화로 결제했다면 5만 원을 이미 더 낸 셈입니다.",
+    "원화 결제는 이중 환전이 발생해 최대 8퍼센트 수수료가 붙습니다.",
+    "카드사 앱에서 무료로 제공하는 원화결제 차단을 꼭 켜 두셔야 합니다.",
+    "제휴 카드 즉시할인과 함께 경유몰 캐시백 혜택도 챙기셔야 합니다.",
+    "수수료 면제 혜택을 챙기고 결제는 가상카드로 안전하게 진행합니다.",
+    "결제 통화는 달러로 바꾸고 면세 한도를 사전에 꼭 점검해야 합니다.",
+    "불필요한 낭비를 막으려면 이 영상을 저장하고 공유해 두시기 바랍니다."
+  ],
+  "cards": []
+}
