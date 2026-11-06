@@ -364,7 +364,7 @@ def test_normalize_blog_assigns_unique_images_and_cleans_tags():
     assert len(blog["faq"]) == 1 and blog["sources"] == ["금융감독원 (2026.10.21)"]
 
 
-def test_save_blog_images_uses_ai_images_and_video_frames(tmp_path):
+def test_save_blog_images_captures_video_frames_with_subtitles(tmp_path):
     from shorts.blog import save_blog_images
 
     video = tmp_path / "v.mp4"
@@ -374,11 +374,23 @@ def test_save_blog_images_uses_ai_images_and_video_frames(tmp_path):
     names = save_blog_images(video, [{"media": str(ai), "start": 0, "dur": 2},
                                      {"media": None, "start": 2, "dur": 2}], tmp_path / "blog")
     assert names == ["scene_01.jpg", "scene_02.jpg"]
-    for n in ("cover.jpg", *names):
+    for n in ("cover.jpg", *names):  # 영상 화면 그대로(9:16 세로 전체), 폭만 1080
         with Image.open(tmp_path / "blog" / n) as im:
-            assert im.width == 1080 and abs(im.height / im.width - 1.25) < 0.02
+            assert im.width == 1080 and abs(im.height / im.width - 320 / 180) < 0.02
     with Image.open(tmp_path / "blog" / "scene_01.jpg") as im:
-        assert im.getpixel((540, 675))[0] > 150  # 나노바나나 그림(주황)을 그대로 썼는지
+        assert im.getpixel((540, 960))[:3] != (200, 120, 60)  # 그림 원본이 아니라 영상 화면
+
+
+def test_save_blog_images_falls_back_to_ai_image_when_frame_fails(tmp_path, monkeypatch):
+    from shorts import blog
+
+    monkeypatch.setattr(blog, "grab_frame", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("x")))
+    ai = tmp_path / "ai.png"
+    Image.new("RGB", (900, 1600), (200, 120, 60)).save(ai)
+    names = blog.save_blog_images(tmp_path / "no.mp4", [{"media": str(ai), "start": 0, "dur": 2}], tmp_path / "b")
+    assert names == ["scene_01.jpg"]
+    with Image.open(tmp_path / "b" / "scene_01.jpg") as im:
+        assert abs(im.height / im.width - 1.25) < 0.02 and im.getpixel((540, 675))[0] > 150
 
 
 def test_blog_failure_does_not_stop_video(tmp_path, monkeypatch):
