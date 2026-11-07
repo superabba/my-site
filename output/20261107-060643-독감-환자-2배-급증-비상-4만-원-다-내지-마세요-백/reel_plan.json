@@ -1,0 +1,23 @@
+{
+  "style": "caption-news",
+  "label": "뉴스 캡션",
+  "reason": "독감 유행 속 백신 가격 비교와 실손보험 청구 요령을 뉴스 보도처럼 신뢰감 있고 명확하게 전달하기에 가장 적합합니다.",
+  "duration": 41.519375,
+  "fps": 30,
+  "rate": "+0%",
+  "music": {
+    "mood": "bright",
+    "track": "bright/josh-woodward-under-the-stairs.m4a",
+    "credit": "🎵 Under the Stairs - Josh Woodward (CC BY 3.0, 편집) http://freemusicarchive.org/music/Josh_Woodward/Breadcrumbs/JoshWoodward-Breadcrumbs-05-UnderTheStairs"
+  },
+  "narration": [
+    "똑같은 독감 백신인데 4만 원 다 내지 마시고 반값에 맞는 법 확인하세요.",
+    "건강이음 앱에서 비급여 진료비를 최저가 순으로 검색하면 바로 나옵니다.",
+    "가족보건의원이나 메디체크를 이용하시면 2만 원대에 접종이 가능합니다.",
+    "단순 예방접종은 안 되지만 의사 소견으로 받은 독감 검사비는 실비 청구됩니다.",
+    "10만 원대 치료 주사는 독감 질병코드가 들어간 서류를 내면 환급받습니다.",
+    "방문 전 최저가 확인과 확진 시 필수 서류 챙기기, 두 가지만 기억하세요.",
+    "병원비 아끼는 꿀팁을 저장해 두시고 독감 유행 전 가족들에게 공유해 주세요."
+  ],
+  "cards": []
+}
