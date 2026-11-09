@@ -98,6 +98,17 @@ jobs:
           python -m bot.naver_blog "$GITHUB_WORKSPACE/video/videos/$VIDEO_ID" \
             --record "$GITHUB_WORKSPACE/records/records/$VIDEO_ID.json"
 
+      # 네이버 클립(슈퍼아빠): PC 앱에서 클립도 고른 경우만. 블로그와 같은 Uplika 키·같은 네이버 로그인(VIDEO_NAVER_BLOG_ID)의 클립 계정으로 올린다.
+      - name: 네이버 클립 (Uplika)
+        if: always() && env.VIDEO_SHA != ''
+        working-directory: video-uploader
+        env:
+          VIDEO_UPLIKA_API_KEY: ${{ secrets.VIDEO_UPLIKA_API_KEY }}
+          VIDEO_NAVER_BLOG_ID: ${{ vars.VIDEO_NAVER_BLOG_ID }}
+        run: |
+          python -m bot.naver_clip "$GITHUB_WORKSPACE/video/videos/$VIDEO_ID" \
+            --record "$GITHUB_WORKSPACE/records/records/$VIDEO_ID.json"
+
       - name: 결과 저장
         if: always()
         working-directory: records

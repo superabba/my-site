@@ -21,14 +21,23 @@ CLAUDE_MODELS = {
     "claude-opus-5-5": "Claude Opus 5.5 (가장 정확·비쌈, Haiku의 약 40배)",
 }
 
-# 올릴 곳. reels·threads·youtube는 봇의 cardbot.videopost, naver_blog는 bot/naver_blog.py(Uplika)가 올린다.
-PLATFORM_LABELS = {"reels": "인스타 릴스", "threads": "스레드", "youtube": "유튜브 쇼츠", "naver_blog": "네이버 블로그"}
+# 올릴 곳. reels·threads·youtube는 봇의 cardbot.videopost, naver_blog·naver_clip은 bot/naver_*.py(Uplika)가 올린다.
+PLATFORM_LABELS = {"reels": "인스타 릴스", "threads": "스레드", "youtube": "유튜브 쇼츠", "naver_blog": "네이버 블로그",
+                   "naver_clip": "네이버 클립"}
+UPLIKA_PLATFORMS = ("naver_blog", "naver_clip")  # videopost가 아니라 Uplika로 올리는 곳
 PRIVACY_LABELS = {"public": "공개", "unlisted": "일부 공개", "private": "비공개"}
 NAVER_OPEN_LABELS = {"public": "전체 공개", "neighbor": "이웃 공개", "mutual": "서로이웃 공개", "private": "비공개"}
 # 슈퍼아빠 블로그(@zeusvigor) 카테고리 (2026-10-25 Uplika에서 확인). 블로그에서 바꾸면 설정 화면에서 직접 입력
 NAVER_CATEGORIES = [
     "가족기록", "육아, 같이 성장하기", "육아정보", "나들이, 가볼만한곳", "맛집, 카페", "해외여행",
     "일상 / 유용한 정보", "운동일지", "나팔꽃 키우기", "코딩", "시작",
+]
+
+# 네이버 클립 카테고리 (Uplika가 알려 주는 이름 그대로, 2026-11-09 슈퍼아빠 클립 계정 기준 중 자주 쓰는 것)
+NAVER_CLIP_CATEGORIES = [
+    "라이프스타일 › 가족", "라이프스타일 › 육아, 결혼", "일상기록 › 사진", "일상기록 › 생각", "여행 › 국내여행",
+    "플레이스 › 국내 명소", "플레이스 › 맛집", "아웃도어, 운동 › 근력운동", "동물 › 반려동물", "유머",
+    "교육 › 자기계발, 취미레슨", "테크 › 인터넷, AI", "경제 › 재테크",
 ]
 
 DEFAULT_SETTINGS = {
@@ -41,7 +50,7 @@ DEFAULT_SETTINGS = {
     "github_token": "",
     # 업로드 기본값
     "default_hashtags": "",
-    "default_platforms": ["reels", "threads", "youtube", "naver_blog"],
+    "default_platforms": ["reels", "threads", "youtube", "naver_blog", "naver_clip"],
     "yt_privacy": "public",
     # 네이버 블로그 (슈퍼아빠, Uplika로 발행)
     "naver_category": "가족기록",
@@ -49,6 +58,9 @@ DEFAULT_SETTINGS = {
     "naver_photo_count": 4,  # AI 없이 쓸 때 영상에서 고르게 뽑을 사진 수 (AI 초안은 영상 길이에 맞게 고름)
     "naver_include_video": True,  # 글에 영상도 넣기
     "naver_web_search": True,  # AI 초안을 쓸 때 주제 관련 정보를 웹에서 찾아 보강
+    # 네이버 클립 (같은 슈퍼아빠 네이버 로그인, Uplika로 발행)
+    "naver_clip_category": "라이프스타일 › 가족",
+    "naver_clip_visibility": "public",
 }
 
 
@@ -133,17 +145,19 @@ def status_from_record(record: dict) -> tuple[str, dict]:
         else:
             results[name] = "실패: " + record.get("errors", {}).get(name, "알 수 없는 오류")
             failed.append(name)
-    blog = record.get("naver_blog")
-    if blog:  # 네이버 블로그는 bot/naver_blog.py가 따로 기록한다
-        names.append("naver_blog")
-        if blog.get("status") == "published":
-            results["naver_blog"] = blog.get("permalink") or "발행됨"
-        elif blog.get("status") == "failed":
-            results["naver_blog"] = "실패: " + (blog.get("error") or "알 수 없는 오류")
-            failed.append("naver_blog")
+    for name, where in (("naver_blog", "블로그"), ("naver_clip", "클립")):
+        item = record.get(name)  # 네이버 글·클립은 bot/naver_blog.py·naver_clip.py가 따로 기록한다
+        if not item:
+            continue
+        names.append(name)
+        if item.get("status") == "published":
+            results[name] = item.get("permalink") or "발행됨"
+        elif item.get("status") == "failed":
+            results[name] = "실패: " + (item.get("error") or "알 수 없는 오류")
+            failed.append(name)
         else:
-            results["naver_blog"] = ("Uplika에 전달됨 — PC의 Edge(Uplika 확장)가 켜져 있으면 곧 블로그에 올라갑니다"
-                                     " (Uplika 대시보드에서 확인)")
+            results[name] = (f"Uplika에 전달됨 — PC의 Edge(Uplika 확장)가 켜져 있으면 곧 {where}에 올라갑니다"
+                             " (Uplika 대시보드에서 확인)")
     if not failed:
         return "완료", results
     if len(failed) == len(names):

@@ -35,7 +35,7 @@ else:
     st.dataframe(
         rows,
         hide_index=True,
-        column_order=["time", "status", "title", "reels", "threads", "youtube", "naver_blog", "run_url"],
+        column_order=["time", "status", "title", "reels", "threads", "youtube", "naver_blog", "naver_clip", "run_url"],
         column_config={
             "time": st.column_config.TextColumn("시각"),
             "status": st.column_config.TextColumn("상태"),
@@ -44,6 +44,7 @@ else:
             "threads": st.column_config.TextColumn(PLATFORM_LABELS["threads"]),
             "youtube": st.column_config.TextColumn(PLATFORM_LABELS["youtube"]),
             "naver_blog": st.column_config.TextColumn(PLATFORM_LABELS["naver_blog"]),
+            "naver_clip": st.column_config.TextColumn(PLATFORM_LABELS["naver_clip"]),
             "run_url": st.column_config.LinkColumn("실행 기록", display_text="열기"),
         },
     )

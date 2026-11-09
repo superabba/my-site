@@ -1,7 +1,7 @@
 import streamlit as st
 
 from core import accounts, analyzer, config, transcribe
-from core.config import NAVER_CATEGORIES, NAVER_OPEN_LABELS, PLATFORM_LABELS, PRIVACY_LABELS
+from core.config import NAVER_CATEGORIES, NAVER_CLIP_CATEGORIES, NAVER_OPEN_LABELS, PLATFORM_LABELS, PRIVACY_LABELS
 from core.github_bot import GitHubBot, GitHubError, repo_problem, token_problem
 
 settings = config.load_settings()
@@ -188,15 +188,23 @@ with st.container(border=True):
         open_type = st.segmented_control("기본 공개 범위", list(NAVER_OPEN_LABELS), format_func=NAVER_OPEN_LABELS.get,
                                          default=settings["naver_open_type"], required=True)
         web_search = st.toggle("AI 초안을 쓸 때 주제 관련 정보를 웹에서 찾아 보강", value=bool(settings["naver_web_search"]),
-                               help="장소·행사·방법 같은 정보를 찾아 글에 넣고 맨 끝에 출처를 답니다. 1~2분 더 걸립니다.")
+                               help="장소·행사·방법 같은 정보를 찾아 글에 넣고 1~2분 더 걸립니다.")
         include_video = st.toggle("글에 영상도 넣기", value=bool(settings["naver_include_video"]))
+        clip_cats = NAVER_CLIP_CATEGORIES if settings["naver_clip_category"] in NAVER_CLIP_CATEGORIES             else [settings["naver_clip_category"], *NAVER_CLIP_CATEGORIES]
+        clip_category = st.selectbox("네이버 클립 기본 카테고리", clip_cats,
+                                     index=clip_cats.index(settings["naver_clip_category"]),
+                                     help="클립은 카테고리가 꼭 필요합니다. 같은 네이버 로그인(zeusvigor)에 연결된 클립 계정으로 올라갑니다.")
+        clip_visibility = st.segmented_control("네이버 클립 기본 공개 범위", ["public", "private"],
+                                               format_func={"public": "공개", "private": "비공개"}.get,
+                                               default=settings["naver_clip_visibility"], required=True)
         photo_count = st.number_input("AI 없이 쓸 때 사진 수 (영상에서 고르게 뽑음)", min_value=0, max_value=10,
                                       value=int(settings["naver_photo_count"]),
                                       help="AI 초안은 영상 길이에 맞게 직접 고릅니다 (짧으면 2~4장, 길면 더).")
         if st.form_submit_button("저장", icon=":material/save:"):
             save(naver_category=custom.strip() or category, naver_open_type=open_type,
                  naver_photo_count=int(photo_count), naver_include_video=include_video,
-                 naver_web_search=web_search)
+                 naver_web_search=web_search, naver_clip_category=clip_category,
+                 naver_clip_visibility=clip_visibility)
             st.toast("저장했습니다.", icon=":material/check:")
 
 

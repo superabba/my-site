@@ -60,7 +60,7 @@ BLOG_SYSTEM = """너는 네이버 블로그 '슈퍼아빠'의 글을 쓰는 아�
 1. 도입: 우리 가족이 영상 속에서 한 일을 짧게 (영상·사진에 실제로 보이는 것과 메모에 있는 것만).
 2. 본문: '## '로 시작하는 소제목 2~5개. 우리 경험과 함께, 주어진 자료에 있는 주제 관련 정보(장소·행사·방법·팁 등)를 풀어 쓴다.
 3. 마무리: 느낀 점과 추천 한두 문장.
-4. 자료를 썼다면 맨 끝에 '참고한 자료' 소제목과 출처 링크 목록.
+본문 끝에 '참고한 자료'나 출처 링크 목록은 쓰지 않는다. URL도 본문에 넣지 않는다.
 말투는 다정한 존댓말(~했어요), 길이는 공백 포함 1,200~2,500자. 본문에 해시태그와 이모지 남용은 하지 않는다.
 
 사실 규칙: 가족·장소·사람에 대한 구체적인 사실은 영상·자막·메모에 있는 것만 쓴다.
@@ -306,8 +306,23 @@ def blog_photo_range(duration: float) -> tuple[int, int]:
     return 5, 10
 
 
+REFERENCE_HEADING = re.compile(r"^\s*(?:#{1,6}\s*)?[*_]*\s*(?:참고|출처)\s*(?:한\s*)?(?:자료|문헌|링크|사이트)?\s*[*_]*\s*:?\s*$")
+REFERENCE_ITEM = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s*$|https?://")  # 링크가 든 줄, 또는 링크가 다음 줄로 넘어간 글머리표
+
+
+def strip_references(body: str) -> str:
+    """본문 맨 끝의 '참고한 자료' 소제목과 출처 링크 목록을 뺀다 (링크 목록일 때만 — 글 내용은 자르지 않는다)."""
+    lines = body.splitlines()
+    for i, line in enumerate(lines):
+        if REFERENCE_HEADING.match(line):
+            rest = [x for x in lines[i + 1:] if x.strip()]
+            if all(REFERENCE_ITEM.search(x) for x in rest):
+                return "\n".join(lines[:i]).rstrip()
+    return body
+
+
 def tidy_blog(result: dict, duration: float, photo_max: int, include_video: bool) -> dict:
-    """AI 결과 정리: 사진 시점을 영상 안으로, 사진 수 상한, 없는 사진·중복 자리는 본문에서 뺀다."""
+    """AI 결과 정리: 사진 시점을 영상 안으로, 사진 수 상한, 없는 사진·중복 자리는 본문에서 뺀다. 참고 자료 목록은 뺀다."""
     photos = []
     for p in result.get("photos") or []:
         try:
@@ -319,7 +334,7 @@ def tidy_blog(result: dict, duration: float, photo_max: int, include_video: bool
     photos = photos[:photo_max]
 
     lines, seen_photos, seen_video = [], set(), False
-    for line in (result.get("body") or "").splitlines():
+    for line in strip_references(result.get("body") or "").splitlines():
         if m := PHOTO_LINE.match(line):
             n = int(m.group(1))
             if not 1 <= n <= len(photos) or n in seen_photos:
