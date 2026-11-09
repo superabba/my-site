@@ -6,11 +6,13 @@ from pathlib import Path
 import streamlit as st
 
 from core import analyzer, config, media, transcribe
-from core.config import NAVER_CATEGORIES, NAVER_OPEN_LABELS, PLATFORM_LABELS, PRIVACY_LABELS
+from core.config import (NAVER_CATEGORIES, NAVER_CLIP_CATEGORIES, NAVER_OPEN_LABELS, PLATFORM_LABELS,
+                         PRIVACY_LABELS, UPLIKA_PLATFORMS)
 from core.github_bot import GitHubBot, GitHubError, new_video_id, token_problem
 
 settings = config.load_settings()
 PLATFORMS = list(PLATFORM_LABELS)
+PRIVACY_LABELS_CLIP = {"public": "공개", "private": "비공개"}
 BLOG_VIDEO_LINE = re.compile(r"^\s*\[영상\]\s*$", re.MULTILINE)
 BLOG_PHOTO_LINE = re.compile(r"^\s*\[사진\s*(\d+)\]\s*$", re.MULTILINE)
 
@@ -25,6 +27,12 @@ def parse_hashtags(text: str) -> list[str]:
             seen.add(tag.lower())
             tags.append(tag)
     return tags
+
+
+def clip_preview(description: str, tags: list[str]) -> tuple[str, list[str]]:
+    """봇(bot/naver_clip.py)이 클립에 실제로 올리는 설명·태그. 300자와 태그 5개에 맞춰 줄인다."""
+    from bot.naver_clip import clip_text
+    return clip_text(description, tags)
 
 
 def tag_line(tags: list[str], limit: int | None = None) -> str:
@@ -193,6 +201,9 @@ def run_publish(video: dict, targets: list[str], post: dict) -> None:
                 names.setdefault(meta_name, files["meta"])
                 post_files["meta"] = meta_name
             post["files"] = post_files
+            clip = post.get("naver_clip")
+            if clip:
+                clip["video"] = post_files["youtube"]  # 클립은 원본 화질 영상 (봇이 Uplika에 올린다)
             if blog:
                 # 글에 넣을 사진은 영상에서 뽑고, 영상은 원본 화질 파일을 같이 쓴다 (봇이 Uplika에 올린다)
                 step.write("블로그 사진 뽑는 중…")
@@ -450,7 +461,23 @@ with st.container(border=True):
         st.caption(":material/info: 네이버 글은 Uplika(superabba)로 보내져 이 PC의 Edge(Uplika 확장)가 대신 씁니다. "
                    "Edge가 꺼져 있으면 켤 때 올라갑니다.")
 
+    clip_category, clip_visibility = settings["naver_clip_category"], settings["naver_clip_visibility"]
+    if "naver_clip" in targets:
+        clip_categories = NAVER_CLIP_CATEGORIES if clip_category in NAVER_CLIP_CATEGORIES             else [clip_category, *NAVER_CLIP_CATEGORIES]
+        with st.container(horizontal=True):
+            clip_category = st.selectbox("클립 카테고리", clip_categories, index=clip_categories.index(clip_category),
+                                         key="clip_category")
+            clip_visibility = st.segmented_control(
+                "클립 공개 범위", list(PRIVACY_LABELS_CLIP), format_func=PRIVACY_LABELS_CLIP.get,
+                default=clip_visibility if clip_visibility in PRIVACY_LABELS_CLIP else "public",
+                required=True, key="clip_visibility",
+            )
+        st.caption(":material/info: 네이버 클립도 Uplika로 보내져 이 PC의 Edge(Uplika 확장)가 올립니다. "
+                   "설명은 인스타 캡션을 쓰고(300자 이내, 해시태그는 5개까지) 영상은 원본 화질입니다.")
+
     tags = parse_hashtags(st.session_state.hashtags)
+    clip_description = (st.session_state.ig_caption.strip() or st.session_state.yt_desc.strip()
+                        or st.session_state.yt_title.strip())
     ig_full = f"{st.session_state.ig_caption.strip()}\n\n{tag_line(tags, 30)}".strip()
     threads_final = (st.session_state.threads_text.strip() or st.session_state.ig_caption.strip())[:500]
 
@@ -474,6 +501,8 @@ with st.container(border=True):
             st.caption("인스타그램은 해시태그를 30개까지만 허용해서 앞의 30개만 올립니다.")
     if "threads" in targets and not threads_final:
         problems.append("스레드 글(또는 인스타 캡션)을 입력해 주세요.")
+    if "naver_clip" in targets and not clip_description:
+        problems.append("네이버 클립 설명으로 쓸 내용이 없습니다. 인스타 캡션(또는 유튜브 설명·제목)을 입력해 주세요.")
     if "naver_blog" in targets:
         if not st.session_state.blog_title.strip():
             problems.append("네이버 블로그 제목을 입력해 주세요 ('2. 게시 내용'의 네이버 블로그 글).")
@@ -494,6 +523,10 @@ with st.container(border=True):
             if "threads" in targets:
                 st.markdown("**스레드**")
                 st.text(threads_final)
+            if "naver_clip" in targets:
+                st.markdown(f"**네이버 클립** · {clip_category} · {PRIVACY_LABELS_CLIP.get(clip_visibility, clip_visibility)}")
+                clip_text_preview, clip_tags_preview = clip_preview(clip_description, tags)
+                st.text(f"{clip_text_preview}\n\n{tag_line(clip_tags_preview)}".strip())
             if "naver_blog" in targets:
                 st.markdown(f"**네이버 블로그** · {blog_category} · {NAVER_OPEN_LABELS.get(blog_open, blog_open)}")
                 blog_tags_preview = tag_line(parse_hashtags(st.session_state.blog_tags))
@@ -518,11 +551,18 @@ with st.container(border=True):
             "instagram_caption": st.session_state.ig_caption.strip(),
             "threads_text": threads_final,
             "hashtags": tags,
-            # naver_blog는 봇의 videopost가 아니라 bot/naver_blog.py가 아래 naver_blog 항목으로 올린다
-            "platforms": [t for t in targets if t != "naver_blog"],
+            # 네이버 블로그·클립은 봇의 videopost가 아니라 bot/naver_blog.py·naver_clip.py가 아래 항목으로 올린다
+            "platforms": [t for t in targets if t not in UPLIKA_PLATFORMS],
             "youtube_privacy": privacy,
             "source_name": video["info"].path.name,
         }
+        if "naver_clip" in targets:
+            post["naver_clip"] = {
+                "description": clip_description,
+                "tags": tags[:5],
+                "category": clip_category,
+                "visibility": clip_visibility,
+            }
         if "naver_blog" in targets:
             post["naver_blog"] = {
                 "title": st.session_state.blog_title.strip()[:100],

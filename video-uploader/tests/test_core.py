@@ -352,6 +352,45 @@ def test_status_from_record_includes_naver_blog():
     assert config.status_from_record(only_blog)[0] == "실패"
 
 
+def test_status_from_record_includes_naver_clip():
+    base = {"platforms": ["reels"], "posts": {"reels": {"media_id": "1"}}, "errors": {}}
+    state, results = config.status_from_record({**base, "naver_clip": {"status": "published", "permalink": "https://clip/1"}})
+    assert state == "완료" and results["naver_clip"] == "https://clip/1"
+    state, results = config.status_from_record({**base, "naver_clip": {"status": "queued"}})
+    assert results["naver_clip"].startswith("Uplika에 전달됨") and "클립" in results["naver_clip"]
+    state, results = config.status_from_record({**base, "naver_clip": {"status": "failed", "error": "프로필 없음"}})
+    assert state == "일부 실패" and results["naver_clip"] == "실패: 프로필 없음"
+
+
+def test_upload_sends_naver_clip_with_original_video(tmp_path, monkeypatch):
+    from streamlit.testing.v1 import AppTest
+
+    import core.github_bot as github_bot
+
+    dirs = use_tmp_data_dirs(monkeypatch, tmp_path)
+    config.save_settings({**config.DEFAULT_SETTINGS, "github_token": "github_pat_x", "github_repo": "o/r",
+                          "default_platforms": ["naver_clip"]})
+    monkeypatch.setattr(github_bot, "GitHubBot", BlogFakeBot)
+    working_copy = make_video(dirs["VIDEO_DIR"] / "clip.mp4", seconds=4)
+
+    at = AppTest.from_file(str(APP_DIR / "app_pages" / "upload.py"), default_timeout=120)
+    at.session_state["video"] = {"file_id": "f3", "key": "clip.mp4:10", "info": media.probe(working_copy)}
+    at.session_state["ig_caption"] = "아이들과 축제 다녀왔어요 #나들이"
+    at.session_state["hashtags"] = "#가족 #축제"
+    at.run()
+    next(b for b in at.button if b.label == "업로드 시작").click()
+    at.run()
+
+    assert not at.exception
+    bot = BlogFakeBot.instances[-1]
+    assert bot.post["platforms"] == []  # 네이버 클립은 videopost가 아니라 bot/naver_clip.py가 올린다
+    clip = bot.post["naver_clip"]
+    assert clip["video"] == "video.mp4" and clip["category"] == "라이프스타일 › 가족"
+    assert clip["visibility"] == "public" and clip["tags"] == ["가족", "축제"]
+    assert clip["description"] == "아이들과 축제 다녀왔어요 #나들이"
+    assert bot.files == ["video.mp4"]
+
+
 def test_extract_blog_photos(tmp_path):
     info = media.probe(make_video(tmp_path / "v.mp4", size="1080x1920", seconds=4))
     photos = media.extract_blog_photos(info, tmp_path / "work", [0.5, 2.0, 3.5])

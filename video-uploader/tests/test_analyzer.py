@@ -49,6 +49,18 @@ def test_tidy_blog_keeps_photos_in_video_and_cleans_body():
     assert "[영상]" not in analyzer.tidy_blog(raw, 30.0, 2, include_video=False)["body"]
 
 
+def test_tidy_blog_drops_trailing_reference_list():
+    body = "도입\n\n## 정보\n본문 [참고] 아님\n\n참고한 자료\n\n- https://a.io/q/1\n- https://b.kr/2\n-\nhttps://c.kr/%EA%B0%80\n"
+    out = analyzer.tidy_blog({"title": "t", "body": body, "tags": [], "photos": []}, 10.0, 2, False)
+    assert out["body"] == "도입\n\n## 정보\n본문 [참고] 아님"
+    heading = "마무리\n\n## 참고한 자료\n1. [사이트](https://a.io/1)\n2. https://b.kr"
+    assert analyzer.strip_references(heading) == "마무리"
+    # 링크 목록이 아니라 글이 이어지면 자르지 않는다
+    prose = "참고\n\n이어지는 문단입니다."
+    assert analyzer.strip_references(prose) == prose
+    assert "'참고한 자료'" not in analyzer.BLOG_SYSTEM.replace("'참고한 자료'나 출처 링크 목록은 쓰지 않는다", "")
+
+
 def test_research_continues_after_pause_turn(monkeypatch):
     messages = fake_client(monkeypatch, [
         SimpleNamespace(stop_reason="pause_turn", content=[text_block("찾는 중")]),

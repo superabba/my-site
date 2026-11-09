@@ -195,7 +195,7 @@ def extract_blog_photos(info: VideoInfo, out_dir: Path, times: list[float], pref
 def prepare_upload_files(info: VideoInfo, platforms: list[str], work_dir: Path,
                          progress_cb: Callable[[str, float], None] | None = None,
                          need_full_video: bool = False) -> dict[str, Path]:
-    """봇에 보낼 파일을 만든다. 반환: {"meta": 인스타·스레드용, "youtube": 유튜브·블로그용 원본 화질} (필요한 것만).
+    """봇에 보낼 파일을 만든다. 반환: {"meta": 인스타·스레드용, "youtube": 유튜브·네이버 클립·블로그용 원본 화질} (필요한 것만).
 
     need_full_video: 유튜브를 고르지 않아도 원본 화질 영상이 필요할 때 (네이버 블로그 글에 영상을 넣을 때).
     원본이 이미 조건(MP4, 크기)에 맞으면 다시 인코딩하지 않는다. 두 용도가 같은 파일이면 하나만 올라간다.
@@ -207,7 +207,7 @@ def prepare_upload_files(info: VideoInfo, platforms: list[str], work_dir: Path,
     files: dict[str, Path] = {}
     is_mp4 = info.path.suffix.lower() == ".mp4"
 
-    if "youtube" in platforms or need_full_video:
+    if "youtube" in platforms or "naver_clip" in platforms or need_full_video:
         if info.size_bytes <= YOUTUBE_MAX_BYTES:
             files["youtube"] = info.path
         else:
