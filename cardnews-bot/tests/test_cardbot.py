@@ -1186,6 +1186,53 @@ def test_plan_reel_replaces_llm_choice_that_is_avoided():
 def test_store_recent_reel_styles_dedupes_and_orders(tmp_path):
     store = Store(tmp_path / "cardbot.db")
     assert store.recent_reel_styles(2) == []
-    for s in ["caption-news", "chalkboard", "chalkboard", "swiss-motion"]:
-        store.add_reel_style(s, "f")
+    for i, s in enumerate(["caption-news", "chalkboard", "chalkboard", "swiss-motion"]):
+        store.add_reel_style(s, f"f{i}")
     assert store.recent_reel_styles(2) == ["swiss-motion", "chalkboard"]
+
+
+def test_reel_styles_rotate_even_if_llm_always_picks_the_same(tmp_path, monkeypatch):
+    """LLM이 매번 같은 스타일을 고르려 해도, 파이프라인을 거치면 어떤 연속 3편도 서로 달라진다."""
+    from cardbot import lemoreel
+
+    class StubWriter:
+        def _parse(self, system, user, schema):
+            n = user.count("\n") + 1
+            return lemoreel.ReelPlan(style="caption-news", reason="x", card_mid="a", card_last="b",
+                                     lines=[lemoreel.NarrationLine(slide=i + 1, text="내레이션입니다.") for i in range(12)])
+
+    def fake_make_reel(card, topic, folder, writer, fonts_dir, handle="@economypub", *, style="", avoid=(), **kw):
+        plan = lemoreel.plan_reel(writer, topic, card, forced_style=style, avoid=avoid)
+        return folder / "reel.mp4", folder / "reel_cover.jpg", {"style": plan.style, "label": plan.style}
+
+    monkeypatch.setattr(lemoreel, "make_reel", fake_make_reel)
+    s = Settings.load()
+    s.data_dir = tmp_path
+    s.reels_style = "auto"
+    pipe = Pipeline(s, writer=StubWriter(), store=Store(tmp_path / "cardbot.db"))
+    topic = TopicIdea(title="새 제도 시행", keyword="k", angle="a", hook="h", why_now="w", score=1, risk="")
+    used = []
+    for i in range(9):
+        folder = tmp_path / f"d{i}"
+        folder.mkdir()
+        (folder / "card.json").write_text(sample_card().model_dump_json(), encoding="utf-8")
+        (folder / "topic.json").write_text(topic.model_dump_json(), encoding="utf-8")
+        pipe.make_styled_reel(folder)
+        used.append(pipe.store.recent_reel_styles(1)[0])
+    assert all(len(set(used[i:i + 3])) == 3 for i in range(len(used) - 2)), used
+    assert len(set(used)) >= 3
+
+
+def test_store_reel_style_rerun_of_same_folder_counts_once(tmp_path):
+    store = Store(tmp_path / "cardbot.db")
+    store.add_reel_style("chalkboard", "d1")
+    store.add_reel_style("swiss-motion", "d1")  # 같은 초안을 다시 만듦
+    assert store.recent_reel_styles(3) == ["swiss-motion"]
+
+
+def test_store_recent_reel_styles_can_exclude_a_folder(tmp_path):
+    store = Store(tmp_path / "cardbot.db")
+    store.add_reel_style("caption-news", "d1")
+    store.add_reel_style("chalkboard", "d2")
+    assert store.recent_reel_styles(2) == ["chalkboard", "caption-news"]
+    assert store.recent_reel_styles(2, exclude_folder="d2") == ["caption-news"]  # d2를 다시 만들 때

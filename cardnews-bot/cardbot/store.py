@@ -44,16 +44,20 @@ class Store:
         self.db.commit()
 
     def add_reel_style(self, style: str, folder: str) -> None:
+        # 같은 초안의 릴스를 다시 만들면 이전 기록을 바꿔 한 편으로만 센다
+        if folder:
+            self.db.execute("DELETE FROM reel_styles WHERE folder = ?", (folder,))
         self.db.execute(
             "INSERT INTO reel_styles (created_at, style, folder) VALUES (?,?,?)",
             (datetime.now().isoformat(timespec="seconds"), style, folder),
         )
         self.db.commit()
 
-    def recent_reel_styles(self, n: int = 2) -> list[str]:
-        """최근 릴스 스타일을 최신순으로 중복 없이 n개 돌려준다 (같은 스타일이 연달아 나온 것은 한 번만 센다)."""
+    def recent_reel_styles(self, n: int = 2, exclude_folder: str = "") -> list[str]:
+        """최근 릴스 스타일을 최신순으로 중복 없이 n개 돌려준다 (같은 스타일이 연달아 나온 것은 한 번만 센다).
+        exclude_folder: 그 초안의 기록은 뺀다 (같은 초안의 릴스를 다시 만들 때, 자기 자신은 피하지 않게)."""
         out: list[str] = []
-        for r in self.db.execute("SELECT style FROM reel_styles ORDER BY id DESC"):
+        for r in self.db.execute("SELECT style FROM reel_styles WHERE folder IS NOT ? ORDER BY id DESC", (exclude_folder or None,)):
             if r["style"] not in out:
                 out.append(r["style"])
             if len(out) >= n:

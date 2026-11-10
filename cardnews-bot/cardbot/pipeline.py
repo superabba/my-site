@@ -93,7 +93,9 @@ class Pipeline:
         topic = TopicIdea.model_validate_json((folder / "topic.json").read_text(encoding="utf-8"))
         forced = style or (self.s.reels_style if self.s.reels_style != "auto" else "")
         # 직전 두 편과 다른 스타일을 쓴다 (골고루 돌아가도록). 스타일을 직접 고정했으면 그대로 따른다.
-        avoid = () if forced else tuple(self.store.recent_reel_styles(lemoreel.RECENT_WINDOW))
+        # 알 수 없는 이름(오타 등)은 고정으로 치지 않는다. 같은 초안을 다시 만들 때는 그 초안의 기록을 빼고 센다.
+        avoid = () if forced in lemoreel.STYLES else tuple(
+            self.store.recent_reel_styles(lemoreel.RECENT_WINDOW, exclude_folder=folder.name))
         video, _, info = lemoreel.make_reel(
             card, topic, folder, self.writer, self.s.fonts_dir, self.s.brand_handle or "@economypub",
             style=forced, voice=self.s.reels_voice, rate=self.s.reels_voice_rate, fps=self.s.reels_fps,
