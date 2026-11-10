@@ -20,6 +20,12 @@ CREATE TABLE IF NOT EXISTS posts (
     metrics TEXT DEFAULT '{}',
     metrics_at TEXT
 );
+CREATE TABLE IF NOT EXISTS reel_styles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    style TEXT NOT NULL,
+    folder TEXT
+);
 """
 
 
@@ -36,6 +42,23 @@ class Store:
             (datetime.now().isoformat(timespec="seconds"), topic, keyword, platform, media_id, permalink, folder),
         )
         self.db.commit()
+
+    def add_reel_style(self, style: str, folder: str) -> None:
+        self.db.execute(
+            "INSERT INTO reel_styles (created_at, style, folder) VALUES (?,?,?)",
+            (datetime.now().isoformat(timespec="seconds"), style, folder),
+        )
+        self.db.commit()
+
+    def recent_reel_styles(self, n: int = 2) -> list[str]:
+        """최근 릴스 스타일을 최신순으로 중복 없이 n개 돌려준다 (같은 스타일이 연달아 나온 것은 한 번만 센다)."""
+        out: list[str] = []
+        for r in self.db.execute("SELECT style FROM reel_styles ORDER BY id DESC"):
+            if r["style"] not in out:
+                out.append(r["style"])
+            if len(out) >= n:
+                break
+        return out
 
     def recent_topics(self, days: int = 14) -> list[str]:
         since = (datetime.now() - timedelta(days=days)).isoformat()

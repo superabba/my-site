@@ -1149,3 +1149,43 @@ def test_synthesize_replaces_empty_voice_and_rate(monkeypatch, tmp_path):
     monkeypatch.setenv("REELS_FAKE_TTS", "1")
     out = lemoreel.synthesize(["테스트 문장입니다"], tmp_path, voice="", rate="")
     assert len(out) == 1 and len(out[0]) > 0
+
+
+# ----- 릴스 스타일을 골고루 쓰기 -----
+
+def test_heuristic_style_skips_avoided_styles():
+    from cardbot import lemoreel
+    topic = TopicIdea(title="신청 방법 총정리", keyword="신청", angle="절차", hook="h", why_now="w", score=1, risk="")
+    card = sample_card()
+    # 키워드상 칠판 수업(방법·신청·총정리)이 이기지만, 직전에 썼으면 다른 스타일이 나와야 한다
+    assert lemoreel.heuristic_style(topic, card) == "chalkboard"
+    assert lemoreel.heuristic_style(topic, card, avoid=("chalkboard",)) != "chalkboard"
+    # 키워드가 하나도 안 맞으면 기본 스타일, 그 기본이 피하는 스타일이면 다른 것
+    plain = TopicIdea(title="zzz", keyword="zzz", angle="zzz", hook="zzz", why_now="w", score=1, risk="")
+    empty = sample_card().model_copy(update={"slides": [Slide(kind="cover", heading="zzz", body="zzz", highlight="")] * 3})
+    assert lemoreel.heuristic_style(plain, empty) == lemoreel.DEFAULT_STYLE
+    assert lemoreel.heuristic_style(plain, empty, avoid=(lemoreel.DEFAULT_STYLE,)) != lemoreel.DEFAULT_STYLE
+
+
+def test_plan_reel_replaces_llm_choice_that_is_avoided():
+    from cardbot import lemoreel
+    topic = TopicIdea(title="신청 방법 총정리", keyword="신청", angle="절차", hook="h", why_now="w", score=1, risk="")
+    card = sample_card()
+
+    class StubWriter:
+        def _parse(self, system, user, schema):
+            if schema is lemoreel.ReelPlan:  # LLM이 직전 스타일을 또 고른 경우
+                return lemoreel.ReelPlan(style="chalkboard", reason="x",
+                                         lines=[lemoreel.NarrationLine(slide=i + 1, text="내레이션입니다.") for i in range(len(card.slides))])
+            raise AssertionError("unexpected schema")
+
+    plan = lemoreel.plan_reel(StubWriter(), topic, card, avoid=("chalkboard", "swiss-motion"))
+    assert plan.style not in ("chalkboard", "swiss-motion")
+
+
+def test_store_recent_reel_styles_dedupes_and_orders(tmp_path):
+    store = Store(tmp_path / "cardbot.db")
+    assert store.recent_reel_styles(2) == []
+    for s in ["caption-news", "chalkboard", "chalkboard", "swiss-motion"]:
+        store.add_reel_style(s, "f")
+    assert store.recent_reel_styles(2) == ["swiss-motion", "chalkboard"]

@@ -92,10 +92,14 @@ class Pipeline:
         card = card or CardNews.model_validate_json((folder / "card.json").read_text(encoding="utf-8"))
         topic = TopicIdea.model_validate_json((folder / "topic.json").read_text(encoding="utf-8"))
         forced = style or (self.s.reels_style if self.s.reels_style != "auto" else "")
+        # 직전 두 편과 다른 스타일을 쓴다 (골고루 돌아가도록). 스타일을 직접 고정했으면 그대로 따른다.
+        avoid = () if forced else tuple(self.store.recent_reel_styles(lemoreel.RECENT_WINDOW))
         video, _, info = lemoreel.make_reel(
             card, topic, folder, self.writer, self.s.fonts_dir, self.s.brand_handle or "@economypub",
             style=forced, voice=self.s.reels_voice, rate=self.s.reels_voice_rate, fps=self.s.reels_fps,
+            avoid=avoid,
         )
+        self.store.add_reel_style(info["style"], folder.name)
         (folder / "reel_error.txt").unlink(missing_ok=True)
         log.info("릴스 스타일: %s", info["label"])
         return video

@@ -86,12 +86,19 @@ DEFAULT_STYLE = "caption-news"
 BEAT = 60.0 / 120  # 120BPM의 한 박 = 0.5초
 
 
-def heuristic_style(topic: TopicIdea, card: CardNews) -> str:
-    """LLM 없이 제목·본문의 단어로 고른다. 같으면 앞쪽 스타일."""
+# 직전 몇 편의 스타일을 피한다. 2편이면 어떤 연속 3편도 모두 다른 스타일이 된다 (스타일 4개 기준).
+RECENT_WINDOW = 2
+
+
+def heuristic_style(topic: TopicIdea, card: CardNews, avoid: tuple[str, ...] | list[str] = ()) -> str:
+    """LLM 없이 제목·본문의 단어로 고른다. avoid에 든 스타일은 후보에서 뺀다. 같으면 앞쪽 스타일."""
+    candidates = [n for n in STYLES if n not in avoid] or list(STYLES)
     text = " ".join([topic.title, topic.angle, topic.hook] + [f"{s.heading} {s.body}" for s in card.slides])
-    scores = {n: sum(text.count(w) for w in st.keywords) for n, st in STYLES.items()}
+    scores = {n: sum(text.count(w) for w in STYLES[n].keywords) for n in candidates}
     best = max(scores, key=scores.get)
-    return best if scores[best] else DEFAULT_STYLE
+    if scores[best]:
+        return best
+    return DEFAULT_STYLE if DEFAULT_STYLE in candidates else candidates[0]
 
 
 # ---------- 컷 구성 ----------
@@ -161,9 +168,10 @@ def _describe(shots: list[Slide]) -> str:
     )
 
 
-def plan_reel(writer, topic: TopicIdea, card: CardNews, forced_style: str = "") -> ReelPlan:
-    """스타일과 내레이션을 정한다. LLM이 실패하면 규칙으로 대신한다."""
-    catalog = "\n".join(f"- {st.name} ({st.label}): {st.when}" for st in STYLES.values())
+def plan_reel(writer, topic: TopicIdea, card: CardNews, forced_style: str = "", avoid: tuple[str, ...] | list[str] = ()) -> ReelPlan:
+    """스타일과 내레이션을 정한다. LLM이 실패하면 규칙으로 대신한다. avoid의 스타일은 (지정이 없으면) 쓰지 않는다."""
+    allowed = [st for st in STYLES.values() if st.name not in avoid] or list(STYLES.values())
+    catalog = "\n".join(f"- {st.name} ({st.label}): {st.when}" for st in allowed)
     head = f"""## 주제
 제목: {topic.title}
 관점: {topic.angle}
@@ -176,6 +184,8 @@ def plan_reel(writer, topic: TopicIdea, card: CardNews, forced_style: str = "") 
         else:
             user = f"## 고를 수 있는 스타일\n{catalog}\n\n{head}\n## 슬라이드 ({len(card.slides)}장)\n{_describe(card.slides)}"
             plan = _clean_plan(writer._parse(PLAN_SYSTEM, user, ReelPlan), card.slides)
+            if plan.style in avoid:  # 직전 영상과 겹치면 규칙으로 다시 고른다
+                raise ValueError(f"최근에 쓴 스타일입니다: {plan.style}")
         style = STYLES[plan.style]
         shots = shots_for(style, card)
         # 컷이 슬라이드와 다르면(비트 스타일) 그 컷 기준으로 내레이션을 새로 쓴다. 지정한 스타일이면 처음 쓰는 것이다
@@ -188,9 +198,9 @@ def plan_reel(writer, topic: TopicIdea, card: CardNews, forced_style: str = "") 
             plan = _clean_plan(plan, shots)
     except Exception as e:  # LLM 오류가 영상 제작을 막지 않게 한다
         log.warning("릴스 내레이션 작성 실패, 규칙으로 대신합니다: %s", e)
-        plan = fallback_plan(topic, card, forced_style)
+        plan = fallback_plan(topic, card, forced_style, avoid)
     if forced_style in STYLES and plan.style != forced_style:
-        plan = fallback_plan(topic, card, forced_style)
+        plan = fallback_plan(topic, card, forced_style, avoid)
     return plan
 
 
@@ -216,8 +226,8 @@ def _fallback_line(sl) -> str:
     return _tidy(". ".join(p for p in parts if p))[:90]
 
 
-def fallback_plan(topic: TopicIdea, card: CardNews, forced_style: str = "") -> ReelPlan:
-    style = forced_style if forced_style in STYLES else heuristic_style(topic, card)
+def fallback_plan(topic: TopicIdea, card: CardNews, forced_style: str = "", avoid: tuple[str, ...] | list[str] = ()) -> ReelPlan:
+    style = forced_style if forced_style in STYLES else heuristic_style(topic, card, avoid)
     shots = shots_for(STYLES[style], card)
     lines = [NarrationLine(slide=i, text=_fallback_line(sl)) for i, sl in enumerate(shots, 1)]
     return ReelPlan(style=style, reason="규칙으로 선택", lines=lines, card_mid="그런데 말이죠", card_last="그래서 결론은?")
@@ -740,9 +750,10 @@ def fit_timeline(st: Style, shots: list[Slide], plan: ReelPlan, topic: TopicIdea
 
 def make_reel(card: CardNews, topic: TopicIdea, folder: Path, writer, fonts_dir: Path, handle: str = "@economypub",
               *, style: str = "", voice: str = DEFAULT_VOICE, rate: str = "+0%", fps: int = 30,
-              workers: int | None = None, keep_job: bool = False, max_seconds: float = MAX_SECONDS) -> tuple[Path, Path, dict]:
+              workers: int | None = None, keep_job: bool = False, max_seconds: float = MAX_SECONDS,
+              avoid: tuple[str, ...] | list[str] = ()) -> tuple[Path, Path, dict]:
     """(릴스 영상, 커버 이미지, 계획 정보)를 만든다. 실패하면 예외를 던진다 (부르는 쪽이 예전 방식으로 대신한다)."""
-    plan = plan_reel(writer, topic, card, forced_style=style)
+    plan = plan_reel(writer, topic, card, forced_style=style, avoid=avoid)
     st = STYLES[plan.style]
     fps = st.fps or fps
     shots = shots_for(st, card)
