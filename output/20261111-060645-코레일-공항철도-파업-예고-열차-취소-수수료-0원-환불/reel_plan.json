@@ -1,0 +1,23 @@
+{
+  "style": "caption-news",
+  "label": "뉴스 캡션",
+  "reason": "연말 철도 파업이라는 속보성 이슈와 함께 수수료 전액 환불, 대체 교통편 이용 요령 등 즉각적인 행동 지침을 전달하는 뉴스 캡션 형식이 가장 효과적이기 때문입니다.",
+  "duration": 38.95597916666666,
+  "fps": 30,
+  "rate": "+0%",
+  "music": {
+    "mood": "warm",
+    "track": "warm/jason-shaw-running-waters.m4a",
+    "credit": "🎵 RUNNING WATERS - Jason Shaw (CC BY 3.0, 편집) http://freemusicarchive.org/music/Jason_Shaw/Audionautix_Acoustic/RUNNING_WATERS______________2-46"
+  },
+  "narration": [
+    "철도 파업 소식에 기차표를 그냥 취소하면 위약금을 낼 수 있어요.",
+    "공항철도는 십삼일 감축 운행하고 코레일은 십이월 십일부터 멈춰 섭니다.",
+    "운행 중지 열차는 전액 자동 환불되니 공지 전 미리 취소하지 마세요.",
+    "장거리 이동은 대체 수단인 에스알티와 고속버스 환승을 활용하세요.",
+    "공항철도 일반열차와 광역버스는 케이패스 환급으로 교통비를 아껴요.",
+    "사전 취소 방지와 대체편 선점으로 혼란 속 교통비를 지키세요.",
+    "기차 예매해 둔 지인에게 공유하고 유용한 교통 정보를 받아보세요."
+  ],
+  "cards": []
+}
