@@ -1,0 +1,43 @@
+{
+  "id": "20261111-234556-7ad112d3",
+  "created_at": "2026-11-11T14:46:54",
+  "title": "큰아들이 카메라 앞에서 전하는 한마디",
+  "platforms": [
+    "reels",
+    "youtube",
+    "threads"
+  ],
+  "posts": {
+    "reels": {
+      "media_id": "17986195401104058",
+      "permalink": "https://www.instagram.com/reel/DfmuvkgjGIg/"
+    },
+    "youtube": {
+      "media_id": "vbE-YnwctOs",
+      "permalink": "https://youtube.com/shorts/vbE-YnwctOs"
+    },
+    "threads": {
+      "media_id": "18103885358536600",
+      "permalink": "https://www.threads.com/@super_abba_/post/Dfmu3YxNkBV"
+    }
+  },
+  "errors": {},
+  "updated_at": "2026-11-11T14:50:13",
+  "naver_blog": {
+    "title": "큰아들이 카메라 앞에서 전하는 한마디",
+    "blog": "zeusvigor",
+    "post_id": "post_de48f7a10637cc8e",
+    "note": "네이버 확장은 켜져 있는데 저장된 네이버 로그인을 쓸 수 없습니다. 업리카 대시보드의 연결 화면에서 [로그인 창 열기] 를 누르고 열린 창에서 로그인하면 이어서 나갑니다. 연결 화면 주소: https://uplika.com/dashboard/connections?workspace=superabba",
+    "status": "published",
+    "permalink": "https://blog.naver.com/zeusvigor/224473602175",
+    "error": ""
+  },
+  "naver_clip": {
+    "account": "스노우볼23",
+    "post_id": "post_66199d888ebd4f10",
+    "note": "네이버 확장은 켜져 있는데 저장된 네이버 로그인을 쓸 수 없습니다. 업리카 대시보드의 연결 화면에서 [로그인 창 열기] 를 누르고 열린 창에서 로그인하면 이어서 나갑니다. 연결 화면 주소: https://uplika.com/dashboard/connections?workspace=superabba",
+    "status": "failed",
+    "permalink": "",
+    "error": "The Naver Clip Creators window moved off the upload page to /web/draft while the video was uploading, so it was not registered. A half-uploaded video may be left in the drafts of your Naver Clip Creators content list. Send it again (retry_post) and leave that window alone until it closes by itself. [clip path=/web/draft dialog=- vis=hidden reqs=5 seen=/studio/webapi/upload/vod/custom-presets/hdr,/studio/webapi/upload/vod/token,/studio/webapi/upload/vod/video-id,/warp/<n>/upload/v4/<id>/sessions,/warp/<n>/upload/v5/files/<id>/additional-info bytes=17470091 waited=2.2s] [cmd=clip_upload; tab alive, status=complete, url=clipcreators.naver.com/web/draft?v=0815DA1CBF565F0C349E2ECF5D9B3F7F1D90, frozen=false, discarded=false, active=true, win=normal; trail: +0s → clipcreators.naver.com/web/upload · +2s reload · +8s → clipcreators.naver.com/web/draft?v=0815DA1CBF565F0C349E2ECF5D9B3F7F1D90 · +9s reload]"
+  }
+}
