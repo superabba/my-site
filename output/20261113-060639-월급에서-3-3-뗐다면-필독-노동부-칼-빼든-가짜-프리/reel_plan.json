@@ -1,0 +1,23 @@
+{
+  "style": "chalkboard",
+  "label": "칠판 수업",
+  "reason": "가짜 프리랜서 여부를 판별하는 기준과 미지급 수당을 돌려받는 절차를 단계별로 차근차근 짚어 주는 실전 가이드이므로 차분하고 신뢰감을 주는 칠판 수업 스타일이 가장 적합합니다.",
+  "duration": 45.38831249999999,
+  "fps": 30,
+  "rate": "+0%",
+  "music": {
+    "mood": "warm",
+    "track": "warm/josh-woodward-once-tomorrow-instrumental-version.m4a",
+    "credit": "🎵 Once Tomorrow (Instrumental Version) - Josh Woodward (CC BY 3.0, 편집) http://freemusicarchive.org/music/Josh_Woodward/Breadcrumbs/JoshWoodward-Breadcrumbs-NoVox-09-OnceTomorrow"
+  },
+  "narration": [
+    "월급에서 삼 점 삼 퍼센트만 뗐다면 못 받은 주휴수당과 퇴직금이 수백만 원일 수 있습니다.",
+    "노동부가 직원처럼 일시키고 사업소득세만 떼는 가짜 프리랜서 관행에 칼을 빼들었습니다.",
+    "포기 각서를 썼어도 정해진 시간과 장소에서 지시를 받았다면 법적으로 당당한 근로자입니다.",
+    "주 십오 시간 이상 일했다면 주휴수당 대상이며, 임금 청구 시효는 최근 삼 년까지입니다.",
+    "기존에 낸 세금은 오 년 치 환급이 가능하지만 보험료 정산도 따져봐야 합니다.",
+    "업무 지시 메신저와 출퇴근 기록 같은 명확한 증거부터 차근차근 모아두세요.",
+    "놓치기 쉬운 내 권리를 위해 이 영상을 저장하고 공유해 두세요."
+  ],
+  "cards": []
+}
