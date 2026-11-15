@@ -8,18 +8,23 @@ on:
     # GitHub 예약은 몇 시간씩 늦거나 빠지므로 예비로 하나만 둔다 (UTC 기준, KST = UTC+9).
     # auto는 오늘(KST) 이미 게시했거나 KST 15~23시가 아니면 건너뛰어 중복·새벽 게시가 없다.
     - cron: "5 10 * * *" # KST 19:05 (예비)
+    - cron: "30 4 * * *" # KST 13:30 트렌드 신호 저장 (CONTENT_SOURCE=routine 일 때만. 루틴이 주제를 고를 때 읽는다)
+  push:
+    # CONTENT_SOURCE=routine: Claude 루틴이 원고를 claude/ 브랜치의 cardnews-bot/content/ 에 올리면 초안(이미지·릴스·블로그 파일)으로 만든다
+    branches: ["claude/**"]
+    paths: ["cardnews-bot/content/**"]
   workflow_dispatch:
     inputs:
       action:
-        description: "draft=초안만 / publish-now=추천→제작→바로 게시 / publish-draft=검토한 초안 게시 / blog=초안의 블로그 글 다시 만들기 / reel=초안의 릴스를 스타일 영상(내레이션 포함)으로 다시 만들기(게시 안 함) / auto=예약 실행과 같음(하루 1번) / insights=게시물 성과(조회수) 갱신·표시"
+        description: "draft=초안만 / publish-now=추천→제작→바로 게시 / publish-draft=검토한 초안 게시 / blog=초안의 블로그 글 다시 만들기 / reel=초안의 릴스를 스타일 영상(내레이션 포함)으로 다시 만들기(게시 안 함) / auto=예약 실행과 같음(하루 1번) / ingest=루틴이 올린 원고(cardnews-bot/content/)를 초안으로 만들기(folder 비우면 전체) / signals=트렌드 신호 저장(루틴 방식) / insights=게시물 성과(조회수) 갱신·표시"
         type: choice
         default: draft
-        options: [draft, publish-now, publish-draft, blog, reel, auto, insights]
+        options: [draft, publish-now, publish-draft, blog, reel, auto, ingest, signals, insights]
       topic:
         description: "(draft) 직접 정할 주제. 비우면 트렌드 추천 1순위"
         required: false
       folder:
-        description: "(publish-draft, blog, reel) 초안 폴더 이름. reel은 비우면 가장 최근 초안"
+        description: "(publish-draft, blog, reel) 초안 폴더 이름. reel은 비우면 가장 최근 초안. (ingest) cardnews-bot/content/ 안의 원고 폴더 이름"
         required: false
       style:
         description: "(reel) 스타일: auto(주제에 맞게) | caption-news | chalkboard | swiss-motion"
@@ -47,8 +52,9 @@ jobs:
       REVIEW_DIR: ${{ github.workspace }}/review
 
       # --- Secrets (Settings → Secrets and variables → Actions → Secrets) ---
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      # CONTENT_SOURCE=routine 이면 LLM API 키를 이 실행에 넘기지 않는다 (API 없이 돌아가는 것을 보장)
+      ANTHROPIC_API_KEY: ${{ vars.CONTENT_SOURCE != 'routine' && secrets.ANTHROPIC_API_KEY || '' }}
+      GEMINI_API_KEY: ${{ vars.CONTENT_SOURCE != 'routine' && secrets.GEMINI_API_KEY || '' }}
       IG_USER_ID: ${{ secrets.IG_USER_ID }}
       IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
       THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
@@ -63,6 +69,7 @@ jobs:
       # --- Variables (같은 화면의 Variables 탭, 비우면 기본값) ---
       AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH }} # 'true'면 예약 실행 때 바로 게시
       PLATFORMS: ${{ vars.PLATFORMS }} # 기본 instagram,reels,threads
+      CONTENT_SOURCE: ${{ vars.CONTENT_SOURCE }} # 기본 api(LLM이 원고를 씀). routine=Claude 루틴이 content/ 에 올린 원고 사용(LLM API 없음)
       LLM_PROVIDER: ${{ vars.LLM_PROVIDER }} # claude(기본) | gemini
       GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
       WEB_SEARCH: ${{ vars.WEB_SEARCH }}
@@ -166,7 +173,7 @@ jobs:
 
       - name: 카드뉴스 실행
         env:
-          ACTION: ${{ github.event_name == 'schedule' && 'auto' || inputs.action }}
+          ACTION: ${{ github.event_name == 'push' && 'ingest' || (github.event_name == 'schedule' && (github.event.schedule == '30 4 * * *' && 'signals' || 'auto') || inputs.action) }}
           TOPIC: ${{ inputs.topic }}
           FOLDER: ${{ inputs.folder }}
           STYLE: ${{ inputs.style }}
@@ -189,6 +196,8 @@ jobs:
               if [ -z "$FOLDER" ]; then echo "::error::초안 폴더가 없습니다"; exit 1; fi
               echo "릴스를 다시 만들 초안: $FOLDER"; echo "REEL_FOLDER=$FOLDER" >> "$GITHUB_ENV"
               REELS_ENGINE=lemo python -m cardbot reel "$CARDBOT_OUTPUT_DIR/$(basename "$FOLDER")" --style "${STYLE:-auto}" ;;
+            ingest)        python -m cardbot ingest ${FOLDER:+"content/$(basename "$FOLDER")"} ;; # 루틴이 올린 원고 → 초안 (게시는 auto 가 한다). folder 를 비우면 content/ 전체
+            signals)       python -m cardbot signals ;; # CONTENT_SOURCE=routine 일 때만 data/signals.json 저장
             insights)      python -m cardbot insights ;; # 조회수 갱신 → 실행 요약에 성과 표
             *) echo "::error::알 수 없는 action: $ACTION"; exit 1 ;;
           esac
@@ -206,6 +215,11 @@ jobs:
             sleep $((i * 5))
           done
           echo "::error::상태 브랜치 푸시 실패"; exit 1
+
+      - name: 원고 브랜치 정리 (초안으로 만든 뒤 claude/ 브랜치는 지운다)
+        if: success() && github.event_name == 'push'
+        working-directory: .
+        run: git push origin --delete "$GITHUB_REF_NAME" || true
 
       - name: 실행 요약
         if: always()

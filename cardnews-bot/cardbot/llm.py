@@ -8,7 +8,10 @@ import os
 from datetime import datetime
 from typing import Literal, TypeVar
 
-import anthropic
+try:
+    import anthropic
+except ImportError:  # 루틴 방식(CONTENT_SOURCE=routine)은 LLM 라이브러리 없이 돌아간다
+    anthropic = None  # type: ignore[assignment]
 from pydantic import BaseModel
 
 from .trends import TrendSignal
