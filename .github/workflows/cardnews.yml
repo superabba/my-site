@@ -12,7 +12,7 @@ on:
   push:
     # CONTENT_SOURCE=routine: Claude 루틴이 원고를 claude/ 브랜치의 cardnews-bot/content/ 에 올리면 초안(이미지·릴스·블로그 파일)으로 만든다
     branches: ["claude/**"]
-    paths: ["cardnews-bot/content/**"]
+    paths: ["cardnews-bot/content/**", "!cardnews-bot/content/.gitkeep"]
   workflow_dispatch:
     inputs:
       action:
@@ -216,10 +216,17 @@ jobs:
           done
           echo "::error::상태 브랜치 푸시 실패"; exit 1
 
-      - name: 원고 브랜치 정리 (초안으로 만든 뒤 claude/ 브랜치는 지운다)
+      - name: 원고 브랜치 정리 (이번 실행에서 새 초안을 만들었을 때만 claude/ 브랜치를 지운다)
         if: success() && github.event_name == 'push'
         working-directory: .
-        run: git push origin --delete "$GITHUB_REF_NAME" || true
+        run: |
+          ls state/output | sort > "$RUNNER_TEMP/after.txt"
+          sort "$RUNNER_TEMP/before.txt" > "$RUNNER_TEMP/before.sorted.txt"
+          if [ -n "$(comm -13 "$RUNNER_TEMP/before.sorted.txt" "$RUNNER_TEMP/after.txt")" ]; then
+            git push origin --delete "$GITHUB_REF_NAME" || true
+          else
+            echo "새 초안이 없어 브랜치를 남겨 둡니다 (원고가 없거나 이미 초안으로 만든 원고)"
+          fi
 
       - name: 실행 요약
         if: always()
