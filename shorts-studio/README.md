@@ -172,7 +172,7 @@ requirements-bot.txt  매일 자동(GitHub Actions)용 설치 목록
 | ④ 07:20 | 네이버 루틴 (기존) | `shorts-records` 의 `blog/<영상ID>/` 로 블로그·클립 게시 |
 
 영상은 기존 엔진(목소리·단어별 자막·배경음악·장면 전환·안전 영역)에 `econ-video-studio` 의 두 가지를 합친 것입니다.
-- **사진** (`shorts/econ/photos.py`): 루틴이 쓴 영어 `image_prompt` 로 무료 FLUX(Pollinations, 키 없음)에 요청 → 3번 재시도 → 실패하면 `assets/econ_fallback/` 의 주제별 사진(바로 앞 장면과 같은 사진은 피함). 가로 사진은 흐린 배경 위에 원본을 얹어 세로 화면을 채움.
+- **사진** (`shorts/econ/photos.py`): 루틴이 쓴 영어 `image_prompt` 로 무료 FLUX(Pollinations, 키 없음)에 요청 → 3번 재시도 → 실패하면 `assets/econ_fallback/` 의 주제별 사진. 사진 이름은 `번호_주제묶음_설명.jpg`(예: `17_price_grocery_cart_daylight.jpg`)이고, 묶음(price·rate·realestate·tax·pension·consumption·jobs·fx·stock·tech·export·loan·energy·summary)마다 키워드가 있어 대본에 맞는 묶음에서 고릅니다. 한 영상 안에서는 같은 사진을 피하고, 대본이 다르면 시작 위치가 달라 날마다 다른 사진이 나옵니다. 새 묶음 사진은 이름 규칙만 맞춰 폴더에 넣으면 자동으로 쓰이고, 새 묶음 자체는 `shorts/econ/photos.py` 의 `GROUPS` 에 키워드를 추가해야 합니다. 번호 01~15 는 예전 이름이라 `LEGACY_GROUP` 으로 묶음을 정합니다. 가로 사진은 흐린 배경 위에 원본을 얹어 세로 화면을 채움.
 - **인포그래픽 카드** (`shorts/econ/charts.py`): 게이지·비교·일정·단계·요약·수치 6종. 루틴이 장면마다 `chart` 를 직접 지정하므로 렌더러가 대본에서 숫자를 추정하지 않음.
 - 무료 FLUX 가 402·403·429 로 막히면(GitHub 서버에서는 자주 있음) 그 영상에서는 즉시 FLUX 를 그만 쓰고 대체 사진으로 넘어갑니다. 저장소 변수 `SHORTS_FLUX=off` 로 처음부터 건너뛸 수도 있습니다 (기본 on).
 - AI 가 그린 사진이 들어가므로 `youtube_synthetic` (AI 합성 표시)이 켜집니다.
