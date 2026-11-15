@@ -1,0 +1,195 @@
+{
+ "theme": "경제 뉴스 쉽게 풀기",
+ "topic": {
+  "topic": "10월 물가 2.8%, 내렸는데 체감은 왜 그대로?",
+  "keyword": "10월 소비자물가",
+  "angle": "둔화는 오름세가 느려진 것이지 가격 하락이 아니다",
+  "why": "11월 3일 발표된 10월 소비자물가 동향"
+ },
+ "title": "물가 2.8% 둔화, 체감은 왜 그대로?",
+ "mood": "calm",
+ "caption": "10월 소비자물가 2.8%, 오름세는 느려졌지만 가격이 내린 건 아니에요. 숫자 읽는 법을 정리했어요.",
+ "hashtags": [
+  "소비자물가",
+  "물가",
+  "근원물가",
+  "경제뉴스",
+  "경제주막"
+ ],
+ "visual_style": "cinematic documentary photograph, soft teal and warm amber lighting, shallow depth of field",
+ "scenes": [
+  {
+   "narration": "물가 2.8퍼센트, 내려갔다는데 왜 장보기는 여전히 부담일까요?",
+   "headline": "물가는 내렸다는데",
+   "keywords": "grocery prices",
+   "image_prompt": "A shopper holding a basket in a quiet supermarket vegetable aisle, soft warm light, wide shot without people faces",
+   "chart": null
+  },
+  {
+   "narration": "10월 소비자물가는 1년 전보다 2.8퍼센트 올라, 전달 2.9퍼센트보다 0.1포인트 낮아졌어요.",
+   "headline": "10월 물가 2.8%",
+   "keywords": "consumer prices",
+   "image_prompt": "A simple calendar page and a small shopping cart on a wooden table, soft daylight, minimal composition",
+   "chart": {
+    "type": "compare",
+    "badge": "전년 동월 대비 물가",
+    "bars": [
+     {
+      "name": "9월",
+      "value": 2.9,
+      "display": "2.9%"
+     },
+     {
+      "name": "10월",
+      "value": 2.8,
+      "display": "2.8%"
+     }
+    ]
+   }
+  },
+  {
+   "narration": "채소 값이 전달보다 11퍼센트 넘게 내린 덕이 컸어요.",
+   "headline": "채소값이 끌어내렸다",
+   "keywords": "vegetables price",
+   "image_prompt": "Fresh green vegetables piled in crates at a market, bright natural light, close view of produce",
+   "chart": null
+  },
+  {
+   "narration": "하지만 기름값은 올랐고, 식품과 에너지를 뺀 근원물가도 2.8퍼센트예요.",
+   "headline": "기름값·근원물가는 그대로",
+   "keywords": "fuel price",
+   "image_prompt": "A gas station pump at dusk with warm amber glow, empty street, cinematic mood",
+   "chart": {
+    "type": "stat",
+    "badge": "10월 물가 속사정",
+    "left_label": "채소류",
+    "left": "전월보다 하락",
+    "right_label": "근원물가",
+    "right": "2.8% 상승"
+   }
+  },
+  {
+   "narration": "그래서 장바구니는 가벼워져도 교통비와 생활비는 부담이 남아요.",
+   "headline": "체감은 따로 논다",
+   "keywords": "living cost",
+   "image_prompt": "A worn leather wallet and a few coins beside a household bill on a desk, moody teal lighting",
+   "chart": null
+  },
+  {
+   "narration": "물가는 오름세가 느려진 것이지, 가격이 내려간 게 아니에요.",
+   "headline": "느려졌을 뿐 내린 건 아냐",
+   "keywords": "slowing inflation",
+   "image_prompt": "A line of arrows on a road slowing down toward a gentle slope, minimal flat scene, soft colors",
+   "chart": {
+    "type": "impact",
+    "badge": "물가 읽는 법",
+    "steps": [
+     {
+      "desc": "상승률 하락"
+     },
+     {
+      "desc": "오름세만 둔화"
+     },
+     {
+      "desc": "가격은 그대로 높음"
+     }
+    ]
+   }
+  },
+  {
+   "narration": "저장해 두고 다음 물가 발표 때 비교해 보세요.",
+   "headline": "저장하고 비교하세요",
+   "keywords": "save and compare",
+   "image_prompt": "A notebook with a pen and a smartphone on a clean desk, morning light, calm atmosphere",
+   "chart": null
+  }
+ ],
+ "facts": "국가데이터처 '2026년 10월 소비자물가동향'(2026년 11월 3일 발표, korea.kr 부처 브리핑): 소비자물가지수 120.73, 전년동월대비 2.8% 상승, 전월 2.9%보다 0.1%p 낮아짐. 전월대비 0.2% 상승. 식료품 및 에너지 제외지수는 전월대비 0.4%, 전년동월대비 2.8% 상승. 채소류는 작황 호조와 출하 증가로 전월대비 11.2% 하락. 식품 이외 품목 상승은 주로 석유류 가격 상승 때문. 언론 보도(뉴스토마토 '10월 물가 2.8% 상승…채솟값 뚝·기름값 쑥', 아이뉴스24 근원물가 2.8% 보도)도 같은 수치를 전함. 수치는 모두 2026년 10월 기준이며 정확한 내용은 국가데이터처 공식 발표를 확인해야 한다.",
+ "sources": [
+  "https://www.korea.kr/briefing/policyBriefingView.do?newsId=156787698",
+  "https://newstomato.com/ReadNews.aspx?no=1319021",
+  "https://www.inews24.com/view/2021841"
+ ],
+ "blog": {
+  "titles": [
+   "10월 소비자물가 2.8%, 내렸는데 왜 체감은 그대로일까",
+   "소비자물가 2.8% 둔화, 물가 숫자 쉽게 읽는 법",
+   "10월 물가 2.8% 상승률 뜻과 근원물가 2.8% 의미",
+   "채솟값은 내렸는데 장보기 부담은 왜 그대로일까"
+  ],
+  "main_keyword": "10월 소비자물가",
+  "sub_keywords": [
+   "소비자물가 상승률",
+   "근원물가",
+   "물가 읽는 법",
+   "채소 가격"
+  ],
+  "meta_description": "10월 소비자물가 2.8%, 전달보다 0.1%p 낮아졌지만 체감 물가는 왜 그대로일까요? 근원물가와 채소·기름값까지 쉽게 풀었습니다.",
+  "intro": "10월 소비자물가 상승률이 2.8퍼센트로 전달보다 낮아졌다는 뉴스가 나왔습니다. 그런데 장을 보거나 주유소에 가면 별로 달라진 게 없다고 느끼는 분이 많습니다. 이 글에서는 10월 소비자물가 숫자가 무엇을 뜻하는지, 왜 체감과 어긋나는지 차근차근 풀어 보겠습니다.",
+  "sections": [
+   {
+    "heading": "10월 소비자물가, 숫자부터 확인하기",
+    "body": "10월 소비자물가는 전년 같은 달보다 2.8퍼센트 올랐습니다. 국가데이터처가 11월 3일 발표한 '2026년 10월 소비자물가동향'에 따르면 전월 상승률 2.9퍼센트보다 0.1퍼센트포인트 낮아졌고, 지수는 120.73입니다. 전월과 비교하면 0.2퍼센트 올랐습니다. 숫자만 보면 물가가 한풀 꺾인 것처럼 보이지만, 여기서 말하는 2.8퍼센트는 '1년 전보다 이만큼 비싸다'는 뜻입니다. 올랐던 가격이 다시 내려갔다는 뜻이 아니라, 오르는 속도가 아주 조금 느려졌다는 뜻이지요.",
+    "image": "scene_02.jpg",
+    "experience_hint": "최근 한 달 동안 직접 느낀 장바구니 물가를 한 문장으로 덧붙여 보세요."
+   },
+   {
+    "heading": "채솟값이 물가를 끌어내렸어요",
+    "body": "이번 둔화를 이끈 것은 채소입니다. 발표에 따르면 채소류는 작황이 좋고 출하가 늘면서 전월보다 11.2퍼센트 내렸습니다. 날씨가 도와 많이 수확되면 시장에 물량이 늘고 가격이 떨어지는데, 이런 효과는 일시적일 수 있습니다. 다음 달 날씨나 작황이 달라지면 가격이 다시 오를 수도 있어서, 한 달 숫자만 보고 안심하기는 이릅니다.",
+    "image": "scene_03.jpg",
+    "experience_hint": "요즘 장 볼 때 가격이 내린 채소가 있었다면 직접 적어 보세요."
+   },
+   {
+    "heading": "기름값과 근원물가는 여전해요",
+    "body": "반대로 식품 이외 품목은 주로 석유류 가격이 오르면서 상승했습니다. 또 식품과 에너지를 뺀 근원물가는 전년 같은 달보다 2.8퍼센트, 전월보다 0.4퍼센트 올랐습니다. 근원물가는 날씨나 국제 유가처럼 들쭉날쭉한 항목을 빼고 물가의 기본 흐름을 보려는 지표입니다. 이 숫자가 2.8퍼센트라는 것은, 채소처럼 일시적으로 움직이는 품목을 빼도 물가의 뿌리는 여전히 오름세라는 뜻입니다.",
+    "image": "scene_04.jpg",
+    "experience_hint": "주유나 교통비 지출이 어떻게 달라졌는지 본인 경험을 적어 보세요."
+   },
+   {
+    "heading": "체감 물가가 다른 이유",
+    "body": "소비자물가는 수백 개 품목의 가격을 평균해 만듭니다. 그래서 내가 자주 사는 품목이 평균보다 많이 올랐다면 숫자와 체감이 따로 놀 수 있습니다. 또 상승률이 낮아져도 이미 오른 가격이 그대로 유지되면 지출 부담은 줄지 않습니다. 가계 입장에서는 가격의 변화율보다 매달 나가는 돈의 총액이 더 크게 느껴지기 마련입니다.",
+    "image": "scene_05.jpg",
+    "experience_hint": "가계부를 쓰고 있다면 지난달과 이번 달 식비를 비교해 적어 보세요."
+   },
+   {
+    "heading": "물가 뉴스, 이렇게 읽으세요",
+    "body": "첫째, 상승률은 '1년 전 대비'인지 '전월 대비'인지 먼저 확인하세요. 둘째, 헤드라인 물가와 근원물가를 함께 보면 일시적 요인과 기본 흐름을 나눠 볼 수 있습니다. 셋째, 내가 자주 쓰는 품목의 가격은 따로 기록해 두면 좋습니다. 이 글은 투자나 상품 권유가 아니라 통계를 이해하기 위한 정보이며, 자세한 내용은 국가데이터처 공식 발표에서 확인하시기 바랍니다.",
+    "image": "scene_06.jpg",
+    "experience_hint": "자주 사는 품목 3가지를 정해 가격을 기록해 보겠다는 계획을 덧붙여 보세요."
+   }
+  ],
+  "faq": [
+   {
+    "question": "소비자물가 2.8%는 가격이 2.8% 내렸다는 뜻인가요?",
+    "answer": "아닙니다. 1년 전보다 2.8퍼센트 올랐다는 뜻이며, 전달 2.9퍼센트보다 오름 폭이 조금 줄었다는 의미입니다."
+   },
+   {
+    "question": "근원물가는 무엇인가요?",
+    "answer": "식료품과 에너지처럼 변동이 큰 품목을 뺀 지수로, 물가의 기본 흐름을 보는 데 쓰입니다. 10월 전년동월대비 2.8퍼센트 올랐습니다."
+   }
+  ],
+  "conclusion": "10월 물가 2.8퍼센트는 오름세가 조금 느려졌다는 신호이지만, 가격이 내려갔다는 뜻은 아닙니다. 숫자가 말하는 방향과 내 지갑이 느끼는 체감을 나눠서 보면 뉴스가 훨씬 쉬워집니다. 다음 물가 발표 때 오늘 글을 떠올려 비교해 보세요.",
+  "sources": [
+   "국가데이터처 2026년 10월 소비자물가동향 (korea.kr) https://www.korea.kr/briefing/policyBriefingView.do?newsId=156787698",
+   "뉴스토마토 https://newstomato.com/ReadNews.aspx?no=1319021",
+   "아이뉴스24 https://www.inews24.com/view/2021841"
+  ],
+  "tags": [
+   "소비자물가",
+   "10월물가",
+   "물가상승률",
+   "근원물가",
+   "채소가격",
+   "기름값",
+   "생활물가",
+   "경제뉴스",
+   "물가읽는법",
+   "국가데이터처",
+   "체감물가",
+   "경제공부",
+   "장바구니물가",
+   "인플레이션",
+   "경제주막"
+  ]
+ }
+}
