@@ -75,21 +75,42 @@ def test_chart_center_matches_render_constant():
 # ---------------------------------------------------------------- 사진
 
 def test_theme_not_hijacked_by_single_syllable():
-    # '확정은', '다음은' 처럼 '은' 이 들어간 문장이 금 테마로 가지 않는다
-    assert photos.theme_scores("다음은 한국은행이에요. 금통위에서 금리가 오를 수 있어요")[0][1] == "11"
-    assert photos.theme_scores("은값이 올랐어요")[0][1] == "07"
+    # '확정은', '다음은' 처럼 '은' 이 들어간 문장이 금(energy) 묶음으로 가지 않는다
+    assert photos.theme_scores("다음은 한국은행이에요. 금통위에서 금리가 오를 수 있어요")[0][1] == "rate"
+    assert photos.theme_scores("은값이 올랐어요")[0][1] == "energy"
+    assert photos.theme_scores("변동금리 대출 이자 부담")[0][1] == "loan"
 
 
-def test_fallback_avoids_consecutive_repeat():
+def test_pool_groups_cover_every_photo():
+    groups = photos.pool()
+    assert sum(len(v) for v in groups.values()) == len(list(photos.FALLBACK_DIR.glob("*.jpg")))
+    assert set(groups) <= set(photos.GROUPS)
+    assert photos.GENERIC_GROUPS[0] in groups
+    assert {"price", "rate", "tax", "pension", "jobs"} <= set(groups)   # 새로 늘린 주제도 있다
+
+
+def test_fallback_matches_topic_group():
+    f = photos.pick_fallback("연말정산 세금 환급 받는 법")
+    assert photos._group_of(f) == "tax"
+    f = photos.pick_fallback("국민연금 노후 준비")
+    assert photos._group_of(f) == "pension"
+
+
+def test_fallback_avoids_repeats_within_video_and_varies_by_text():
+    seen, prev = set(), None
+    for _ in range(6):                      # 같은 주제 문장이 연달아 나와도 다른 사진
+        f = photos.pick_fallback("물가가 올랐어요 장바구니", prev, seen)
+        assert f.name not in seen
+        seen.add(f.name)
+        prev = f.name
+    names = {photos.pick_fallback(f"물가 소식 {i}번째 이야기").name for i in range(20)}
+    assert len(names) > 1                   # 대본이 다르면 시작 위치가 달라 날마다 다른 사진
+
+
+def test_fallback_never_returns_prev_when_possible():
     a = photos.pick_fallback("환율이 올랐어요")
-    b = photos.pick_fallback("달러 강세예요", prev=a.name[:2])
-    assert a.name[:2] == "01" and b.name[:2] != "01"
-
-
-def test_fallback_prefers_unused_photos_within_one_video():
-    first = photos.pick_fallback("물가가 올랐어요")
-    second = photos.pick_fallback("장바구니 물가 부담", used={first.name[:2]})
-    assert first.name[:2] == "04" and second.name[:2] != "04"
+    b = photos.pick_fallback("환율이 올랐어요", prev=a.name)
+    assert b.name != a.name
 
 
 def test_fit_portrait_landscape_and_portrait():

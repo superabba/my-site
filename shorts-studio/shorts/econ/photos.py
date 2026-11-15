@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 import time
 import urllib.parse
 from io import BytesIO
@@ -24,24 +25,51 @@ log = logging.getLogger(__name__)
 FALLBACK_DIR = Path(__file__).resolve().parents[2] / "assets" / "econ_fallback"
 SIZE = (1080, 1920)
 
-# (키워드, 대체 사진 파일 번호) — 두 글자 이상 키워드만 쓰고, 일치한 키워드 길이의 합이 큰 주제를 고른다
-THEMES: list[tuple[list[str], str]] = [
-    (["반도체", "파운드리", "HBM", "엔비디아", "삼전", "하이닉스", "테크"], "05"),
-    (["환율", "달러", "원화", "엔화", "외환", "강달러", "원달러", "위안화", "유로"], "01"),
-    (["부동산", "아파트", "집값", "전세", "월세", "매매", "청약", "주택", "주담대", "재건축"], "02"),
-    (["수출", "무역", "관세", "항만", "컨테이너", "물류", "선박", "경상수지"], "06"),
-    (["유가", "석유", "원유", "에너지", "정유", "전력", "중동"], "08"),
-    (["금값", "금괴", "안전자산", "골드", "은값", "실버", "원자재"], "07"),
-    (["주식", "증시", "코스피", "나스닥", "월가", "폭락", "랠리", "공매도", "배당", "ETF"], "03"),
-    (["비트코인", "가상화폐", "암호화폐", "이더리움", "디지털자산"], "09"),
-    (["물가", "인플레이션", "장바구니", "식자재", "마트", "체감물가", "소비"], "04"),
-    (["확률", "전망", "예측", "컨센서스", "채권", "국채"], "14"),
-    (["연준", "파월", "FOMC", "빅스텝", "베이비스텝", "미국"], "10"),
-    (["한국은행", "금통위", "기준금리", "통화정책", "한은"], "11"),
-    (["대출", "이자", "변동금리", "고정금리", "가계부채", "영끌", "은행", "연금", "세금", "월급", "적금", "예금"], "12"),
-    (["순서로", "기억하세요", "요약", "정리", "팔로우", "저장"], "15"),
-]
-GENERIC = ["13", "14", "15"]  # 어느 주제에도 안 맞을 때
+# 대체 사진은 파일 이름 "번호_주제묶음_설명.jpg" 의 주제묶음으로 나뉜다 (예: 17_price_grocery_cart_daylight.jpg).
+# 묶음마다 키워드가 있어, 대본에서 일치한 키워드 길이의 합이 가장 큰 묶음의 사진을 고른다 (두 글자 이상만).
+GROUPS: dict[str, list[str]] = {
+    "price": ["물가", "인플레이션", "장바구니", "식자재", "마트", "체감물가", "소비자물가", "채소", "식품", "농산물", "가격"],
+    "rate": ["연준", "파월", "FOMC", "빅스텝", "베이비스텝", "한국은행", "금통위", "기준금리", "통화정책", "한은", "금리", "중앙은행"],
+    "realestate": ["부동산", "아파트", "집값", "전세", "월세", "매매", "청약", "주택", "재건축", "분양"],
+    "tax": ["세금", "연말정산", "소득세", "세액", "공제", "환급", "절세", "세무", "국세", "납세", "종합소득세", "부가세"],
+    "pension": ["연금", "퇴직", "노후", "국민연금", "연금저축", "IRP", "은퇴", "노령"],
+    "consumption": ["소비", "카드", "쇼핑", "백화점", "구독", "할인", "혜택", "외식", "카페", "결제"],
+    "jobs": ["월급", "연봉", "취업", "일자리", "고용", "실업", "직장", "임금", "최저임금", "채용", "퇴사"],
+    "fx": ["환율", "달러", "원화", "엔화", "외환", "강달러", "원달러", "위안화", "유로", "환전"],
+    "stock": ["주식", "증시", "코스피", "나스닥", "코스닥", "월가", "폭락", "랠리", "공매도", "배당", "ETF", "비트코인",
+              "가상화폐", "암호화폐", "이더리움", "디지털자산"],
+    "tech": ["반도체", "파운드리", "HBM", "엔비디아", "삼전", "하이닉스", "테크", "전기차", "배터리", "인공지능"],
+    "export": ["수출", "무역", "관세", "항만", "컨테이너", "물류", "선박", "경상수지", "조선", "해운"],
+    "loan": ["대출", "이자", "변동금리", "고정금리", "가계부채", "영끌", "은행", "적금", "예금", "저축", "주담대", "상환"],
+    "energy": ["유가", "석유", "원유", "에너지", "정유", "전력", "중동", "금값", "금괴", "안전자산", "골드", "은값", "실버",
+               "원자재", "가스", "태양광", "풍력"],
+    "summary": ["순서로", "기억하세요", "요약", "정리", "팔로우", "저장", "핵심"],
+}
+GENERIC_GROUPS = ["summary", "stock", "rate"]  # 어느 주제에도 안 맞을 때 (분위기 중립)
+# 예전 사진(01~15)은 이름에 묶음이 없어 번호로 묶음을 정한다
+LEGACY_GROUP = {1: "fx", 2: "realestate", 3: "stock", 4: "price", 5: "tech", 6: "export", 7: "energy", 8: "energy",
+                9: "stock", 10: "rate", 11: "rate", 12: "loan", 13: "summary", 14: "stock", 15: "summary"}
+_NAME = re.compile(r"^(\d+)_([a-z]+)_")
+
+
+def _group_of(path: Path) -> str | None:
+    m = _NAME.match(path.name)
+    if not m:
+        return None
+    n, token = int(m.group(1)), m.group(2)
+    if n in LEGACY_GROUP and token not in GROUPS:
+        return LEGACY_GROUP[n]
+    return token if token in GROUPS else LEGACY_GROUP.get(n)
+
+
+def pool() -> dict[str, list[Path]]:
+    """묶음별 대체 사진 (파일 이름순)."""
+    out: dict[str, list[Path]] = {}
+    for p in sorted(FALLBACK_DIR.glob("*.jpg")) if FALLBACK_DIR.is_dir() else []:
+        g = _group_of(p)
+        if g:
+            out.setdefault(g, []).append(p)
+    return out
 
 
 def fit_portrait(img: Image.Image, size: tuple[int, int] = SIZE) -> Image.Image:
@@ -58,29 +86,29 @@ def fit_portrait(img: Image.Image, size: tuple[int, int] = SIZE) -> Image.Image:
 
 
 def theme_scores(text: str) -> list[tuple[int, str]]:
+    """[(점수, 묶음 이름)] 점수 높은 순. 점수 = 일치한 키워드(두 글자 이상) 길이의 합."""
     scored = []
-    for keywords, num in THEMES:
-        s = sum(len(k) for k in keywords if len(k) >= 2 and k in text)
-        if s:
-            scored.append((s, num))
+    for group, keywords in GROUPS.items():
+        sc = sum(len(k) for k in keywords if len(k) >= 2 and k in text)
+        if sc:
+            scored.append((sc, group))
     return sorted(scored, key=lambda x: -x[0])
 
 
-def fallback_file(num: str) -> Path | None:
-    hits = sorted(FALLBACK_DIR.glob(f"{num}_*.jpg")) if FALLBACK_DIR.is_dir() else []
-    return hits[0] if hits else None
-
-
 def pick_fallback(text: str, prev: str | None = None, used: set | None = None) -> Path | None:
-    """대본 내용에 맞는 대체 사진. 이 영상에서 아직 안 쓴 사진을 먼저 고르고, 다 썼으면 바로 앞 장면(prev)과만 안 겹치게."""
-    order = [n for _, n in theme_scores(text)] + GENERIC
-    for n in order:
-        if n not in (used or set()) and n != prev and fallback_file(n):
-            return fallback_file(n)
-    for n in order:
-        if n != prev and fallback_file(n):
-            return fallback_file(n)
-    return fallback_file(order[0])
+    """대본 내용에 맞는 묶음에서 사진을 고른다. 이 영상에서 안 쓴 사진을 먼저, 묶음 안에서는 대본 해시로 시작 위치를
+    달리해 날마다 다른 사진이 나오게 한다. 다 썼으면 바로 앞 장면(prev)과만 안 겹치게. used/prev 는 파일 이름."""
+    groups = pool()
+    order = [g for _, g in theme_scores(text)] + [g for g in GENERIC_GROUPS]
+    start = int(hashlib.md5(text.encode("utf-8")).hexdigest(), 16)
+    for avoid_used in (True, False):
+        for g in order:
+            files = groups.get(g, [])
+            for k in range(len(files)):
+                f = files[(start + k) % len(files)]
+                if f.name != prev and not (avoid_used and f.name in (used or set())):
+                    return f
+    return next((f for fs in groups.values() for f in fs), None)
 
 
 class FluxUnavailable(Exception):
@@ -142,8 +170,8 @@ def prepare_media(script: dict, workdir: Path, use_flux: bool = True) -> dict:
             fb = pick_fallback(text, prev_num, used)
             if fb is not None:
                 img = fit_portrait(Image.open(fb))
-                prev_num = fb.name[:2]
-                used.add(prev_num)
+                prev_num = fb.name
+                used.add(fb.name)
                 stats["fallback"] += 1
         if img is None:
             stats["gradient"] += 1  # media 를 비워 두면 render 가 자동 그라데이션 배경을 쓴다
