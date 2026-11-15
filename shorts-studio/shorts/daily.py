@@ -304,8 +304,9 @@ def make(out: Path, records_dir: Path | None, cardnews_db: Path | None, theme_na
     script = write_script(
         api_key, model, f"{topic['topic']} — {topic['angle']}", "정보", "존댓말 (~해요)", length,
         notes=(f"경제 정보 채널 '경제주막'의 쇼츠. 오늘의 테마: {theme[0]}. "
-               "첫 장면은 질문이나 의외의 사실로 시작하고, 마지막 장면은 저장·팔로우를 권하는 한 문장으로 끝내 주세요."),
+               "마지막 장면은 저장·팔로우를 권하는 한 문장으로 끝내 주세요."),
         facts=facts,
+        hook_seed=now_kst().date().toordinal(),  # 날마다 시작 문장 유형(조건·질문·선언·경고·공감)이 돌아간다
     )
     if not script["scenes"]:
         raise WriterError("대본이 비어 있습니다.")
