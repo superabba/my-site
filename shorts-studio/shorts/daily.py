@@ -455,7 +455,7 @@ def make_from_content(content_dir: Path, out: Path, use_flux: bool = True) -> di
 
     res = render(script, opts, progress)
     res.ai_images = stats["flux"] + stats["fallback"]  # FLUX 도, 미리 만든 사진도 AI 가 그린 그림 → 합성 콘텐츠 표시
-    if stats["flux"] == 0:
+    if stats["flux"] == 0 and use_flux:
         res.warnings.append("무료 FLUX 서버에서 그림을 받지 못해 미리 만든 사진으로 대신했습니다.")
 
     def blog_step(vid: str, post: dict, video: Path) -> str:
@@ -565,7 +565,7 @@ def main(argv=None) -> int:
         (a.out).mkdir(parents=True, exist_ok=True)
         (a.out / "inbox.txt").write_text(d.name, encoding="utf-8")
         try:
-            make_from_content(d, a.out, use_flux=not a.no_flux)
+            make_from_content(d, a.out, use_flux=not a.no_flux and _env("SHORTS_FLUX", "on").lower() != "off")
         except WriterError as e:
             print(f"만들기 실패: {e}", file=sys.stderr)
             return 1

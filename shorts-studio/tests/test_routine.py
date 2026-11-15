@@ -111,6 +111,41 @@ def test_prepare_media_uses_flux_when_available(tmp_path, monkeypatch):
     assert photos.prepare_media(script, tmp_path)["flux"] == 5
 
 
+def test_flux_blocked_stops_retrying_and_skips_rest(tmp_path, monkeypatch):
+    calls = []
+
+    def blocked(*a, **k):
+        calls.append(1)
+        raise photos.FluxUnavailable("HTTP 402")
+
+    monkeypatch.setattr(photos, "fetch_flux", blocked)
+    script = {"scenes": [dict(s) for s in sample()["scenes"]], "visual_style": ""}
+    stats = photos.prepare_media(script, tmp_path)
+    assert len(calls) == 1 and stats == {"flux": 0, "fallback": 5, "gradient": 0}
+
+
+def test_fetch_flux_gives_up_on_402(monkeypatch):
+    class R:
+        status_code, content = 402, b""
+
+    n = []
+    monkeypatch.setattr(photos.requests, "get", lambda *a, **k: n.append(1) or R())
+    with pytest.raises(photos.FluxUnavailable):
+        photos.fetch_flux("x", 1)
+    assert len(n) == 1
+
+
+def test_flux_switch_off(monkeypatch, tmp_path):
+    seen = {}
+    monkeypatch.setenv("SHORTS_FLUX", "off")
+    monkeypatch.setattr(daily, "make_from_content", lambda d, out, use_flux=True: seen.update(flux=use_flux))
+    src = tmp_path / f"{daily.now_kst():%Y%m%d}-0530-x"
+    src.mkdir()
+    (src / "shorts.json").write_text("{}", encoding="utf-8")
+    daily.main(["make-routine", "--inbox", str(tmp_path), "--out", str(tmp_path / "o")])
+    assert seen["flux"] is False
+
+
 # ---------------------------------------------------------------- inbox와 영상 정리
 
 def test_inbox_pick(tmp_path):

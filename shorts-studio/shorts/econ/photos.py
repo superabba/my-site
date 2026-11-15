@@ -83,6 +83,10 @@ def pick_fallback(text: str, prev: str | None = None, used: set | None = None) -
     return fallback_file(order[0])
 
 
+class FluxUnavailable(Exception):
+    """서버가 요청 자체를 막았다 (402 결제·한도, 403, 429). 재시도해도 소용없으니 이번 영상에서는 FLUX 를 그만 쓴다."""
+
+
 def fetch_flux(prompt: str, seed: int, tries: int = 3, timeout: int = 40) -> Image.Image | None:
     enc = urllib.parse.quote(prompt)
     for k in range(tries):
@@ -95,6 +99,8 @@ def fetch_flux(prompt: str, seed: int, tries: int = 3, timeout: int = 40) -> Ima
                 if img.height > 200:
                     img = img.crop((0, 0, img.width, img.height - 48))  # 아래 워터마크 띠 제거
                 return fit_portrait(img)
+            if r.status_code in (402, 403, 429):
+                raise FluxUnavailable(f"HTTP {r.status_code}")
             log.warning("FLUX 응답 %s (시도 %d/%d)", r.status_code, k + 1, tries)
         except (requests.RequestException, OSError) as e:
             log.warning("FLUX 요청 실패 (시도 %d/%d): %s", k + 1, tries, str(e)[:120])
@@ -123,7 +129,12 @@ def prepare_media(script: dict, workdir: Path, use_flux: bool = True) -> dict:
         img = None
         if use_flux and (sc.get("image_prompt") or "").strip():
             seed = int(hashlib.md5(text.encode("utf-8")).hexdigest(), 16) % 100000
-            img = fetch_flux(scene_prompt(sc, script.get("visual_style", "")), seed)
+            try:
+                img = fetch_flux(scene_prompt(sc, script.get("visual_style", "")), seed)
+            except FluxUnavailable as e:
+                log.warning("FLUX 서버가 요청을 막아(%s) 남은 장면은 미리 만든 사진을 씁니다", e)
+                use_flux = False
+                img = None
             if img is not None:
                 stats["flux"] += 1
                 prev_num = None

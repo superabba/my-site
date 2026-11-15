@@ -115,6 +115,7 @@ jobs:
       ACTION: ${{ github.event_name == 'schedule' && 'auto' || inputs.action }}
       RECORDS_BRANCH: shorts-records
       SHORTS_SOURCE: ${{ vars.SHORTS_SOURCE || 'api' }}
+      SHORTS_FLUX: ${{ vars.SHORTS_FLUX }} # routine 방식 사진: off 면 무료 FLUX 를 건너뛰고 미리 만든 사진만 쓴다 (기본 on)
       PUBLISH_AT: ${{ vars.SHORTS_PUBLISH_AT || '07:10' }}
       SHORTS_OUTPUT_DIR: ${{ github.workspace }}/out/render
       SHORTS_CACHE_DIR: ${{ github.workspace }}/cache
