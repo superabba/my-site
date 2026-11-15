@@ -51,6 +51,9 @@ class Settings:
     niche: str = "20~40대가 관심 갖는 생활·경제·테크 정보"
     tone: str = "친근하고 명확한 존댓말"
     brand_handle: str = ""
+    # api=LLM(Claude/Gemini API)이 주제·원고를 쓴다 (기존 방식)
+    # routine=Claude 루틴이 cardnews-bot/content/ 에 써 둔 원고를 쓴다 (LLM API 없음, API 키도 넘기지 않는다)
+    content_source: str = "api"
     slides_min: int = 5
     slides_max: int = 8
     theme: str = "midnight"
@@ -122,6 +125,9 @@ class Settings:
         s.niche = _env("CARD_NICHE", s.niche)
         s.tone = _env("CARD_TONE", s.tone)
         s.brand_handle = _env("BRAND_HANDLE")
+        s.content_source = _env("CONTENT_SOURCE", s.content_source).lower()
+        if s.content_source not in ("api", "routine"):
+            raise ValueError(f"알 수 없는 CONTENT_SOURCE: {s.content_source} (api | routine)")
         s.slides_min = int(_env("SLIDES_MIN", str(s.slides_min)))
         s.slides_max = min(10, int(_env("SLIDES_MAX", str(s.slides_max))))
         s.theme = _env("CARD_THEME", s.theme)

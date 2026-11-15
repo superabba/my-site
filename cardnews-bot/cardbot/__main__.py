@@ -88,6 +88,43 @@ def cmd_reel(s, a):
     print(f"릴스 생성: {video}")
 
 
+def cmd_ingest(s, a):
+    """루틴이 올린 원고(content/)를 초안 폴더(카드 이미지·릴스·블로그 파일)로 만든다. 게시는 하지 않는다. LLM 없음."""
+    from . import content
+
+    s.content_source = "routine"  # 원고는 이미 있으니 LLM 작가는 만들지 않는다 (키가 없어도 동작)
+    p = _pipeline(s)
+    target = Path(a.path) if a.path else content.CONTENT_ROOT
+    if content.is_content_dir(target):
+        folders = [p.ingest(target)]
+    else:
+        folders = p.ingest_all(target)
+    if not folders:
+        print("새로 만들 원고가 없습니다")
+    for f in folders:
+        print(f"초안: {f}")
+
+
+def cmd_signals(s, a):
+    """트렌드 신호를 파일(data/signals.json)로 저장한다. 루틴이 주제를 고를 때 읽는다 (LLM 없음)."""
+    import json
+    from dataclasses import asdict
+
+    from . import trends
+
+    if s.content_source != "routine":
+        print("CONTENT_SOURCE=routine 일 때만 저장합니다 (건너뜀)")
+        return
+    sigs = sorted(trends.collect(s), key=lambda x: x.traffic, reverse=True)[: a.limit]
+    out = s.data_dir / "signals.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps({
+        "collected_at": datetime.now(timezone(timedelta(hours=9))).isoformat(timespec="seconds"),
+        "signals": [{**asdict(x), "line": x.to_prompt_line()} for x in sigs],
+    }, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(f"트렌드 신호 {len(sigs)}건 저장: {out}")
+
+
 def cmd_run(s, a):
     p = _pipeline(s)
     p.run_once(publish=a.publish or s.auto_publish)
@@ -176,6 +213,14 @@ def main(argv=None):
     x.add_argument("folder")
     x.add_argument("--style", default="auto", help="auto(주제에 맞게) | caption-news | chalkboard | swiss-motion")
     x.set_defaults(fn=cmd_reel)
+
+    x = sub.add_parser("ingest", help="루틴이 올린 원고(content/)를 초안으로 만든다 (CONTENT_SOURCE=routine, LLM 없음)")
+    x.add_argument("path", nargs="?", default="", help="원고 폴더 또는 그 상위 폴더 (비우면 cardnews-bot/content/ 전체)")
+    x.set_defaults(fn=cmd_ingest)
+
+    x = sub.add_parser("signals", help="트렌드 신호를 data/signals.json 으로 저장 (루틴이 읽음)")
+    x.add_argument("--limit", type=int, default=60)
+    x.set_defaults(fn=cmd_signals)
 
     x = sub.add_parser("run", help="추천→제작(→게시) 1회 실행")
     x.add_argument("--publish", action="store_true", help="실제로 게시")

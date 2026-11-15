@@ -29,14 +29,21 @@ def slugify(text: str, n: int = 30) -> str:
 class Pipeline:
     def __init__(self, settings, writer: BaseWriter | None = None, store: Store | None = None):
         self.s = settings
-        self.writer = writer or make_writer(settings)
+        # 루틴 방식(CONTENT_SOURCE=routine)에는 LLM이 없다: 원고는 Claude 루틴이 content/ 에 써 둔다
+        self.writer = writer or (None if settings.content_source == "routine" else make_writer(settings))
         self.store = store or Store(settings.data_dir / "cardbot.db")
         self.failures: list[str] = []  # 이번 실행에서 실패한 게시 (CLI 종료 코드용)
 
+    def _need_writer(self) -> BaseWriter:
+        if self.writer is None:
+            raise RuntimeError("CONTENT_SOURCE=routine 에서는 LLM이 없습니다. 원고는 Claude 루틴이 content/ 에 올립니다 (python -m cardbot ingest)")
+        return self.writer
+
     # ----- 추천 -----
     def recommend(self, n: int = 5) -> tuple[list[TopicIdea], list[trends.TrendSignal]]:
+        writer = self._need_writer()
         signals = trends.collect(self.s)
-        topics = self.writer.recommend(
+        topics = writer.recommend(
             signals, self.store.top_posts(), self.store.recent_topics(), n=n
         )
         return topics, signals
@@ -47,12 +54,13 @@ class Pipeline:
         folder.mkdir(parents=True, exist_ok=True)
         (folder / "topic.json").write_text(topic.model_dump_json(indent=2), encoding="utf-8")
 
+        writer = self._need_writer()
         log.info("자료 조사: %s", topic.title)
-        notes = self.writer.research(topic, signals)
+        notes = writer.research(topic, signals)
         (folder / "research.md").write_text(notes, encoding="utf-8")
 
         log.info("원고 작성")
-        card = self.writer.write(topic, notes)
+        card = writer.write(topic, notes)
         (folder / "card.json").write_text(card.model_dump_json(indent=2), encoding="utf-8")
         (folder / "caption.txt").write_text(instagram_caption(card), encoding="utf-8")
         (folder / "threads.txt").write_text(card.threads_text, encoding="utf-8")
@@ -96,8 +104,19 @@ class Pipeline:
         # 알 수 없는 이름(오타 등)은 고정으로 치지 않는다. 같은 초안을 다시 만들 때는 그 초안의 기록을 빼고 센다.
         avoid = () if forced in lemoreel.STYLES else tuple(
             self.store.recent_reel_styles(lemoreel.RECENT_WINDOW, exclude_folder=folder.name))
+        writer = self.writer
+        plan_file = folder / "reel.json"
+        if plan_file.exists():  # 루틴 방식: 원고에 적힌 내레이션을 그대로 쓴다 (LLM 없음)
+            from . import content as C
+
+            fixed = C.read_reel_plan(plan_file)
+            if forced not in lemoreel.STYLES:
+                forced = C.choose_style(fixed.style, avoid, topic, card)
+                avoid = ()
+            fixed.style = forced
+            writer = C.FixedWriter(fixed)
         video, _, info = lemoreel.make_reel(
-            card, topic, folder, self.writer, self.s.fonts_dir, self.s.brand_handle or "@economypub",
+            card, topic, folder, writer, self.s.fonts_dir, self.s.brand_handle or "@economypub",
             style=forced, voice=self.s.reels_voice, rate=self.s.reels_voice_rate, fps=self.s.reels_fps,
             avoid=avoid,
         )
@@ -124,7 +143,7 @@ class Pipeline:
         notes = research.read_text(encoding="utf-8") if research.exists() else ""
         images = [p.name for p in sorted(folder.glob("slide_*.jpg"))]
         log.info("블로그 글 작성: %s", topic.title)
-        save_blog(folder, self.writer.write_blog(topic, notes, card, images))
+        save_blog(folder, self._need_writer().write_blog(topic, notes, card, images))
         (folder / "blog_error.txt").unlink(missing_ok=True)
 
     def try_make_blog(self, folder: Path) -> bool:
@@ -244,7 +263,86 @@ class Pipeline:
         return n
 
     # ----- 한 사이클 -----
+    # ----- 루틴 방식: 원고(content/) → 초안 → 게시 -----
+    def ingest(self, content_dir: Path) -> Path:
+        """루틴이 올린 원고 폴더를 기존 초안 폴더(카드 이미지·릴스·블로그 파일)로 만든다. LLM을 쓰지 않는다."""
+        import shutil
+
+        from . import content as C
+        from .llm import BlogPost, normalize, normalize_blog
+
+        for d in sorted(self.s.output_dir.glob("*-*")):  # 이미 만든 원고면 그 초안을 돌려준다
+            src = d / C.SOURCE_FILE
+            if src.exists() and src.read_text(encoding="utf-8").strip() == content_dir.name:
+                log.info("이미 초안으로 만든 원고입니다: %s → %s", content_dir.name, d.name)
+                return d
+        topic = TopicIdea.model_validate_json((content_dir / "topic.json").read_text(encoding="utf-8"))
+        card = normalize(CardNews.model_validate_json((content_dir / "card.json").read_text(encoding="utf-8")),
+                         self.s.slides_min, self.s.slides_max)
+        folder = self.s.output_dir / f"{datetime.now():%Y%m%d-%H%M%S}-{slugify(topic.title)}"
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "topic.json").write_text(topic.model_dump_json(indent=2), encoding="utf-8")
+        (folder / "card.json").write_text(card.model_dump_json(indent=2), encoding="utf-8")
+        (folder / "caption.txt").write_text(instagram_caption(card), encoding="utf-8")
+        (folder / "threads.txt").write_text(card.threads_text, encoding="utf-8")
+        if (content_dir / "reel.json").exists():
+            shutil.copy2(content_dir / "reel.json", folder / "reel.json")
+        research = content_dir / "research.md"
+        (folder / "research.md").write_text(
+            research.read_text(encoding="utf-8") if research.exists() else "\n".join(f"- {u}" for u in card.sources),
+            encoding="utf-8")
+        (folder / C.SOURCE_FILE).write_text(content_dir.name, encoding="utf-8")
+
+        log.info("이미지 렌더링: %s", topic.title)
+        render_card(card, folder, self.s.fonts_dir, self.s.theme, self.s.brand_handle)
+        if self.s.reels_enabled:
+            self.try_make_reel(folder)
+        blog_file = content_dir / "blog.json"
+        if self.s.blog_enabled and blog_file.exists():
+            images = [p.name for p in sorted(folder.glob("slide_*.jpg"))]
+            save_blog(folder, normalize_blog(BlogPost.model_validate_json(blog_file.read_text(encoding="utf-8")), images))
+        return folder
+
+    def ingest_all(self, root: Path) -> list[Path]:
+        from . import content as C
+
+        return [self.ingest(d) for d in C.content_dirs(root)]
+
+    def unpublished_ingested(self, max_age_hours: int = 30) -> list[Path]:
+        """루틴 원고로 만든 초안 중 아직 다 안 올린 것 (최신순). 너무 오래된 초안은 늦게 올리지 않는다."""
+        from . import content as C
+
+        now = datetime.now()
+        out = []
+        for d in sorted(self.s.output_dir.glob("*-*"), reverse=True):
+            if not (d / C.SOURCE_FILE).exists():
+                continue
+            try:
+                made = datetime.strptime(d.name[:15], "%Y%m%d-%H%M%S")
+            except ValueError:
+                continue
+            if now - made > timedelta(hours=max_age_hours):
+                break
+            meta_path = d / "published.json"
+            posts = json.loads(meta_path.read_text(encoding="utf-8")).get("posts", {}) if meta_path.exists() else {}
+            if any(p not in posts for p in self.s.platforms):
+                out.append(d)
+        return out
+
+    def publish_ingested(self, publish: bool) -> list[Path]:
+        folders = self.unpublished_ingested()[: self.s.posts_per_run]
+        if not folders:
+            log.info("올릴 원고가 없습니다 (루틴이 아직 원고를 올리지 않았거나 이미 게시했습니다)")
+        for folder in folders:
+            if publish:
+                self.publish(folder)
+            else:
+                log.info("미리보기만 둡니다 (게시 안 함): %s", folder)
+        return folders
+
     def run_once(self, publish: bool) -> list[Path]:
+        if self.s.content_source == "routine":
+            return self.publish_ingested(publish)
         topics, signals = self.recommend(n=max(3, self.s.posts_per_run))
         folders = []
         for topic in topics[: self.s.posts_per_run]:

@@ -232,3 +232,18 @@ python -m pytest -q tests
 ```
 
 외부 API(Claude, Gemini, Google, Meta)는 테스트에서 모두 모킹되어 있어 키 없이 실행됩니다.
+
+## 루틴 방식 (LLM API 없이): `CONTENT_SOURCE=routine`
+
+주제·조사·원고·블로그 글을 LLM API 대신 **Claude 루틴**이 쓴다 (지침: `routine/write_cardnews.md`). 이미지·릴스·게시는 그대로다.
+
+```
+Actions KST 13:30   트렌드 신호를 data/signals.json 으로 저장 (python -m cardbot signals)
+루틴 KST 13:50      신호·최근 주제를 읽고 cardnews-bot/content/<폴더>/ 에 원고를 올림 (claude/ 브랜치)
+Actions (push)      python -m cardbot ingest → 초안(카드 이미지·릴스·블로그 파일) → 상태 브랜치(cardbot-data), claude/ 브랜치 삭제
+Actions KST 15:05   auto → 오늘 초안을 인스타·스레드·유튜브에 게시 (기존 네이버 루틴이 그 결과로 블로그·클립 게시)
+```
+- 켜는 법: 저장소 변수 `CONTENT_SOURCE=routine`. 끄면(지우면) 기존 API 방식으로 바로 돌아간다 (`ANTHROPIC_API_KEY`/`GEMINI_API_KEY` Secrets는 그대로 두어야 한다).
+- `routine` 이면 워크플로가 LLM API 키를 실행 환경에 넘기지 않는다 (API 없이 돌아가는 것을 보장).
+- 원고 형식 확인: `python -m cardbot.validate_content content/<폴더>` (pydantic·requests 만 필요).
+- 스타일은 직전 두 편과 다르게 자동 조정되고, 비트 스타일은 쓰지 않는다. 30시간 넘은 초안은 늦게 올리지 않는다.
