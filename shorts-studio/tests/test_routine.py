@@ -86,6 +86,12 @@ def test_fallback_avoids_consecutive_repeat():
     assert a.name[:2] == "01" and b.name[:2] != "01"
 
 
+def test_fallback_prefers_unused_photos_within_one_video():
+    first = photos.pick_fallback("물가가 올랐어요")
+    second = photos.pick_fallback("장바구니 물가 부담", used={first.name[:2]})
+    assert first.name[:2] == "04" and second.name[:2] != "04"
+
+
 def test_fit_portrait_landscape_and_portrait():
     assert photos.fit_portrait(Image.new("RGB", (1376, 768), "red")).size == (1080, 1920)
     assert photos.fit_portrait(Image.new("RGB", (768, 1344), "red")).size == (1080, 1920)
