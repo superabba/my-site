@@ -7,12 +7,23 @@
 # 정시 실행은 cron-job.org가 workflow_dispatch(action=auto)로 깨운다. 아래 GitHub 예약(KST 12:00)은 정시 깨우기가 실패했을 때만 쓰는 예비다.
 # auto는 오늘(KST) 이미 게시했거나 KST 6~12시가 아니면 건너뛰어 중복·늦은 게시가 없다.
 # 6시대에 일찍 깨워도 영상을 먼저 만들어 두고 07:10까지 기다렸다가 게시한다.
+#
+# 글쓰기 방식 스위치 — 저장소 Variables 의 SHORTS_SOURCE:
+#   api(기본)    : 기존 방식. Anthropic·Gemini API 로 조사·대본·그림을 만든다.
+#   routine      : API 를 쓰지 않는다. Claude 루틴 '쇼츠 원고 작성'(KST 05:30 권장)이 조사·대본·차트·블로그 글을 쓰고
+#                  shorts-studio/content/<날짜>-<이름>/shorts.json 을 claude/ 브랜치로 푸시하면(intake 작업)
+#                  shorts-records 브랜치의 inbox/ 에 넣어 둔다. 06시대 정시 실행이 inbox 원고를 읽어
+#                  사진(무료 FLUX → 주제별 사진)과 인포그래픽 카드로 영상을 만들고 07:10 에 게시한다.
+#                  이때 API 키 시크릿은 빈 값으로 막힌다. 되돌리려면 SHORTS_SOURCE 를 지우거나 api 로.
 name: 매일 자동 쇼츠 (경제주막)
 run-name: "매일 자동 쇼츠 ${{ inputs.action || 'auto' }}"
 
 on:
   schedule:
     - cron: "0 3 * * *" # KST 12:00 (예비 — 정시 깨우기가 실패했을 때만 실행됨. GitHub 예약은 늦어질 수 있음)
+  push:
+    branches: ["claude/**"]
+    paths: ["shorts-studio/content/**", "!shorts-studio/content/.gitkeep"]
   workflow_dispatch:
     inputs:
       action:
@@ -35,22 +46,85 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # 루틴이 푸시한 원고를 검사해 shorts-records 의 inbox/ 로 옮기고 claude/ 브랜치를 지운다 (routine 방식 전용)
+  intake:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    concurrency:
+      group: shorts-intake
+      cancel-in-progress: false
+    env:
+      RECORDS_BRANCH: shorts-records
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: 검사 도구 설치
+        run: pip install pillow numpy
+      - name: 원고 검사
+        id: scan
+        working-directory: shorts-studio
+        run: |
+          # 원고는 main 에 두지 않으므로(inbox 로 옮기고 브랜치를 지움), 이 브랜치의 content/ 안 shorts.json 이 전부 새 원고다
+          mapfile -t NEW < <(ls -d content/*/ 2>/dev/null | sed 's#/$##' | while read -r d; do [ -f "$d/shorts.json" ] && echo "shorts-studio/$d"; done)
+          if [ ${#NEW[@]} -eq 0 ]; then echo "새 원고 없음"; echo "count=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+          printf '%s\n' "${NEW[@]}" > "$RUNNER_TEMP/new.txt"
+          for d in "${NEW[@]}"; do python -m shorts.econ.content "$GITHUB_WORKSPACE/$d" || FAIL=1; done
+          echo "count=${#NEW[@]}" >> "$GITHUB_OUTPUT"
+          [ -z "$FAIL" ] || { echo "::error::원고 검사 실패 — claude/ 브랜치를 남겨 둡니다. 루틴이 고쳐 다시 푸시해야 합니다."; exit 1; }
+      - name: 기록 브랜치 inbox 에 넣기
+        if: steps.scan.outputs.count != '0'
+        run: |
+          git config --global user.name "cardbot"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch --depth=1 origin "$RECORDS_BRANCH:$RECORDS_BRANCH"; then
+            git worktree add records "$RECORDS_BRANCH"
+          else
+            git worktree add --orphan -b "$RECORDS_BRANCH" records
+            printf '# 쇼츠 발행 결과\n' > records/README.md
+          fi
+          mkdir -p records/inbox
+          while read -r d; do
+            rm -rf "records/inbox/$(basename "$d")"
+            cp -r "$d" "records/inbox/$(basename "$d")"
+            echo "inbox: $(basename "$d")"
+          done < "$RUNNER_TEMP/new.txt"
+          cd records
+          git add -A
+          git diff --cached --quiet && { echo "변경 없음"; exit 0; }
+          git commit -m "shorts inbox: $(basename "$(head -1 "$RUNNER_TEMP/new.txt")")"
+          for i in 1 2 3; do
+            git push origin "HEAD:$RECORDS_BRANCH" && exit 0
+            git fetch origin "$RECORDS_BRANCH" && git rebase FETCH_HEAD
+            sleep $((i * 5))
+          done
+          echo "::error::기록 브랜치 푸시 실패"; exit 1
+      - name: 원고 브랜치 정리
+        if: steps.scan.outputs.count != '0' && success()
+        run: git push origin --delete "${GITHUB_REF_NAME}" || true
+
   daily:
+    if: github.event_name != 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 150 # 6시대 일찍 깨워도 만들고 07:10까지 기다렸다 게시할 시간
     env:
       ACTION: ${{ github.event_name == 'schedule' && 'auto' || inputs.action }}
       RECORDS_BRANCH: shorts-records
+      SHORTS_SOURCE: ${{ vars.SHORTS_SOURCE || 'api' }}
       PUBLISH_AT: ${{ vars.SHORTS_PUBLISH_AT || '07:10' }}
       SHORTS_OUTPUT_DIR: ${{ github.workspace }}/out/render
       SHORTS_CACHE_DIR: ${{ github.workspace }}/cache
       SHORTS_FONT_DIR: ${{ github.workspace }}/cardnews-bot/fonts
 
       # --- 글·그림 ---
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      SHORTS_GEMINI_API_KEY: ${{ secrets.SHORTS_GEMINI_API_KEY }} # (선택) 그림용 키를 따로 쓸 때
-      PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }} # (선택) 그림 실패 시 스톡 영상
+      ANTHROPIC_API_KEY: ${{ vars.SHORTS_SOURCE != 'routine' && secrets.ANTHROPIC_API_KEY || '' }}
+      GEMINI_API_KEY: ${{ vars.SHORTS_SOURCE != 'routine' && secrets.GEMINI_API_KEY || '' }}
+      SHORTS_GEMINI_API_KEY: ${{ vars.SHORTS_SOURCE != 'routine' && secrets.SHORTS_GEMINI_API_KEY || '' }} # (선택) 그림용 키를 따로 쓸 때
+      PIXABAY_API_KEY: ${{ vars.SHORTS_SOURCE != 'routine' && secrets.PIXABAY_API_KEY || '' }} # (선택) 그림 실패 시 스톡 영상
       SHORTS_MODEL: ${{ vars.SHORTS_MODEL }}
       SHORTS_IMAGE_MODEL: ${{ vars.SHORTS_IMAGE_MODEL }} # 기본 gemini-nano-banana-2.1
       SHORTS_IMAGE_SIZE: ${{ vars.SHORTS_IMAGE_SIZE }} # 기본 2K
@@ -133,19 +207,32 @@ jobs:
 
       - name: 영상 만들기
         if: steps.check.outputs.skip != 'true'
+        id: make
         working-directory: shorts-studio
         env:
           THEME: ${{ inputs.theme }}
           TOPIC: ${{ inputs.topic }}
         run: |
-          python -m shorts.daily make --out "$GITHUB_WORKSPACE/out" \
-            --records-dir "$GITHUB_WORKSPACE/records/records" --cardnews-db "$RUNNER_TEMP/cardbot.db" \
-            --theme "$THEME" --topic "$TOPIC"
+          if [ "$SHORTS_SOURCE" = "routine" ]; then
+            set +e
+            python -m shorts.daily make-routine --inbox "$GITHUB_WORKSPACE/records/inbox" --out "$GITHUB_WORKSPACE/out"
+            code=$?
+            set -e
+            if [ $code -eq 10 ]; then
+              echo "::warning::오늘 쓸 루틴 원고(inbox)가 없어 쇼츠를 건너뜁니다. 루틴 '쇼츠 원고 작성'이 실행됐는지 확인하세요."
+              echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+            [ $code -eq 0 ] || exit $code
+          else
+            python -m shorts.daily make --out "$GITHUB_WORKSPACE/out" \
+              --records-dir "$GITHUB_WORKSPACE/records/records" --cardnews-db "$RUNNER_TEMP/cardbot.db" \
+              --theme "$THEME" --topic "$TOPIC"
+          fi
           cat "$GITHUB_WORKSPACE/out/summary.md" >> "$GITHUB_STEP_SUMMARY"
           echo "VIDEO_ID=$(cat "$GITHUB_WORKSPACE/out/id.txt")" >> "$GITHUB_ENV"
 
       - name: 만든 영상 보관 (아티팩트)
-        if: steps.check.outputs.skip != 'true' && always()
+        if: steps.check.outputs.skip != 'true' && steps.make.outputs.skip != 'true' && always()
         uses: actions/upload-artifact@v4
         with:
           name: shorts-daily-${{ github.run_number }}
@@ -159,7 +246,7 @@ jobs:
           retention-days: 14
 
       - name: 게시용 영상 브랜치 올리기
-        if: steps.check.outputs.skip != 'true' && env.ACTION != 'draft'
+        if: steps.check.outputs.skip != 'true' && steps.make.outputs.skip != 'true' && env.ACTION != 'draft'
         run: |
           git worktree add --orphan -b "shorts/$VIDEO_ID" pub
           mkdir -p "pub/videos/$VIDEO_ID"
@@ -171,12 +258,13 @@ jobs:
           echo "VIDEO_SHA=$(git -C pub rev-parse HEAD)" >> "$GITHUB_ENV"
 
       - name: 게시 시각까지 기다리기
-        if: steps.check.outputs.skip != 'true' && env.ACTION == 'auto'
+        if: steps.check.outputs.skip != 'true' && steps.make.outputs.skip != 'true' && env.ACTION == 'auto'
         working-directory: shorts-studio
         run: python -m shorts.daily wait --until "$PUBLISH_AT"
 
       - name: 게시
-        if: steps.check.outputs.skip != 'true' && env.ACTION != 'draft'
+        id: pub
+        if: steps.check.outputs.skip != 'true' && steps.make.outputs.skip != 'true' && env.ACTION != 'draft'
         working-directory: cardnews-bot
         run: |
           python -m cardbot.shortspost "$GITHUB_WORKSPACE/pub/videos/$VIDEO_ID" \
@@ -188,7 +276,7 @@ jobs:
       # shorts-records 브랜치의 blog/<영상 ID>/ (blog.json + 사진)를 읽어 Uplika로 경제주막 블로그에 올리고,
       # 같은 폴더의 short.mp4를 네이버 경제주막 클립에도 올린다.
       - name: 블로그 글 자료 저장 (네이버 발행용)
-        if: steps.check.outputs.skip != 'true' && env.ACTION != 'draft' && !cancelled()
+        if: steps.check.outputs.skip != 'true' && steps.make.outputs.skip != 'true' && env.ACTION != 'draft' && !cancelled()
         run: |
           if [ ! -f out/blog/blog.json ]; then echo "블로그 글 없음, 건너뜀"; exit 0; fi
           mkdir -p "records/blog/$VIDEO_ID"
@@ -201,9 +289,15 @@ jobs:
           ls "records/blog/$VIDEO_ID"
 
       - name: 결과 저장
-        if: steps.check.outputs.skip != 'true' && env.ACTION != 'draft' && always()
+        if: steps.check.outputs.skip != 'true' && steps.make.outputs.skip != 'true' && env.ACTION != 'draft' && always()
         working-directory: records
+        env:
+          PUBLISHED: ${{ steps.pub.outcome == 'success' }}
         run: |
+          # routine 방식: 게시에 성공한 원고만 inbox 에서 치운다 (실패·draft 는 남겨 다시 시도할 수 있게)
+          if [ "$SHORTS_SOURCE" = "routine" ] && [ "$PUBLISHED" = "true" ] && [ -f "$GITHUB_WORKSPACE/out/inbox.txt" ]; then
+            git rm -rq --ignore-unmatch "inbox/$(cat "$GITHUB_WORKSPACE/out/inbox.txt")" || true
+          fi
           git add -A
           if git diff --cached --quiet; then echo "변경 없음"; exit 0; fi
           git commit -m "shorts: $VIDEO_ID (매일 자동)"
@@ -215,5 +309,5 @@ jobs:
           echo "::error::결과 브랜치 푸시 실패"; exit 1
 
       - name: 게시가 끝난 영상 브랜치 삭제
-        if: steps.check.outputs.skip != 'true' && env.ACTION != 'draft' && success()
+        if: steps.check.outputs.skip != 'true' && steps.make.outputs.skip != 'true' && env.ACTION != 'draft' && success()
         run: git push origin --delete "shorts/$VIDEO_ID"
