@@ -1,0 +1,19 @@
+{
+ "theme": "경제 뉴스 쉽게 풀기",
+ "topic": {"topic": "미국 빅스텝설과 내 대출이자", "keyword": "빅스텝 대출이자", "angle": "내 이자 영향", "why": "테스트"},
+ "title": "빅스텝설, 내 대출이자는?",
+ "mood": "energetic",
+ "caption": "미국 빅스텝 얘기가 나오면서 내 대출이자가 걱정되시죠. 핵심만 짚어 드려요.",
+ "hashtags": ["빅스텝","대출이자","기준금리","금통위","경제"],
+ "visual_style": "cinematic documentary photograph, deep teal and amber lighting",
+ "scenes": [
+  {"narration":"미국 빅스텝설, 내 대출이자는 괜찮을까요?","headline":"빅스텝설 등장","keywords":"federal reserve night","image_prompt":"The US Federal Reserve building at night with warm lit windows, moody volumetric light","chart":{"type":"stat","badge":"오늘의 핵심","left_label":"미국","left":"빅스텝 검토","right_label":"내 이자","right":"어떻게 될까"}},
+  {"narration":"다만 확정은 아니고, 시장은 확률을 약 15퍼센트로 봐요.","headline":"확률은 약 15%","keywords":"trading desk","image_prompt":"Wall Street trading desk with glowing monitors and bokeh city lights at night","chart":{"type":"gauge","badge":"시장 반영 확률","value":15,"label":"빅스텝 확률","sub":"나머지는 베이비스텝 이하"}},
+  {"narration":"다음은 한국은행이에요. 11월 26일 금통위에서 금리가 오를 수 있다는 전망이 많아요.","headline":"11월 26일 금통위","keywords":"central bank seoul","image_prompt":"Bank of Korea headquarters at dusk with Seoul skyline and light trails","chart":{"type":"calendar","badge":"주요 일정","date":"11월 26일","event":"한국은행 금통위","forecast":"금리 인상 가능성 ▲"}},
+  {"narration":"변동금리 대출은 기준금리를 따라 움직여서 이자 부담이 커질 수 있어요.","headline":"이자 부담 커질 수","keywords":"home desk night","image_prompt":"A person at a home desk at night looking at a laptop and calculator, city lights outside","chart":{"type":"impact","badge":"영향 흐름","steps":[{"desc":"미국 금리 인상"},{"desc":"기준금리 상승"},{"desc":"변동금리 이자 증가"}]}},
+  {"narration":"미국, 한은, 내 대출 순서로 기억하세요. 저장하고 팔로우해 두세요.","headline":"핵심 3단계","keywords":"studio","image_prompt":"Sleek dark navy and gold broadcast studio background with glowing geometric light paths","chart":{"type":"flow","badge":"요약","nodes":[{"title":"미국 물가·발언","desc":"빅스텝 검토"},{"title":"한은 금통위","desc":"11월 26일"},{"title":"내 대출","desc":"변동금리 점검"}],"cta":"저장해 두세요"}}
+ ],
+ "facts": "미국 물가가 예상보다 높게 나오자 연준 인사의 빅스텝 검토 발언이 나왔다. 시장은 빅스텝 확률을 약 15퍼센트로 반영 중이다. 한국은행 금융통화위원회는 11월 26일에 열린다. 변동금리 대출은 기준금리에 연동된다. (테스트용 자료)",
+ "sources": ["https://www.korea.kr/a","https://www.fsc.go.kr/b"],
+ "blog": {"titles":["빅스텝설 정리"],"main_keyword":"빅스텝","sub_keywords":["대출이자"],"meta_description":"d","intro":"i","sections":[{"heading":"h","body":"b","image":"","experience_hint":""}],"faq":[],"conclusion":"c","sources":[],"tags":["빅스텝"]}
+}

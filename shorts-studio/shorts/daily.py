@@ -30,10 +30,14 @@ import anthropic
 import requests
 
 from . import aiimage
-from .blog import save_blog_images, write_blog
+from .blog import normalize_blog, save_blog_images, write_blog
+from .econ import content as econ_content
+from .econ.charts import chart_card, normalize_chart
+from .econ.photos import prepare_media
 from .publish import META_MAX_BYTES, YOUTUBE_MAX_BYTES, transcode
 from .render import RenderOptions, render
-from .writer import WriterError, _call_json, narration_chars, shorten_script, target_chars, write_script
+from .writer import (MOODS, WriterError, _call_json, narration_chars, normalize_script, shorten_script,
+                     target_chars, write_script)
 
 log = logging.getLogger(__name__)
 
@@ -341,7 +345,14 @@ def make(out: Path, records_dir: Path | None, cardnews_db: Path | None, theme_na
             last[0] = p
 
     res = render(script, opts, progress)
+    return _package(out, res, script, topic, theme[0], facts,
+                    lambda vid, post, video: make_blog(out, video, res, script, facts, topic, theme[0], vid, post,
+                                                       api_key, model)
+                    if _env("SHORTS_BLOG", "true").lower() != "false" else "")
 
+
+def _package(out: Path, res, script: dict, topic: dict, theme_name: str, facts: str, blog_step) -> dict:
+    """렌더 결과를 게시용 파일(video.mp4, post.json, script.json, summary.md, blog/)로 정리한다."""
     video = out / "video.mp4"
     shutil.copyfile(res.video, video)
     files = {"youtube": "video.mp4", "meta": "video.mp4"}
@@ -351,7 +362,7 @@ def make(out: Path, records_dir: Path | None, cardnews_db: Path | None, theme_na
         transcode(video, out / "meta.mp4", META_MAX_BYTES, 8000)
         files["meta"] = "meta.mp4"
 
-    post = build_post(script, topic, theme[0], res.ai_images, res.credits, files, res.music_credit)
+    post = build_post(script, topic, theme_name, res.ai_images, res.credits, files, res.music_credit)
     (out / "music.json").write_text(json.dumps({"credit": res.music_credit}, ensure_ascii=False), encoding="utf-8")
     vid = new_id()
     (out / "id.txt").write_text(vid, encoding="utf-8")
@@ -359,15 +370,16 @@ def make(out: Path, records_dir: Path | None, cardnews_db: Path | None, theme_na
     (out / "script.json").write_text(json.dumps({**script, "facts": facts, "topic": topic},
                                                 ensure_ascii=False, indent=2), encoding="utf-8")
     lines = [f"## 오늘의 쇼츠: {post['title']}", "",
-             f"- 테마: {theme[0]}", f"- 주제: {topic['topic']} (키워드 {topic['keyword']})",
+             f"- 테마: {theme_name}", f"- 주제: {topic['topic']} (키워드 {topic['keyword']})",
              f"- 길이: {res.duration:.1f}초 · AI 그림 {res.ai_images}/{len(script['scenes'])}장",
              "", "### 대본"] + [f"{i + 1}. {s['narration']}" for i, s in enumerate(script["scenes"])]
     if res.warnings:
         lines += ["", "### 경고"] + [f"- {w}" for w in res.warnings]
     if facts:
         lines += ["", "<details><summary>팩트 시트</summary>", "", facts, "", "</details>"]
-    if _env("SHORTS_BLOG", "true").lower() != "false":
-        lines += ["", make_blog(out, video, res, script, facts, topic, theme[0], vid, post, api_key, model)]
+    blog_line = blog_step(vid, post, video)
+    if blog_line:
+        lines += ["", blog_line]
     (out / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     log.info("완성: %s (%.1f초, AI 그림 %d장)", post["title"], res.duration, res.ai_images)
     return post
@@ -391,6 +403,85 @@ def make_blog(out: Path, video: Path, res, script: dict, facts: str, topic: dict
     return (f"### 블로그 글: {blog['titles'][0]}\n"
             f"소제목 {len(blog['sections'])}개 · 사진 {len(names)}장 · 태그 {len(blog['tags'])}개 "
             "(네이버 발행은 07:20 Claude 루틴)")
+
+
+# ---------------------------------------------------------------- 루틴 방식 (API 없음)
+
+def inbox_pick(inbox: Path | None, today: date | None = None, max_age_days: int = 1) -> Path | None:
+    """records 브랜치의 inbox/<이름>/ 중 가장 새 원고. 이름은 YYYYMMDD-… 로 시작한다. 너무 오래된 건 건너뛴다."""
+    today = today or now_kst().date()
+    found = []
+    for d in econ_content.content_dirs(inbox) if inbox else []:
+        m = re.match(r"(\d{4})(\d{2})(\d{2})", d.name)
+        if m and (today - date(*map(int, m.groups()))).days <= max_age_days:
+            found.append(d)
+    return found[-1] if found else None
+
+
+def make_from_content(content_dir: Path, out: Path, use_flux: bool = True) -> dict:
+    """Claude 루틴이 쓴 shorts.json 으로 영상을 만든다. 글·조사는 루틴이 했고, 여기서는 API 키를 쓰지 않는다.
+
+    기존 엔진(목소리·자막·배경음악·장면 전환)에 econ-video-studio의 사진(FLUX → 주제별 대체)과 인포그래픽 카드를 얹는다."""
+    out.mkdir(parents=True, exist_ok=True)
+    data = econ_content.load(content_dir)
+    errors = econ_content.validate(data)
+    if errors:
+        raise WriterError("원고 검사에 실패했습니다:\n- " + "\n- ".join(errors))
+    topic = {k: str(data["topic"].get(k, "")).strip() for k in ("topic", "keyword", "angle", "why")}
+    theme_name = data.get("theme") or theme_for(now_kst().date())[0]
+    script = normalize_script(data)
+    for sc, src in zip(script["scenes"], data["scenes"]):  # 사진·차트 지정은 normalize_script 가 지우므로 다시 붙인다
+        sc["chart"] = normalize_chart(src["chart"]) if src.get("chart") else None
+    facts = data["facts"].strip()
+    log.info("원고: %s (장면 %d, 차트 %d)", script["title"], len(script["scenes"]),
+             sum(1 for s in script["scenes"] if s["chart"]))
+
+    stats = prepare_media(script, out / "photos", use_flux=use_flux)
+    log.info("사진: FLUX %(flux)d · 대체 사진 %(fallback)d · 그라데이션 %(gradient)d", stats)
+    opts = RenderOptions(
+        bg_mode="gradient",
+        voice=_env("SHORTS_VOICE", "ko-KR-SunHiNeural"),
+        speed=int(_env("SHORTS_SPEED", "10")),
+        output_dir=out / "render",
+        music_seed=int(now_kst().strftime("%Y%m%d")),
+        chart_fn=chart_card,
+    )
+    last = [0.0]
+
+    def progress(p: float, msg: str) -> None:
+        if p - last[0] >= 0.1 or p >= 1:
+            log.info("%3d%% %s", int(p * 100), msg)
+            last[0] = p
+
+    res = render(script, opts, progress)
+    res.ai_images = stats["flux"] + stats["fallback"]  # FLUX 도, 미리 만든 사진도 AI 가 그린 그림 → 합성 콘텐츠 표시
+    if stats["flux"] == 0:
+        res.warnings.append("무료 FLUX 서버에서 그림을 받지 못해 미리 만든 사진으로 대신했습니다.")
+
+    def blog_step(vid: str, post: dict, video: Path) -> str:
+        blog_src = data.get("blog")
+        if not blog_src or _env("SHORTS_BLOG", "true").lower() == "false":
+            return ""
+        blog_dir = out / "blog"
+        try:
+            names = save_blog_images(video, res.scenes, blog_dir)
+            blog = normalize_blog(blog_src, names)
+            if not blog["titles"] or not blog["sections"]:
+                raise ValueError("블로그 글이 비어 있습니다")
+        except (ValueError, RuntimeError, OSError) as e:
+            log.warning("블로그 글을 만들지 못했습니다 (영상은 그대로 게시): %s", e)
+            return f"### 블로그 글\n만들지 못했어요: {e}"
+        blog.update(video_id=vid, video_title=post["title"], theme=theme_name, topic=topic["topic"],
+                    cover="cover.jpg" if (blog_dir / "cover.jpg").exists() else "", images=names)
+        (blog_dir / "blog.json").write_text(json.dumps(blog, ensure_ascii=False, indent=2), encoding="utf-8")
+        return (f"### 블로그 글: {blog['titles'][0]}\n소제목 {len(blog['sections'])}개 · 사진 {len(names)}장 · "
+                f"태그 {len(blog['tags'])}개")
+
+    return _package(out, res, script, topic, theme_name, facts, blog_step)
+
+
+def avoid_topics(records_dir: Path | None, cardnews_db: Path | None) -> list[str]:
+    return recent_shorts_topics(records_dir) + cardnews_topics(cardnews_db)
 
 
 # ---------------------------------------------------------------- 명령
@@ -427,6 +518,15 @@ def main(argv=None) -> int:
     m.add_argument("--cardnews-db", type=Path)
     m.add_argument("--theme", default="")
     m.add_argument("--topic", default="")
+    r = sub.add_parser("make-routine", help="루틴이 쓴 원고(inbox)로 영상 만들기 (API 키 없음)")
+    r.add_argument("--inbox", type=Path, required=True)
+    r.add_argument("--out", type=Path, required=True)
+    r.add_argument("--no-flux", action="store_true", help="무료 FLUX 를 건너뛰고 미리 만든 사진만 씀")
+    v = sub.add_parser("validate", help="원고(shorts.json 이 든 폴더) 검사")
+    v.add_argument("path", type=Path)
+    t = sub.add_parser("theme", help="오늘의 테마와 피해야 할 최근 주제 출력 (루틴용)")
+    t.add_argument("--records-dir", type=Path)
+    t.add_argument("--cardnews-db", type=Path)
     w = sub.add_parser("wait")
     w.add_argument("--until", default="07:10")
     a = ap.parse_args(argv)
@@ -444,6 +544,31 @@ def main(argv=None) -> int:
         return 0
     if a.cmd == "wait":
         wait_until(a.until)
+        return 0
+    if a.cmd == "validate":
+        errs = econ_content.validate(econ_content.load(a.path))
+        for e in errs:
+            print("-", e)
+        print("통과" if not errs else f"{len(errs)}건 고쳐야 합니다")
+        return 1 if errs else 0
+    if a.cmd == "theme":
+        name, desc, queries = theme_for(now_kst().date())
+        print(f"오늘의 테마: {name}\n설명: {desc}\n검색어: {', '.join(queries)}\n\n최근 쇼츠·카드뉴스 주제(겹치지 않게):")
+        for t_ in avoid_topics(a.records_dir, a.cardnews_db) or ["(없음)"]:
+            print("-", t_)
+        return 0
+    if a.cmd == "make-routine":
+        d = inbox_pick(a.inbox)
+        if d is None:
+            print("오늘 쓸 루틴 원고(inbox)가 없습니다.", file=sys.stderr)
+            return SKIP_CODE
+        (a.out).mkdir(parents=True, exist_ok=True)
+        (a.out / "inbox.txt").write_text(d.name, encoding="utf-8")
+        try:
+            make_from_content(d, a.out, use_flux=not a.no_flux)
+        except WriterError as e:
+            print(f"만들기 실패: {e}", file=sys.stderr)
+            return 1
         return 0
     try:
         make(a.out, a.records_dir, a.cardnews_db, a.theme, a.topic)

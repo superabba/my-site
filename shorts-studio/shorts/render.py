@@ -33,6 +33,9 @@ SAFE_TOP = 250 / 1920
 SAFE_BOTTOM = 360 / 1920
 HEAD_CY = 0.22   # 제목 상자 중심
 SUB_CY = 0.64    # 자막 중심
+SUB_CY_CHART = 0.78  # 인포그래픽 카드가 있는 장면의 자막 중심 (카드 아래)
+CHART_CY = (820 - 70 + 310) / 1920  # 카드 그림(높이 620)의 중심 — econ.charts.CARD_CENTER_Y 와 같은 값
+CHART_ANIM = 0.8     # 카드가 나타나는 데 걸리는 시간
 
 
 @dataclass
@@ -65,6 +68,7 @@ class RenderOptions:
     show_progress: bool = True
     scene_gap: float = 0.25
     silent_cps: float = 5.0           # 목소리 없을 때 1초에 읽는 글자 수
+    chart_fn: Callable | None = None  # 장면의 "chart" 를 카드 그림으로 바꾸는 함수 (econ.charts.chart_card). 없으면 차트는 그리지 않는다
 
 
 @dataclass
@@ -328,10 +332,22 @@ def render(script: dict, opts: RenderOptions, progress: ProgressFn | None = None
                     cy = max(opts.height * HEAD_CY, opts.height * SAFE_TOP + p["head_img"].height / 2 + 12)
                     cy += (1 - ease) * opts.height * 0.02
                     _paste_center(frame, p["head_img"], cy, alpha=ease)
+                chart = p["scene"].get("chart") if opts.chart_fn else None
+                if chart:
+                    ca = min(1.0, max(0.0, (lt - 0.15) / CHART_ANIM))
+                    if ca >= 1.0:
+                        if "chart_img" not in p:  # 다 나타난 뒤에는 한 번만 그려 두고 재사용
+                            p["chart_img"] = opts.chart_fn(chart, 1.0, opts.width, opts.height)
+                        card = p["chart_img"]
+                    else:
+                        card = opts.chart_fn(chart, ca, opts.width, opts.height)
+                    cy_card = opts.height * CHART_CY
+                    _paste_center(frame, card, cy_card, alpha=min(1.0, ca * 3))
                 for c in p["subs"]:
                     if c["img"] is not None and c["start"] <= lt < c["end"]:
                         a = min(1.0, (lt - c["start"]) / POP)
-                        cy = min(opts.height * SUB_CY, opts.height * (1 - SAFE_BOTTOM) - c["img"].height / 2)
+                        cy = min(opts.height * (SUB_CY_CHART if chart else SUB_CY),
+                                 opts.height * (1 - SAFE_BOTTOM) - c["img"].height / 2)
                         _paste_center(frame, c["img"], cy, scale=0.9 + 0.1 * a, alpha=0.4 + 0.6 * a)
                         break
                 if opts.show_progress:
