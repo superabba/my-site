@@ -159,3 +159,27 @@ output/               완성된 영상
 tests/                테스트 (python -m pytest -q tests)
 requirements-bot.txt  매일 자동(GitHub Actions)용 설치 목록
 ```
+
+## 루틴 방식 (API 없음) — `SHORTS_SOURCE=routine`
+
+매일 자동 쇼츠를 Anthropic·Gemini API 없이 돌리는 방식입니다. 저장소 Variables 의 `SHORTS_SOURCE` 로 고릅니다 (기본 `api` = 기존 방식, 지우거나 `api` 로 두면 언제든 되돌아갑니다).
+
+| 단계 | 누가 | 하는 일 |
+|---|---|---|
+| ① KST 05:30 | Claude 루틴 (`routine/write_shorts.md`) | 테마·주제 선정, 웹 조사, 대본·차트·블로그 글을 `content/<날짜>-<이름>/shorts.json` 으로 써서 `claude/` 브랜치에 푸시 |
+| ② 푸시 직후 | Actions `intake` 작업 | 원고 검사(`python -m shorts.econ.content`) → `shorts-records` 브랜치 `inbox/` 로 이동 → `claude/` 브랜치 삭제. 검사 실패 시 브랜치를 남기고 작업이 빨갛게 실패 |
+| ③ KST 06시대 | Actions `daily` 작업 (cron-job.org 정시 깨우기) | `make-routine`: inbox 원고로 영상 제작 → 07:10 게시 (기존 `shortspost` 안전장치 그대로) → 게시에 성공한 원고만 inbox 에서 삭제 |
+| ④ 07:20 | 네이버 루틴 (기존) | `shorts-records` 의 `blog/<영상ID>/` 로 블로그·클립 게시 |
+
+영상은 기존 엔진(목소리·단어별 자막·배경음악·장면 전환·안전 영역)에 `econ-video-studio` 의 두 가지를 합친 것입니다.
+- **사진** (`shorts/econ/photos.py`): 루틴이 쓴 영어 `image_prompt` 로 무료 FLUX(Pollinations, 키 없음)에 요청 → 3번 재시도 → 실패하면 `assets/econ_fallback/` 의 주제별 사진(바로 앞 장면과 같은 사진은 피함). 가로 사진은 흐린 배경 위에 원본을 얹어 세로 화면을 채움.
+- **인포그래픽 카드** (`shorts/econ/charts.py`): 게이지·비교·일정·단계·요약·수치 6종. 루틴이 장면마다 `chart` 를 직접 지정하므로 렌더러가 대본에서 숫자를 추정하지 않음.
+- AI 가 그린 사진이 들어가므로 `youtube_synthetic` (AI 합성 표시)이 켜집니다.
+
+수동 점검:
+```bash
+python -m shorts.econ.content content/<폴더>                     # 원고 검사
+python -m shorts.daily make-routine --inbox <inbox 폴더> --out out --no-flux   # 영상 만들기 (FLUX 건너뜀)
+python3 routine/info.py                                           # 루틴이 보는 오늘 테마·최근 주제
+```
+Actions 에서 `workflow_dispatch` 의 action=`draft` 로 돌리면 게시 없이 영상만 만들어 아티팩트로 받아 볼 수 있습니다 (inbox 원고는 남습니다).
