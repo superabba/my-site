@@ -202,8 +202,8 @@ def test_make_end_to_end_with_fakes(tmp_path, monkeypatch):
                         {"topic": "금리 동결, 내 대출은?", "keyword": "기준금리", "angle": "대출자 입장", "why": "검색 급증"})
     monkeypatch.setattr(daily, "research", lambda key, model, topic: "- 기준금리 2.50% (한국은행, 2026-10-16)")
 
-    def fake_write(key, model, topic, category, tone, length, notes="", facts=""):
-        seen.update(topic=topic, tone=tone, length=length, facts=facts)
+    def fake_write(key, model, topic, category, tone, length, notes="", facts="", hook_seed=None):
+        seen.update(topic=topic, tone=tone, length=length, facts=facts, hook_seed=hook_seed)
         return split_text("금리가 동결됐어요. 대출 이자는 그대로예요. 저장해 두세요.", "금리 동결")
 
     monkeypatch.setattr(daily, "write_script", fake_write)
@@ -432,3 +432,29 @@ def test_daily_post_carries_music_credit():
     assert post["youtube_description"].endswith(line) and post["instagram_caption"].endswith(line)
     assert post["threads_text"].endswith(line) and len(post["threads_text"]) <= 500  # 쇼츠 영상은 스레드에도 올라간다
     assert line not in daily.build_post({"caption": "c"}, {"topic": "t", "keyword": "k"}, "theme", 0, [], {})["threads_text"]
+
+
+# ---------------------------------------------------------------- 대본 시작 문장
+
+def test_hooks_have_five_types_of_ten():
+    from shorts.hooks import HOOKS, TYPES, pick_type
+
+    assert TYPES == ["조건형", "질문형", "선언형", "경고형", "공감형"]
+    assert all(len(v) == 10 for v in HOOKS.values())
+    assert [pick_type(i) for i in range(6)] == TYPES + [TYPES[0]]  # 날짜별로 유형이 돌아간다
+
+
+def test_write_script_asks_for_one_of_the_opening_hooks(monkeypatch):
+    from shorts import writer
+    from shorts.hooks import HOOKS
+
+    seen = {}
+
+    def fake(api_key, model, system, user, schema, effort):
+        seen["user"] = user
+        return {"title": "t", "mood": "calm", "caption": "c", "hashtags": [], "visual_style": "s", "scenes": []}
+
+    monkeypatch.setattr(writer, "_call_json", fake)
+    writer.write_script("k", "m", "연금", "정보", "존댓말 (~해요)", 30, hook_seed=2)  # 2 → 선언형
+    assert "<선언형 시작 문장>" in seen["user"]
+    assert all(h in seen["user"] for h in HOOKS["선언형"]) and HOOKS["질문형"][0] not in seen["user"]

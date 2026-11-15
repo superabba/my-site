@@ -9,6 +9,8 @@ import uuid
 
 import anthropic
 
+from .hooks import hook_instruction
+
 # 한국어 TTS가 1초에 읽는 글자 수(공백 제외, 장면 사이 쉼 포함, 말 빠르기 +10% 기준). 대본 길이를 맞추는 데 씁니다.
 # 실측: 147자 → 24.1초, 239자 → 40.8초 (약 6자/초)
 CHARS_PER_SEC = 6.0
@@ -174,7 +176,7 @@ SCRIPT_SYSTEM = """당신은 한국어 유튜브 쇼츠·인스타그램 릴스 
   narration 내용을 한눈에 떠올리게 하는 구체적인 장면(사물·공간·상황·은유)으로. 글자·숫자·로고·실존 인물은 넣지 말 것.
 
 전체 규칙:
-- 첫 장면은 1~2초 안에 시선을 잡는 후킹으로 시작합니다.
+- 첫 장면은 1~2초 안에 시선을 잡는 후킹으로 시작합니다. 요청에 <시작 문장> 후보가 있으면 그중 하나로 시작합니다.
 - 내용이 사실 정보라면 정확한 것만 쓰고, 불확실한 수치는 쓰지 않습니다.
 - title: 영상 제목(30자 이내). mood: 배경음악 분위기.
 - caption: 게시물 설명 1~2문장. hashtags: 5~8개, '#' 없이 단어만.
@@ -208,6 +210,7 @@ def write_script(
     length_sec: int,
     notes: str = "",
     facts: str = "",
+    hook_seed: int | None = None,
 ) -> dict:
     user = (
         (f"<조사 자료>\n{facts}\n</조사 자료>\n\n" if facts else "")
@@ -215,6 +218,7 @@ def write_script(
         f"카테고리: {category} — {CATEGORIES.get(category, '')}\n"
         f"말투: {TONES.get(tone, tone)}\n"
         f"{_length_spec(length_sec)}\n"
+        f"{hook_instruction(hook_seed)}\n"
         f"추가 요청: {notes or '(없음)'}"
     )
     data = _call_json(api_key, model, SCRIPT_SYSTEM, user, SCRIPT_SCHEMA, effort="medium")
@@ -253,7 +257,7 @@ def shorten_script(api_key: str, model: str, script: dict, length_sec: int, fact
         (f"<조사 자료>\n{facts}\n</조사 자료>\n\n" if facts else "")
         + f"아래 대본은 narration이 공백 제외 {have}자라서 {length_sec}초 영상에 너무 깁니다.\n"
         f"가장 중요한 내용만 남겨 narration 전체를 공백 제외 {limit}자 이내로 줄여 주세요. "
-        "말투·사실·첫 장면의 후킹·마지막 장면의 저장·팔로우 권유는 유지하고, 장면 수는 줄여도 됩니다.\n\n"
+        "말투·사실·첫 장면의 시작 문장(후킹)·마지막 장면의 저장·팔로우 권유는 그대로 유지하고, 장면 수는 줄여도 됩니다.\n\n"
         f"<대본>\n{draft}\n</대본>"
     )
     data = _call_json(api_key, model, SCRIPT_SYSTEM, user, SCRIPT_SCHEMA, effort="medium")
