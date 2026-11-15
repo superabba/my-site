@@ -71,9 +71,12 @@ def fallback_file(num: str) -> Path | None:
     return hits[0] if hits else None
 
 
-def pick_fallback(text: str, prev: str | None = None) -> Path | None:
-    """대본 내용에 맞는 대체 사진. prev(바로 앞 장면에 쓴 번호)와 같으면 다음 후보로."""
+def pick_fallback(text: str, prev: str | None = None, used: set | None = None) -> Path | None:
+    """대본 내용에 맞는 대체 사진. 이 영상에서 아직 안 쓴 사진을 먼저 고르고, 다 썼으면 바로 앞 장면(prev)과만 안 겹치게."""
     order = [n for _, n in theme_scores(text)] + GENERIC
+    for n in order:
+        if n not in (used or set()) and n != prev and fallback_file(n):
+            return fallback_file(n)
     for n in order:
         if n != prev and fallback_file(n):
             return fallback_file(n)
@@ -111,6 +114,7 @@ def prepare_media(script: dict, workdir: Path, use_flux: bool = True) -> dict:
     workdir.mkdir(parents=True, exist_ok=True)
     stats = {"flux": 0, "fallback": 0, "gradient": 0}
     prev_num = None
+    used: set = set()
     for i, sc in enumerate(script["scenes"], 1):
         if sc.get("media"):
             continue
@@ -124,10 +128,11 @@ def prepare_media(script: dict, workdir: Path, use_flux: bool = True) -> dict:
                 stats["flux"] += 1
                 prev_num = None
         if img is None:
-            fb = pick_fallback(text, prev_num)
+            fb = pick_fallback(text, prev_num, used)
             if fb is not None:
                 img = fit_portrait(Image.open(fb))
                 prev_num = fb.name[:2]
+                used.add(prev_num)
                 stats["fallback"] += 1
         if img is None:
             stats["gradient"] += 1  # media 를 비워 두면 render 가 자동 그라데이션 배경을 쓴다
