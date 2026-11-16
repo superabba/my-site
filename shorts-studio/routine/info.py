@@ -6,6 +6,7 @@
 - 오늘의 테마: shorts/daily.py 의 THEMES 를 날짜로 돌린다 (SHORTS_THEMES 변수는 루틴에서 볼 수 없으니 기본 목록)
 - 최근 쇼츠 주제: shorts-records 브랜치 records/*.json (최근 30일)
 - 최근 카드뉴스 주제: cardbot-data 브랜치 data/cardbot.db (최근 7일)
+- 최근 청년 카드뉴스 주제: economypub-youth 저장소 drafts 브랜치 (최근 7일, 같은 계정에 올라가므로 겹치지 않게). 읽지 못하면 그렇다고 알린다
 - 대기 중인 원고: shorts-records 브랜치 inbox/
 """
 import ast
@@ -32,6 +33,27 @@ def themes():
         if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "THEMES":
             return ast.literal_eval(node.value)
     return []
+
+
+YOUTH_REPO = "https://github.com/superabba/economypub-youth.git"
+
+
+def youth_topics(now: datetime, days: int = 7):
+    """청년 카드뉴스 저장소(공개)의 drafts 브랜치에서 최근 시안 제목을 읽는다. 실패하면 None."""
+    r = subprocess.run(["git", "fetch", "-q", "--depth=1", YOUTH_REPO, "drafts:refs/remotes/youth/drafts"],
+                       capture_output=True, timeout=60)
+    if r.returncode != 0:
+        return None
+    since = (now - timedelta(days=days)).strftime("%Y%m%d")
+    out = []
+    for name in sorted(git("ls-tree", "--name-only", "refs/remotes/youth/drafts").split()):
+        if re.match(r"\d{8}-", name) and name[:8] >= since:
+            try:
+                t = json.loads(git("show", f"refs/remotes/youth/drafts:{name}/topic.json"))
+            except ValueError:
+                continue
+            out.append(t.get("title") or t.get("keyword") or name)
+    return out
 
 
 def main():
@@ -76,6 +98,16 @@ def main():
             except sqlite3.Error:
                 pass
     for t in topics or ["(없음)"]:
+        print("-", t)
+
+    print("\n최근 7일 청년 카드뉴스 주제 (같은 계정에 올라가니 겹치지 않게 — 청년월세·청년미래적금 같은 청년 정책은 그쪽 몫):")
+    try:
+        yt = youth_topics(now)
+    except (subprocess.SubprocessError, OSError):
+        yt = None
+    if yt is None:
+        print("- (읽지 못했습니다. 청년 정책 주제는 피하고, 웹 검색으로 겹침을 한 번 더 확인하세요)")
+    for t in yt or ([] if yt is None else ["(없음)"]):
         print("-", t)
 
     pend = [re.sub(r".*/", "", p) for p in git("ls-tree", "--name-only", "origin/shorts-records", "inbox/").split()]
