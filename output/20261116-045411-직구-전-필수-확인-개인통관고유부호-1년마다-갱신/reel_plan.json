@@ -1,0 +1,23 @@
+{
+  "style": "caption-news",
+  "label": "뉴스 캡션",
+  "reason": "갱신 기간과 확인 절차를 차근차근 짚는 안내형 주제",
+  "duration": 34.71279166666667,
+  "fps": 30,
+  "rate": "+0%",
+  "music": {
+    "mood": "bright",
+    "track": "bright/kevin-macleod-vibe-ace.m4a",
+    "credit": "🎵 Vibe Ace - Kevin MacLeod (CC BY 3.0, 편집) http://freemusicarchive.org/music/Kevin_MacLeod/Jazz_Sampler/Vibe_Ace_1278"
+  },
+  "narration": [
+    "해외직구 전에, 개인통관고유부호가 해지되지 않았는지 확인하세요.",
+    "2026년부터 통관부호에는 유효기간 1년이 생겼습니다.",
+    "예전에 받은 분은 2027년 생일이 첫 만료일입니다.",
+    "갱신은 만료일 전후 30일, 총 60일 안에만 가능합니다.",
+    "연락처나 주소를 바꾸면 그날부터 다시 1년이 시작됩니다.",
+    "유니패스에서 만료일부터 확인하고, 주문 중이면 재발급은 미뤄 주세요.",
+    "직구 전에 볼 수 있게 저장해 두세요."
+  ],
+  "cards": []
+}
