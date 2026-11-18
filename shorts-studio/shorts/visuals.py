@@ -96,15 +96,29 @@ class GradientBackground(Background):
         return small.resize(self.size, Image.BILINEAR)
 
 
+# 카메라 움직임: (시작 배율, 끝 배율, 좌우 이동(-1 왼쪽 ~ 1 오른쪽), 상하 이동(-1 위 ~ 1 아래))
+MOTIONS: dict[str, tuple[float, float, float, float]] = {
+    "push_in": (1.0, 1.25, 0.0, 0.0),
+    "pull_out": (1.25, 1.0, 0.0, 0.0),
+    "pan_left": (1.15, 1.22, -1.0, 0.0),
+    "pan_right": (1.15, 1.22, 1.0, 0.0),
+    "tilt_up": (1.15, 1.22, 0.0, -1.0),
+    "tilt_down": (1.15, 1.22, 0.0, 1.0),
+}
+# 대본에 motion이 없을 때 장면 순서대로 돌려 쓰는 움직임
+DEFAULT_MOTIONS = ["push_in", "pan_right", "pull_out", "tilt_up", "push_in", "pan_left", "pull_out", "tilt_down"]
+PUNCH_SECONDS = 0.3  # 장면이 바뀐 직후 톡 튀어나오는 효과 길이
+PUNCH_SCALE = 0.06
+
+
 class ImageBackground(Background):
-    """사진을 천천히 확대/축소하며 이동(켄 번즈 효과)."""
+    """사진을 확대/축소하고 옆·위아래로 움직이며(켄 번즈 효과) 장면 시작에 짧은 펀치 효과를 준다."""
 
-    ZOOM = 1.12
+    ZOOM = 1.32
 
-    def __init__(self, path: str | Path, size: tuple[int, int], duration: float, scene_index: int):
+    def __init__(self, path: str | Path, size: tuple[int, int], duration: float, scene_index: int, motion: str = ""):
         self.path, self.size, self.duration = path, size, max(duration, 0.1)
-        self.zoom_in = scene_index % 2 == 0
-        self.pan = [(0.6, 0.0), (-0.6, 0.3), (0.0, -0.6), (0.5, 0.5)][scene_index % 4]
+        self.motion = motion if motion in MOTIONS else DEFAULT_MOTIONS[scene_index % len(DEFAULT_MOTIONS)]
         self.base: Image.Image | None = None
 
     def open(self) -> None:
@@ -114,13 +128,16 @@ class ImageBackground(Background):
 
     def frame(self, t: float) -> Image.Image:
         assert self.base is not None
+        z0, z1, dx, dy = MOTIONS[self.motion]
         p = min(1.0, max(0.0, t / self.duration))
         p = p * p * (3 - 2 * p)  # 부드러운 가감속
-        z = 1.0 + (self.ZOOM - 1.0) * (p if self.zoom_in else 1 - p)
+        z = z0 + (z1 - z0) * p
+        if t < PUNCH_SECONDS:  # 장면 시작: 살짝 확대된 상태에서 톡 제자리로
+            z *= 1 + PUNCH_SCALE * (1 - t / PUNCH_SECONDS) ** 2
         bw, bh = self.base.size
         w, h = bw / z, bh / z
-        cx = bw / 2 + self.pan[0] * (bw - w) / 2 * (p - 0.5)
-        cy = bh / 2 + self.pan[1] * (bh - h) / 2 * (p - 0.5)
+        cx = bw / 2 + dx * (bw - w) / 2 * (p - 0.5) * 2
+        cy = bh / 2 + dy * (bh - h) / 2 * (p - 0.5) * 2
         x0 = min(max(cx - w / 2, 0), bw - w)
         y0 = min(max(cy - h / 2, 0), bh - h)
         return self.base.resize(self.size, Image.BILINEAR, box=(x0, y0, x0 + w, y0 + h))
@@ -150,10 +167,10 @@ class VideoBackground(Background):
             self.reader = None
 
 
-def make_background(media: str | None, size, fps, duration, mood, scene_index, t_offset) -> Background:
+def make_background(media: str | None, size, fps, duration, mood, scene_index, t_offset, motion: str = "") -> Background:
     kind = media_kind(media)
     if kind == "image":
-        return ImageBackground(media, size, duration, scene_index)
+        return ImageBackground(media, size, duration, scene_index, motion)
     if kind == "video":
         return VideoBackground(media, size, fps, duration)
     return GradientBackground(size, mood, scene_index, t_offset)
