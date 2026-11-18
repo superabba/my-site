@@ -458,3 +458,33 @@ def test_write_script_asks_for_one_of_the_opening_hooks(monkeypatch):
     writer.write_script("k", "m", "연금", "정보", "존댓말 (~해요)", 30, hook_seed=2)  # 2 → 선언형
     assert "<선언형 시작 문장>" in seen["user"]
     assert all(h in seen["user"] for h in HOOKS["선언형"]) and HOOKS["질문형"][0] not in seen["user"]
+
+
+# ---------------------------------------------------------------- 역동적인 움직임
+
+def test_normalize_script_keeps_only_known_motions():
+    from shorts.writer import normalize_script
+
+    data = {"title": "t", "mood": "calm", "caption": "c", "hashtags": [], "visual_style": "s",
+            "scenes": [{"narration": "a", "headline": "", "keywords": "", "image_prompt": "", "motion": "push_in"},
+                       {"narration": "b", "headline": "", "keywords": "", "image_prompt": "", "motion": "spin"}]}
+    assert [s["motion"] for s in normalize_script(data)["scenes"]] == ["push_in", ""]
+
+
+def test_image_background_moves_and_punches(tmp_path):
+    from shorts.visuals import MOTIONS, ImageBackground
+
+    img = tmp_path / "bg.png"
+    base = Image.new("RGB", (1200, 2000), (30, 30, 30))
+    for x in range(0, 1200, 100):  # 움직임이 보이도록 세로 줄무늬
+        base.paste((255, 255, 255), (x, 0, x + 40, 2000))
+    base.save(img)
+    for motion in MOTIONS:
+        bg = ImageBackground(img, (180, 320), 4.0, 0, motion)
+        bg.open()
+        frames = [bg.frame(t) for t in (0.0, 2.0, 3.99)]
+        assert all(f.size == (180, 320) for f in frames)
+        assert frames[0].tobytes() != frames[2].tobytes()  # 시작과 끝 화면이 다르다 = 움직인다
+        bg.close()
+    bg = ImageBackground(img, (180, 320), 4.0, 0, "")  # motion이 없으면 장면 순서대로 기본 움직임
+    assert bg.motion == "push_in"

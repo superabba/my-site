@@ -38,6 +38,10 @@ MOODS = {
 }
 
 
+# 장면별 카메라 움직임 (visuals.MOTIONS와 같은 이름)
+MOTIONS = ["push_in", "pull_out", "pan_left", "pan_right", "tilt_up", "tilt_down"]
+
+
 class WriterError(Exception):
     """사용자에게 보여줄 한국어 메시지를 담은 오류."""
 
@@ -154,8 +158,9 @@ SCRIPT_SCHEMA = {
                     "headline": {"type": "string"},
                     "keywords": {"type": "string"},
                     "image_prompt": {"type": "string"},
+                    "motion": {"type": "string", "enum": MOTIONS},
                 },
-                "required": ["narration", "headline", "keywords", "image_prompt"],
+                "required": ["narration", "headline", "keywords", "image_prompt", "motion"],
                 "additionalProperties": False,
             },
         },
@@ -174,6 +179,13 @@ SCRIPT_SYSTEM = """당신은 한국어 유튜브 쇼츠·인스타그램 릴스 
   사람 얼굴 클로즈업보다 분위기·사물·풍경 위주로, 장면 내용과 어울리게.
 - image_prompt: 이 장면 배경 그림을 AI 이미지 모델(나노바나나)에 그려 달라고 할 영어 설명 1~2문장.
   narration 내용을 한눈에 떠올리게 하는 구체적인 장면(사물·공간·상황·은유)으로. 글자·숫자·로고·실존 인물은 넣지 말 것.
+  '정지된 사진'이 아니라 '움직이는 순간을 포착한 컷'처럼 쓰세요:
+  · 구도: 낮은 앵글(올려다보기)·높은 앵글(내려다보기)·대각선 구도·앞쪽 사물과 뒤쪽 배경의 큰 크기 차이 중 장면마다 다른 시점을 고릅니다.
+  · 움직임 단서: 날리는 종이, 쏟아지는 동전, 흔들리는 그림자, 빠르게 지나가는 빛줄기, 손이 막 집으려는 순간처럼 '방금 일어난 일/곧 일어날 일'이 보이게.
+  · 강한 대비: 큰 것과 작은 것, 밝은 것과 어두운 것, 오르는 것과 떨어지는 것을 한 컷에서 맞부딪치게.
+  · 첫 장면은 가장 강렬하게(극단적 클로즈업이나 과장된 크기 대비), 가운데 장면들은 서로 다른 시점으로, 마지막 장면은 정리된 안정 구도로.
+- motion: 이 장면의 카메라 움직임. push_in(빠르게 확대)·pull_out(뒤로 빠짐)·pan_left·pan_right(옆으로 이동)·tilt_up·tilt_down(위·아래로 이동) 중 하나.
+  내용에 맞게 고르고(상승·증가는 tilt_up, 하락·감소는 tilt_down, 비교·변화는 pan, 도입은 pull_out), 같은 motion을 두 장면 연속으로 쓰지 말고, 핵심 숫자·결론 장면에는 push_in을 씁니다.
 
 전체 규칙:
 - 첫 장면은 1~2초 안에 시선을 잡는 후킹으로 시작합니다. 요청에 <시작 문장> 후보가 있으면 그중 하나로 시작합니다.
@@ -251,7 +263,7 @@ def shorten_script(api_key: str, model: str, script: dict, length_sec: int, fact
     """너무 긴 대본을 내용·말투·사실은 그대로 두고 목표 길이로 줄인다."""
     have, limit = narration_chars(script), int(target_chars(length_sec) * 1.05)
     draft = json.dumps({k: script.get(k) for k in ("title", "mood", "caption", "hashtags", "visual_style")}
-                       | {"scenes": [{k: sc.get(k, "") for k in ("narration", "headline", "keywords", "image_prompt")}
+                       | {"scenes": [{k: sc.get(k, "") for k in ("narration", "headline", "keywords", "image_prompt", "motion")}
                                      for sc in script.get("scenes", [])]}, ensure_ascii=False)
     user = (
         (f"<조사 자료>\n{facts}\n</조사 자료>\n\n" if facts else "")
@@ -295,13 +307,15 @@ def split_text(text: str, title: str = "", mood: str = "calm", target_chars: int
     return normalize_script(data)
 
 
-def new_scene(narration: str = "", headline: str = "", keywords: str = "", image_prompt: str = "") -> dict:
+def new_scene(narration: str = "", headline: str = "", keywords: str = "", image_prompt: str = "",
+              motion: str = "") -> dict:
     return {
         "id": uuid.uuid4().hex[:8],
         "narration": narration,
         "headline": headline,
         "keywords": keywords,
         "image_prompt": image_prompt,
+        "motion": motion if motion in MOTIONS else "",
         "media": None,
     }
 
@@ -316,7 +330,7 @@ def normalize_script(data: dict) -> dict:
         "visual_style": data.get("visual_style", "").strip(),
         "scenes": [
             new_scene(s.get("narration", "").strip(), s.get("headline", "").strip(), s.get("keywords", "").strip(),
-                      s.get("image_prompt", "").strip())
+                      s.get("image_prompt", "").strip(), s.get("motion", "").strip())
             for s in data.get("scenes", [])
             if s.get("narration", "").strip() or s.get("headline", "").strip()
         ],
