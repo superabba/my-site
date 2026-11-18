@@ -48,6 +48,7 @@ python3 shorts-studio/routine/info.py
       "headline": "화면 위쪽 큰 문구 (3~16자)",
       "keywords": "영어 키워드 2~4단어",
       "image_prompt": "이 장면 배경 사진을 그릴 영어 설명 1~2문장 (20자 이상, 한글 금지)",
+      "motion": "push_in | pull_out | pan_left | pan_right | tilt_up | tilt_down 중 하나",
       "chart": { ... } 
     }
   ],
@@ -59,11 +60,19 @@ python3 shorts-studio/routine/info.py
 
 **대본 규칙**
 - 장면 5~9개, 공백 제외 전체 330자 이하 (약 30초). 첫 장면은 1~2초 안에 시선을 잡는 후킹, 마지막 장면은 저장·팔로우를 권하는 한 문장.
-- 첫 문장 유형은 날마다 돌립니다: 조건형·질문형·선언형·경고형·공감형 (`shorts-studio/shorts/hooks.py` 의 후보 문장을 참고).
+- **첫 문장은 정해진 시작 문장으로 시작합니다.** `info.py` 가 알려 주는 '오늘의 첫 문장 유형'(조건형·질문형·선언형·경고형·공감형이 날마다 돎)의 후보 10개 중 주제에 가장 어울리는 하나를 골라, 문장을 **그대로** 첫 장면 narration 맨 앞에 씁니다. `OO` 는 주제에 맞는 말로 채우고, '이거·이게' 같은 말은 바로 다음 문장에서 그게 무엇인지 설명해 이어 가세요. 후보 앞에 다른 말을 붙이거나 문장을 바꾸지 마세요.
 - narration 에 이모지·해시태그·괄호·특수기호(`# @ *`)를 넣지 않습니다 (TTS가 그대로 읽습니다). 숫자는 읽기 쉽게 쓰세요(예: "15퍼센트").
 - 사실·숫자는 팩트 시트에 있는 것만 씁니다.
 
 **image_prompt 규칙**: 장면 내용을 떠올리게 하는 구체적인 영어 장면(사물·공간·분위기). 글자·숫자·로고·실존 인물·얼굴 클로즈업 금지. 무료 FLUX가 그리므로 한 장면에 소재 하나, 단순하게.
+정지된 사진이 아니라 **움직이는 순간을 포착한 컷**처럼 쓰세요 (소재는 하나로 두고 구도와 움직임으로 역동성을 줍니다):
+- 구도: 낮은 앵글(low angle, looking up), 높은 앵글(high angle, looking down), 대각선 구도(diagonal composition), 앞쪽 큰 물체와 뒤쪽 작은 배경(large foreground object, small distant background) 중 장면마다 다른 시점.
+- 움직임 단서: flying papers, falling coins, light streaks, wind-blown fabric, motion blur 처럼 '방금 일어난 일'이 보이게.
+- 강한 대비: 큰 것과 작은 것, 밝은 것과 어두운 것, 오르는 것과 떨어지는 것.
+- 첫 장면은 가장 강렬하게(extreme close-up, dramatic scale contrast), 가운데 장면들은 서로 다른 시점으로, 마지막 장면은 안정된 구도로.
+- 주제를 화면 가운데에서 살짝 벗어나게 두고, 위쪽 1/4과 아래쪽 1/3은 자막 자리라 중요한 것을 두지 마세요.
+
+**motion 규칙**: 장면마다 카메라 움직임을 하나 고릅니다 — `push_in`(빠르게 확대), `pull_out`(뒤로 빠짐), `pan_left`·`pan_right`(옆으로 이동), `tilt_up`·`tilt_down`(위·아래로 이동). 내용에 맞게: 상승·증가 → `tilt_up`, 하락·감소 → `tilt_down`, 비교·변화 → `pan_left`/`pan_right`, 도입 → `pull_out`, 핵심 숫자·결론 → `push_in`. 같은 motion 을 두 장면 연속으로 쓰지 마세요. 비우면 기본 순환 움직임이 적용됩니다.
 
 **chart (인포그래픽 카드)** — 2~4장면에 넣고 나머지는 `null`(또는 생략). **대본·팩트 시트에 있는 값만** 쓰고, 없는 숫자를 만들지 마세요. 종류:
 ```json
