@@ -14,12 +14,14 @@ import json
 import re
 import sqlite3
 import subprocess
+import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 KST = timezone(timedelta(hours=9))
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 
 def git(*args: str, binary: bool = False):
@@ -61,6 +63,13 @@ def main():
     items = themes()
     name, desc, queries = items[now.date().toordinal() % len(items)]
     print(f"오늘(KST {now:%Y-%m-%d})의 테마: {name}\n설명: {desc}\n검색어: {', '.join(queries)}\n")
+    from shorts.hooks import HOOKS, pick_type  # 표준 라이브러리만 쓰는 파일이라 설치 필요 없음
+
+    kind = pick_type(now.date().toordinal())  # 매일 자동 쇼츠와 같은 날짜 순환
+    print(f"오늘의 첫 문장 유형: {kind} — 첫 장면 narration 은 아래 10개 중 주제에 가장 어울리는 하나로 시작하세요 (OO 는 주제로 채움)")
+    for h in HOOKS[kind]:
+        print("-", h)
+    print()
 
     subprocess.run(["git", "fetch", "-q", "--depth=1", "origin", "shorts-records", "cardbot-data"], capture_output=True)
     since = now - timedelta(days=30)
