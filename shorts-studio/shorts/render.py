@@ -230,7 +230,7 @@ def render(script: dict, opts: RenderOptions, progress: ProgressFn | None = None
                 stock_ok = False
             except Exception as e:  # 다운로드 실패 등
                 warnings.append(f"장면 {i + 1}: 스톡 다운로드 실패({e}). 자동 배경을 썼어요.")
-        p["bg"] = make_background(media, size, opts.fps, p["dur"], mood, i, p["start"])
+        p["bg"] = make_background(media, size, opts.fps, p["dur"], mood, i, p["start"], sc.get("motion", ""))
         p["media"] = media
 
     # 3) 소리 합치기 ----------------------------------------------------------
