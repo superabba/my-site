@@ -1,0 +1,211 @@
+{
+ "theme": "부동산·청약·전월세",
+ "topic": {
+  "topic": "청약통장 소득공제 조건과 무주택확인서",
+  "keyword": "청약통장 소득공제",
+  "angle": "공제 한도와 놓치기 쉬운 조건",
+  "why": "연말정산 전 확인 시기"
+ },
+ "title": "청약통장 소득공제, 최대 120만원 조건",
+ "mood": "calm",
+ "caption": "무주택 세대주라면 청약통장 납입액 300만원의 40퍼센트를 소득공제받을 수 있어요. 무주택확인서 제출 기한을 확인하세요.",
+ "hashtags": [
+  "청약통장",
+  "소득공제",
+  "연말정산",
+  "무주택",
+  "내집마련"
+ ],
+ "visual_style": "cinematic documentary photograph, warm amber and deep teal lighting",
+ "scenes": [
+  {
+   "narration": "여러분 이거 생각보다 사람들 잘 몰라요. 청약통장으로 소득공제도 받을 수 있다는 거요.",
+   "headline": "청약통장 공제",
+   "keywords": "housing subscription savings passbook",
+   "image_prompt": "Extreme close-up of a worn bank passbook and a small brass house key in the foreground, falling coins and light streaks, dramatic scale contrast, warm amber light.",
+   "motion": "push_in",
+   "chart": null
+  },
+  {
+   "narration": "총급여 7천만원 이하 무주택 세대주라면, 연 납입 300만원의 40퍼센트를 공제받아요.",
+   "headline": "7천만원 이하",
+   "keywords": "low income salary worker",
+   "image_prompt": "Low angle looking up at a small apartment building towering over a tiny desk with a calculator in the large foreground, diagonal composition, teal and amber lighting.",
+   "motion": "tilt_up",
+   "chart": {
+    "type": "stat",
+    "badge": "공제 조건",
+    "left_label": "총급여",
+    "left": "7천만원 이하",
+    "right_label": "무주택",
+    "right": "세대주 또는 배우자"
+   }
+  },
+  {
+   "narration": "300만원을 넣으면 최대 120만원이 소득에서 빠져요. 세금이 120만원 줄어드는 건 아니에요.",
+   "headline": "최대 120만원",
+   "keywords": "tax deduction calculation",
+   "image_prompt": "High angle looking down at stacked coins and a paper receipt on a wooden table, flying papers and motion blur, soft diagonal light.",
+   "motion": "pan_left",
+   "chart": {
+    "type": "compare",
+    "badge": "연 납입 기준",
+    "bars": [
+     {
+      "name": "납입한도",
+      "value": 300,
+      "display": "300만원"
+     },
+     {
+      "name": "공제액",
+      "value": 120,
+      "display": "120만원"
+     }
+    ]
+   }
+  },
+  {
+   "narration": "핵심은 무주택확인서예요. 처음 신청하는 해의 다음 해 2월 말까지 은행에 내야 해요.",
+   "headline": "무주택확인서",
+   "keywords": "document submitted at bank counter",
+   "image_prompt": "Large foreground paper document with a stamp, small bank counter blurred in the distant background, wind-blown papers, calm teal tones.",
+   "motion": "pan_right",
+   "chart": {
+    "type": "calendar",
+    "badge": "제출 기한",
+    "date": "다음 해 2월 말",
+    "event": "무주택확인서 제출",
+    "forecast": "처음 신청할 때 1회"
+   }
+  },
+  {
+   "narration": "그 해 1월부터 12월까지 계속 무주택이어야 해요. 중간에 집을 사면 그해 공제는 못 받아요.",
+   "headline": "1년 내내 무주택",
+   "keywords": "empty open door of a small house",
+   "image_prompt": "Diagonal composition of a small house with an open door at the edge of frame, falling autumn leaves, strong contrast of bright interior and dark surroundings.",
+   "motion": "pull_out",
+   "chart": null
+  },
+  {
+   "narration": "가입 5년 안에 해지하면 감면받은 세액을 추징당할 수 있으니 조심하세요.",
+   "headline": "5년 안 해지 주의",
+   "keywords": "broken piggy bank warning",
+   "image_prompt": "Low angle of a cracked piggy bank on a table with coins spilling out, motion blur, dramatic dark and bright contrast.",
+   "motion": "tilt_down",
+   "chart": {
+    "type": "impact",
+    "badge": "주의 흐름",
+    "steps": [
+     {
+      "desc": "공제 받고 가입"
+     },
+     {
+      "desc": "5년 안에 해지"
+     },
+     {
+      "desc": "감면 세액 추징"
+     }
+    ]
+   }
+  },
+  {
+   "narration": "저장해 두고, 연말정산 전에 내 조건부터 확인해 보세요.",
+   "headline": "내 조건 확인",
+   "keywords": "checklist on a desk",
+   "image_prompt": "Stable top-down view of a checklist notebook with a pen and a cup of tea on a clean desk, soft warm light, calm composition.",
+   "motion": "push_in",
+   "chart": null
+  }
+ ],
+ "facts": "국세청 '주택마련저축 소득공제' 안내(nts.go.kr)에 따르면 주택마련저축 납입액(연 300만원 한도)의 40퍼센트를 소득공제한다. 요건은 총급여 7천만원 이하 근로소득자이면서 무주택 세대주이며, 2025년 1월 1일 이후 납입분부터 무주택 세대주의 배우자도 공제 대상으로 확대되었다. 납입한 해(1월 1일~12월 31일) 내내 무주택이어야 하고 연중 주택을 보유한 사실이 있으면 그해 공제를 받을 수 없다. 주택청약종합저축은 공제를 처음 신청하는 해의 다음 해 2월 말까지 무주택확인서를 저축취급기관에 제출하면 되고 1회만 내면 된다. 납입증명서는 연말정산 간소화 서비스에서 조회하며 조회되지 않으면 금융회사에서 발급받는다. 주택청약종합저축은 가입일부터 5년 이내 중도해지하거나 국민주택규모를 초과하는 주택에 청약해 당첨되면 감면받은 세액을 추징한다. 소득공제이므로 실제 절세액은 본인 세율에 따라 다르다. 2026 세제개편안에서 이 특례의 일몰 폐지(상시화)가 추진된다는 보도가 있으나 확정 여부는 확인하지 않아 원고에서 제외했다. 기준: 국세청 안내 페이지(주택 등기현황 2024.12.31. 기준 표기), 2026년 11월 확인.",
+ "sources": [
+  "https://www.nts.go.kr/nts/cm/cntnts/cntntsView.do?cntntsId=239022",
+  "https://call.nts.go.kr/call/qna/selectQnaInfo.do?mi=1318&ctgId=CTG11896"
+ ],
+ "blog": {
+  "titles": [
+   "청약통장 소득공제 조건, 연 300만원 40퍼센트 정리",
+   "청약저축 소득공제 받는 법, 무주택확인서 제출 기한",
+   "청약통장 납입액 최대 120만원 공제, 놓치기 쉬운 3가지",
+   "무주택 세대주 청약통장 연말정산 체크리스트"
+  ],
+  "main_keyword": "청약통장 소득공제",
+  "sub_keywords": [
+   "무주택확인서",
+   "주택마련저축 공제",
+   "연말정산 청약",
+   "청약저축 해지 추징"
+  ],
+  "meta_description": "청약통장 소득공제 조건과 한도, 무주택확인서 제출 기한, 5년 내 해지 시 추징까지 국세청 안내 기준으로 정리했습니다.",
+  "intro": "청약통장은 내 집 마련을 준비하는 통장이기도 하지만, 조건이 맞으면 연말정산에서 소득공제까지 받을 수 있는 통장입니다. 의외로 이 공제를 모르고 지나치는 분이 많습니다. 국세청 안내를 기준으로 청약통장 소득공제의 조건과 한도, 서류, 주의할 점을 차근차근 정리해 드립니다.",
+  "sections": [
+   {
+    "heading": "청약통장 소득공제, 얼마나 받을 수 있나",
+    "body": "국세청 안내에 따르면 주택마련저축 납입액의 40퍼센트를 소득에서 공제해 줍니다. 공제 대상 납입액은 연 300만원이 한도입니다. 그래서 한 해에 300만원 이상 넣었다면 최대 120만원까지 소득공제를 받을 수 있습니다. 월로 나누면 25만원씩 넣는 경우가 한도에 딱 맞습니다. 다만 한도를 넘겨 넣은 금액은 공제 계산에 들어가지 않으니, 공제만 보고 무리하게 더 넣을 이유는 없습니다.",
+    "image": "scene_02.jpg",
+    "experience_hint": "본인이 청약통장을 가입한 시기나 무주택확인서를 낸 경험이 있다면 한 문장 덧붙여 보세요."
+   },
+   {
+    "heading": "공제 120만원은 세금 120만원이 아닙니다",
+    "body": "여기서 가장 많이 오해하는 부분이 있습니다. 이 제도는 세액공제가 아니라 소득공제입니다. 120만원은 과세되는 소득에서 빼 주는 금액이고, 실제로 줄어드는 세금은 내 세율 구간에 따라 달라집니다. 예를 들어 적용 세율이 낮은 구간이라면 줄어드는 세금은 120만원보다 훨씬 적습니다. 그러니 기대 금액을 계산할 때는 120만원이 아니라 120만원에 내 세율을 곱한 값으로 어림해 보세요.",
+    "image": "scene_03.jpg",
+    "experience_hint": "본인이 청약통장을 가입한 시기나 무주택확인서를 낸 경험이 있다면 한 문장 덧붙여 보세요."
+   },
+   {
+    "heading": "받을 수 있는 사람과 무주택 기준",
+    "body": "요건은 총급여 7천만원 이하의 근로소득자이면서 무주택 세대주여야 합니다. 2025년 1월 1일 이후 납입분부터는 무주택 세대주의 배우자도 공제 대상으로 넓어졌다고 국세청이 안내하고 있습니다. 중요한 점은 무주택 기준이 납입한 해 전체라는 것입니다. 1월 1일부터 12월 31일까지 계속 무주택이어야 하고, 연도 중에 주택을 보유한 적이 있으면 그해에는 공제를 받을 수 없습니다. 해 중간에 집을 사는 계획이 있다면 미리 감안해야 합니다.",
+    "image": "scene_05.jpg",
+    "experience_hint": "본인이 청약통장을 가입한 시기나 무주택확인서를 낸 경험이 있다면 한 문장 덧붙여 보세요."
+   },
+   {
+    "heading": "무주택확인서, 언제 어디에 내나",
+    "body": "주택청약종합저축은 무주택확인서를 저축을 취급하는 은행에 제출해야 공제가 가능합니다. 제출 기한은 공제를 처음 신청하는 해의 다음 해 2월 말까지이고, 한 번만 내면 됩니다. 납입증명서는 연말정산 간소화 서비스에서 조회할 수 있고, 조회되지 않는 경우에는 금융회사에서 발급받아 회사에 제출하면 됩니다. 서류를 놓치면 공제가 안 될 수 있으니 기한을 달력에 적어 두세요.",
+    "image": "scene_04.jpg",
+    "experience_hint": "본인이 청약통장을 가입한 시기나 무주택확인서를 낸 경험이 있다면 한 문장 덧붙여 보세요."
+   },
+   {
+    "heading": "해지할 때 조심할 점",
+    "body": "주택청약종합저축은 가입일부터 5년 이내에 중도해지하거나, 국민주택규모를 초과하는 주택에 청약해 당첨되면 공제로 감면받은 세액을 추징합니다. 공제를 받은 뒤 목돈이 급해 해지하면 오히려 손해를 볼 수 있다는 뜻입니다. 청약통장은 오래 유지할수록 청약 가점에도 도움이 되므로, 해지 전에 반드시 은행에 조건을 확인하세요.",
+    "image": "scene_06.jpg",
+    "experience_hint": "본인이 청약통장을 가입한 시기나 무주택확인서를 낸 경험이 있다면 한 문장 덧붙여 보세요."
+   }
+  ],
+  "faq": [
+   {
+    "question": "배우자도 공제를 받을 수 있나요?",
+    "answer": "국세청 안내에 따르면 2025년 1월 1일 이후 납입분부터 무주택 세대주의 배우자도 본인 납입분에 대해 공제 대상에 포함됩니다. 개별 상황은 회사 안내나 국세청에서 확인하세요."
+   },
+   {
+    "question": "무주택확인서는 매년 내야 하나요?",
+    "answer": "국세청 안내 기준으로 공제를 처음 신청하는 해의 다음 해 2월 말까지 한 번 제출하면 됩니다."
+   },
+   {
+    "question": "300만원보다 더 넣으면 공제도 늘어나나요?",
+    "answer": "아닙니다. 공제 대상 납입액은 연 300만원 한도라서 최대 공제는 120만원입니다."
+   }
+  ],
+  "conclusion": "청약통장 소득공제는 조건이 맞는 사람에게 연말정산에서 받을 수 있는 혜택입니다. 총급여, 무주택 여부, 서류 제출 기한 세 가지만 확인하면 됩니다. 세부 조건은 해마다 바뀔 수 있으니 국세청 홈택스와 회사 안내를 꼭 한 번 더 확인하세요. 이 글은 투자나 가입 권유가 아닌 제도 안내입니다.",
+  "sources": [
+   "국세청 주택마련저축 소득공제 안내 https://www.nts.go.kr/nts/cm/cntnts/cntntsView.do?cntntsId=239022",
+   "국세청 국세상담센터 Q&A https://call.nts.go.kr/call/qna/selectQnaInfo.do?mi=1318&ctgId=CTG11896",
+   "정책브리핑 연말정산 내집 마련 소득공제 https://www.korea.kr/news/policyNewsView.do?newsId=148684694"
+  ],
+  "tags": [
+   "청약통장",
+   "소득공제",
+   "연말정산",
+   "무주택확인서",
+   "주택청약종합저축",
+   "청약저축",
+   "무주택세대주",
+   "주택마련저축",
+   "연말정산팁",
+   "내집마련",
+   "절세",
+   "청약통장공제",
+   "세금",
+   "재테크기본",
+   "국세청"
+  ]
+ }
+}
