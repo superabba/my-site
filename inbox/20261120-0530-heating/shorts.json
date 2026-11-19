@@ -1,0 +1,188 @@
+{
+ "theme": "소비·절약 꿀팁",
+ "topic": {
+  "topic": "겨울 난방비, 1도 낮추면 7퍼센트 줄어드는 이유",
+  "keyword": "난방비 절약",
+  "angle": "설정 온도·외출·틈새 세 가지 기본기",
+  "why": "첫 영하권 추위가 시작되는 11월 하순, 난방 시작 시점"
+ },
+ "title": "난방비 1도 낮추면 7% 줄어요",
+ "mood": "calm",
+ "caption": "난방비 절약 기본기 정리. 실내 20도, 외출 1~2도 낮추기, 틈새 막기. 저장해 두세요.",
+ "hashtags": [
+  "난방비",
+  "절약",
+  "보일러",
+  "생활비",
+  "겨울"
+ ],
+ "visual_style": "cinematic warm interior photograph, soft amber lighting with cool blue window light",
+ "scenes": [
+  {
+   "narration": "만약 아직도 보일러를 높게 틀고 있다면? 이거부터 챙기세요.",
+   "headline": "난방비 새는 습관",
+   "keywords": "heating boiler thermostat",
+   "image_prompt": "extreme close-up of a boiler thermostat dial glowing in a dark room, dramatic scale contrast",
+   "motion": "push_in",
+   "chart": null
+  },
+  {
+   "narration": "실내 적정 온도는 20도예요. 1도만 낮춰도 에너지 소비가 7퍼센트 줄어요.",
+   "headline": "1도 낮추면 7%",
+   "keywords": "warm room radiator",
+   "image_prompt": "a small warm lamp-lit room seen from a low angle, light streaks from a window, large foreground radiator, small distant sofa",
+   "motion": "tilt_down",
+   "chart": {
+    "type": "gauge",
+    "badge": "한국에너지공단",
+    "value": 7,
+    "label": "1도 낮출 때 절감",
+    "sub": "실내 적정온도 20도"
+   }
+  },
+  {
+   "narration": "설정 온도를 높인다고 방이 빨리 데워지지 않아요. 보일러만 오래 돌아요.",
+   "headline": "높여도 안 빨라요",
+   "keywords": "boiler steam pipe",
+   "image_prompt": "high angle view of a boiler pipe with steam rising, diagonal composition, motion blur of warm air",
+   "motion": "pan_left",
+   "chart": null
+  },
+  {
+   "narration": "짧은 외출엔 끄지 말고 1~2도만 낮추세요. 장기 외출엔 외출모드가 좋아요.",
+   "headline": "외출엔 1~2도만",
+   "keywords": "winter coat door",
+   "image_prompt": "a winter coat hanging by a door with wind-blown scarf, low angle looking up, soft morning light",
+   "motion": "pan_right",
+   "chart": {
+    "type": "compare",
+    "badge": "외출 시 설정",
+    "bars": [
+     {
+      "name": "짧은 외출",
+      "value": 2,
+      "display": "1~2도 낮춤"
+     },
+     {
+      "name": "장기 외출",
+      "value": 3,
+      "display": "외출모드"
+     }
+    ]
+   }
+  },
+  {
+   "narration": "내복과 양말부터 챙기고, 창문 틈은 에어캡과 문풍지로 막아 보세요.",
+   "headline": "틈새부터 막기",
+   "keywords": "frosted window curtain",
+   "image_prompt": "wind-blown curtain beside a frosted window with large foreground bubble wrap roll, small distant street, diagonal composition",
+   "motion": "tilt_up",
+   "chart": null
+  },
+  {
+   "narration": "저장해 두고 이번 겨울 난방비 점검하세요.",
+   "headline": "저장해 두세요",
+   "keywords": "cozy living room",
+   "image_prompt": "stable composition of a cozy living room with a folded blanket and a warm cup on a wooden table, soft golden light",
+   "motion": "pull_out",
+   "chart": {
+    "type": "flow",
+    "badge": "요약",
+    "nodes": [
+     {
+      "title": "20도 유지",
+      "desc": "1도당 7% 절감"
+     },
+     {
+      "title": "외출 1~2도",
+      "desc": "장기엔 외출모드"
+     },
+     {
+      "title": "틈새 막기",
+      "desc": "에어캡·문풍지"
+     }
+    ],
+    "cta": "저장해 두세요"
+   }
+  }
+ ],
+ "facts": "한국에너지공단 자료(세계일보 2025-12-01 연합 기사 인용): 난방 온도를 1도 낮추면 에너지 소비량이 7퍼센트 줄고, 정부가 제안하는 겨울철 실내 적정온도는 20도. 일상적인 외출은 평소 설정보다 1~2도 낮추고, 일주일 이상 등 장기간 집을 비울 때는 외출모드 활용(지역난방공사는 3일 이상 장기 외출 시 외출모드 안내). 정책브리핑(korea.kr) 난방비 절약 Q&A(2017-12-06): 높게 설정하기보다 낮은 온도로 장시간 유지, 완전히 껐다 켜면 에너지가 많이 소모되므로 짧은 외출엔 끄지 말 것, 창문 단열과 양말·덧신 착용으로 체감온도 상승. 세계일보 기사: 에어캡·문풍지·커튼·러그 등으로 틈새 열손실을 줄일 수 있음. 집마다 단열과 난방 방식이 달라 절감액은 다를 수 있음.",
+ "sources": [
+  "https://www.segye.com/newsView/20251201501679",
+  "https://www.korea.kr/news/policyNewsView.do?newsId=148845570"
+ ],
+ "blog": {
+  "titles": [
+   "겨울 난방비 줄이는 법, 1도 낮추면 7퍼센트",
+   "난방비 절약 기본기 4가지, 외출모드는 언제?",
+   "보일러 설정 온도 20도, 1도의 절감 효과",
+   "이번 겨울 난방비 점검 순서와 틈새 차단법"
+  ],
+  "main_keyword": "난방비 절약 방법",
+  "sub_keywords": [
+   "보일러 외출모드",
+   "실내 적정온도",
+   "틈새 단열"
+  ],
+  "meta_description": "겨울 난방비를 줄이는 기본기를 정리했어요. 실내 20도 유지, 1도당 7퍼센트 절감, 외출 설정, 틈새 차단까지 확인하세요.",
+  "intro": "날이 추워지면 가장 먼저 걱정되는 게 난방비예요. 난방비 절약 방법은 거창하지 않고, 설정 온도와 외출 습관, 틈새 차단 세 가지만 점검해도 달라져요. 한국에너지공단 자료와 정책브리핑 안내를 바탕으로 확인된 내용만 정리했어요.",
+  "sections": [
+   {
+    "heading": "적정 온도는 20도, 1도의 힘",
+    "body": "정부가 제안하는 겨울철 실내 적정온도는 20도예요. 한국에너지공단 자료에 따르면 난방 온도를 1도 낮추면 에너지 소비량이 7퍼센트가량 줄어요. 서울 도시가스 평균 단가로 계산하면 한 달에 5천 원대 절감이라는 설명이 있어요. 집마다 단열과 난방 방식이 달라 실제 금액은 다를 수 있어요. 춥게 느껴진다면 설정을 올리기 전에 옷차림부터 바꿔 보세요.",
+    "image": "scene_02.jpg",
+    "experience_hint": "내 집 가스 고지서의 월별 사용량을 비교해 보면 효과를 확인할 수 있어요."
+   },
+   {
+    "heading": "온도를 높여도 방은 빨리 안 데워져요",
+    "body": "설정 온도를 높게 잡는다고 방이 더 빨리 따뜻해지지는 않아요. 보일러는 설정한 온도에 닿을 때까지 오래 돌 뿐이고 그만큼 가스 사용량만 늘어요. 정책브리핑의 난방비 절약 안내도 높게 설정하기보다 낮은 온도를 길게 유지하라고 설명해요. 한 번에 확 올리기보다 적당한 온도를 꾸준히 지키는 편이 낫습니다.",
+    "image": "scene_03.jpg",
+    "experience_hint": "평소 몇 도에 맞춰 두는지 한 번 확인해 보세요."
+   },
+   {
+    "heading": "외출할 때는 끄지 말고 조금만 낮추기",
+    "body": "짧은 외출에서 보일러를 완전히 끄면 다시 데울 때 에너지가 많이 들 수 있어요. 일상적인 외출은 평소 설정보다 1~2도 낮추는 정도가 좋다는 안내가 있어요. 일주일 이상 길게 집을 비울 때는 외출모드를 쓰고, 지역난방공사는 3일 이상 장기 외출에 외출모드를 권했어요. 다만 기종과 난방 방식에 따라 다르니 제조사 안내서를 함께 확인하세요.",
+    "image": "scene_04.jpg",
+    "experience_hint": "우리 집 보일러가 개별난방인지 지역난방인지 먼저 확인해 보세요."
+   },
+   {
+    "heading": "틈새와 옷차림으로 체감온도 올리기",
+    "body": "창문 틈과 문 아래로 새는 찬바람을 막아야 같은 온도에서도 덜 추워요. 에어캡, 문풍지, 커튼, 러그 같은 준비물은 비교적 저렴해요. 한 기사는 이런 틈새 차단으로 한 달 에너지 사용량이 5퍼센트대 줄 수 있다고 소개했어요. 내복, 카디건, 양말, 무릎담요를 함께 쓰면 설정 온도를 낮춰도 견디기 쉬워요.",
+    "image": "scene_05.jpg",
+    "experience_hint": "창문 가장자리에 손을 대 보면 바람이 새는 곳을 찾기 쉬워요."
+   }
+  ],
+  "faq": [
+   {
+    "question": "외출모드는 언제 쓰는 게 좋나요?",
+    "answer": "일상적인 짧은 외출은 평소 설정보다 1~2도 낮추는 정도를, 일주일 이상이나 3일 이상 길게 비울 때는 외출모드를 쓰라는 안내가 있어요. 기종과 난방 방식에 따라 다르니 제조사 안내서를 확인하세요."
+   },
+   {
+    "question": "1도 낮추면 정말 7퍼센트가 줄어드나요?",
+    "answer": "한국에너지공단 자료에 따르면 난방 온도를 1도 낮출 때 에너지 소비량이 약 7퍼센트 줄어든다고 해요. 집의 단열과 난방 방식에 따라 실제 절감액은 달라질 수 있어요."
+   }
+  ],
+  "conclusion": "난방비 절약은 큰 공사가 아니라 습관에서 시작돼요. 실내 온도는 20도 안팎으로 두고, 외출할 때 조금 낮추고, 틈새를 막고 옷을 챙겨 입는 것부터 해 보세요. 이번 겨울 고지서가 달라지는지 지난달과 비교해 보세요.",
+  "sources": [
+   "세계일보(연합) 2025-12-01 https://www.segye.com/newsView/20251201501679",
+   "정책브리핑 korea.kr https://www.korea.kr/news/policyNewsView.do?newsId=148845570"
+  ],
+  "tags": [
+   "난방비",
+   "난방비절약",
+   "보일러",
+   "외출모드",
+   "실내적정온도",
+   "겨울절약",
+   "가스요금",
+   "생활비절약",
+   "한국에너지공단",
+   "에어캡",
+   "문풍지",
+   "절약팁",
+   "경제주막",
+   "겨울준비",
+   "도시가스"
+  ]
+ }
+}
