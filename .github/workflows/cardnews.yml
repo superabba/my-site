@@ -68,7 +68,7 @@ jobs:
 
       # --- Variables (같은 화면의 Variables 탭, 비우면 기본값) ---
       AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH }} # 'true'면 예약 실행 때 바로 게시
-      PLATFORMS: ${{ vars.PLATFORMS }} # 기본 instagram,reels,threads
+      PLATFORMS: ${{ vars.PLATFORMS }} # 기본 reels,threads (인스타 카드 슬라이드 "instagram" 은 INSTAGRAM_CAROUSEL=true 일 때만 올라감)
       CONTENT_SOURCE: ${{ vars.CONTENT_SOURCE }} # 기본 api(LLM이 원고를 씀). routine=Claude 루틴이 content/ 에 올린 원고 사용(LLM API 없음)
       LLM_PROVIDER: ${{ vars.LLM_PROVIDER }} # claude(기본) | gemini
       GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}

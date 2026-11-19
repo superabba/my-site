@@ -1236,3 +1236,25 @@ def test_store_recent_reel_styles_can_exclude_a_folder(tmp_path):
     store.add_reel_style("chalkboard", "d2")
     assert store.recent_reel_styles(2) == ["chalkboard", "caption-news"]
     assert store.recent_reel_styles(2, exclude_folder="d2") == ["caption-news"]  # d2를 다시 만들 때
+
+
+# ---------------------------------------------------------------- 인스타 카드 슬라이드(캐러셀)는 올리지 않는다
+
+def test_instagram_carousel_off_by_default(monkeypatch, tmp_path):
+    from cardbot.config import Settings
+    monkeypatch.setenv("CARDBOT_DATA_DIR", str(tmp_path / "d"))
+    monkeypatch.setenv("PLATFORMS", "")
+    monkeypatch.setenv("INSTAGRAM_CAROUSEL", "")
+    monkeypatch.setenv("YOUTUBE_REFRESH_TOKEN", "")
+    s = Settings.load()
+    assert "instagram" not in s.platforms and {"reels", "threads"} <= set(s.platforms)
+
+
+def test_instagram_in_platforms_variable_is_stripped_unless_enabled(monkeypatch, tmp_path):
+    from cardbot.config import Settings
+    monkeypatch.setenv("CARDBOT_DATA_DIR", str(tmp_path / "d"))
+    monkeypatch.setenv("PLATFORMS", "instagram,reels,threads,youtube")
+    monkeypatch.setenv("INSTAGRAM_CAROUSEL", "")
+    assert Settings.load().platforms == ["reels", "threads", "youtube"]
+    monkeypatch.setenv("INSTAGRAM_CAROUSEL", "true")
+    assert Settings.load().platforms == ["instagram", "reels", "threads", "youtube"]
