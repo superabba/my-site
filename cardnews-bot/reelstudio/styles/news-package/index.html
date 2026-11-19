@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#0d1620}canvas{display:block;width:1080px;height:1920px}</style>
+</head><body><canvas id="c"></canvas>
+<script type="module">
+// 방송 뉴스 패키지 스타일 (lemo-opuscar의 Broadcast News Package 문법을 세로 화면에 맞춘 것):
+// 같은 부품만 반복해서 쓴다 — 채널 플레이트(평행사변형), 카테고리 탭, 종이색 스트랩, 잉크색 카드와 포인트색 윗선.
+// 한 화면에 사실 하나. 헤드라인은 아래 스트랩이 들고 있고, 위쪽은 그래픽(큰 수치·체크 목록)이 쓴다.
+import { W, H, SAFE, SAFE_W, clamp, lerp, seg, ss, eo, back, wrap, fitText, rollNumber, sceneAt, subAt, start } from '/styles/common.js';
+
+const FAM = 'Pretendard';
+const INK = '#0e1a26', INK2 = '#16283a', PAPER = '#f3f1ea', RED = '#e3122f', GOLD = '#f5b700', BLUE = '#1c5fc4', GREY = '#8d9aa8';
+
+function plate(ctx, x, y, w, h, fill) {            // 평행사변형 플레이트
+  const sk = h * 0.28;
+  ctx.fillStyle = fill; ctx.beginPath();
+  ctx.moveTo(x + sk, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w - sk, y + h); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
+}
+
+function backdrop(ctx, t) {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#0b1420'); g.addColorStop(1, '#14263a');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // 스튜디오 조명 같은 비스듬한 빛줄기가 천천히 흐른다
+  ctx.save(); ctx.globalAlpha = 0.06; ctx.fillStyle = '#9fc4ff';
+  for (let k = 0; k < 4; k++) {
+    const x = ((k * 330 + t * 26) % (W + 500)) - 300;
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 150, 0); ctx.lineTo(x - 350, H); ctx.lineTo(x - 500, H); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function bug(ctx, c, sc) {                          // 맨 위 (앱 영역 아래): 채널 플레이트 + 진행 칸
+  const x = SAFE.left, y = SAFE.top - 8;
+  plate(ctx, x, y, 300, 62, RED);
+  ctx.fillStyle = '#fff'; ctx.font = `900 34px "${FAM}"`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText((c.channel || '경제주막').split('·')[0].trim(), x + 34, y + 33);
+  ctx.fillStyle = GOLD; ctx.fillRect(x + 300 - 10, y, 6, 62);
+  ctx.fillStyle = GREY; ctx.font = `700 24px "${FAM}"`; ctx.textAlign = 'right';
+  ctx.fillText('NEWS DESK ' + String(sc.s.index).padStart(2, '0') + '/' + String(c.scenes.filter(s => s.kind !== 'card').length).padStart(2, '0'), SAFE.right, y + 33);
+  const n = c.scenes.length;                         // 진행: 칸마다 한 장면
+  const gw = (SAFE_W - (n - 1) * 8) / n;
+  for (let k = 0; k < n; k++) { ctx.fillStyle = k < sc.i ? RED : k === sc.i ? GOLD : 'rgba(255,255,255,.18)'; ctx.fillRect(x + k * (gw + 8), y + 78, gw, 8); }
+}
+
+// 가운데 그래픽 카드: 잉크색 바탕 + 포인트색 윗선. 큰 수치(핵심 어구)가 있으면 수치, 없으면 장면 번호
+function card(ctx, s, lt, top, bottom) {
+  const p = eo(seg(lt, 0, 0.4));
+  const x = SAFE.left, w = SAFE_W, h = bottom - top;
+  ctx.save(); ctx.globalAlpha = clamp(p * 1.6); ctx.translate(0, (1 - p) * 70);
+  ctx.fillStyle = INK2; ctx.fillRect(x, top, w, h);
+  ctx.fillStyle = RED; ctx.fillRect(x, top, w * eo(seg(lt, 0.05, 0.5)), 10);
+  // 카테고리 탭(왼쪽 위) — 장면 종류
+  ctx.fillStyle = GOLD; ctx.fillRect(x, top + 10, 196, 46);
+  ctx.fillStyle = INK; ctx.font = `800 24px "${FAM}"`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(s.kind === 'cover' ? '오늘의 이슈' : s.kind === 'summary' || s.kind === 'cta' ? '핵심 정리' : '체크 포인트', x + 20, top + 34);
+  let y = top + 96;
+  const key = (s.highlight || '').trim();
+  if (key) {
+    const f = fitText(ctx, key, { family: FAM, weight: 900, maxW: w - 80, maxLines: 1, sizes: [170, 150, 130, 112, 96, 80, 68] });
+    ctx.font = `900 ${f.size}px "${FAM}"`; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#fff';
+    ctx.fillText(rollNumber(key, eo(seg(lt, 0.1, 0.9))), x + 40, y + f.size * 0.88);
+    ctx.fillStyle = GOLD; ctx.fillRect(x + 40, y + f.size * 0.88 + 22, 150 * eo(seg(lt, 0.4, 0.8)), 8);
+    y += f.size * 0.88 + 70;
+  }
+  const items = (s.bullets && s.bullets.length) ? s.bullets : null;
+  if (items) {                                       // 순서표: 번호 블록이 세로로 뒤집히며 들어온다
+    const rh = Math.min(120, (top + h - y - 30) / items.length);
+    items.forEach((b, k) => {
+      const q = seg(lt, 0.35 + k * 0.16, 0.6 + k * 0.16); if (q <= 0) return;
+      const yy = y + k * rh, sy = Math.min(1, Math.max(0.04, eo(q)));
+      ctx.save(); ctx.translate(0, yy + rh * 0.45); ctx.scale(1, sy); ctx.translate(0, -(yy + rh * 0.45));
+      ctx.fillStyle = BLUE; ctx.fillRect(x + 36, yy, 76, rh - 14);
+      ctx.fillStyle = '#fff'; ctx.font = `900 40px "${FAM}"`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(k + 1), x + 74, yy + (rh - 14) / 2);
+      ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fillRect(x + 112, yy, w - 148, rh - 14);
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+      const f = fitText(ctx, b, { family: FAM, weight: 700, maxW: w - 200, maxLines: 2, sizes: [40, 36, 32, 28] });
+      ctx.font = `700 ${f.size}px "${FAM}"`;
+      f.lines.forEach((l, j) => ctx.fillText(l, x + 136, yy + (rh - 14) / 2 + (j - (f.lines.length - 1) / 2) * f.size * 1.2));
+      ctx.restore();
+    });
+  } else if (s.body) {
+    let bs = 44, bl;
+    for (; bs >= 30; bs -= 2) { ctx.font = `600 ${bs}px "${FAM}"`; bl = wrap(ctx, s.body, w - 90); if (y + bl.length * bs * 1.5 <= top + h - 30) break; }
+    ctx.fillStyle = '#d6dee8'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    bl.forEach((l, k) => { const q = eo(seg(lt, 0.3 + k * 0.1, 0.6 + k * 0.1)); ctx.save(); ctx.globalAlpha = q; ctx.fillText(l, x + 40, y + bs * 1.05 + k * bs * 1.5 + (1 - q) * 20); ctx.restore(); });
+  }
+  ctx.restore();
+}
+
+// 아래 스트랩: 헤드라인을 들고 있고 장면이 바뀌면 세로로 뒤집힌다
+function strap(ctx, c, sc) {
+  const x = SAFE.left, w = SAFE_W, y = SAFE.bottom - 218, h = 112;
+  const lt = sc.lt, flip = seg(lt, 0, 0.32);
+  ctx.save();
+  plate(ctx, x, y - 44, 232, 44, RED);
+  ctx.fillStyle = '#fff'; ctx.font = `800 24px "${FAM}"`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText('경제주막 뉴스', x + 28, y - 21);
+  ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+  ctx.fillStyle = PAPER; ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = INK; ctx.fillRect(x + w - 90, y, 90, h);
+  ctx.fillStyle = GOLD; ctx.fillRect(x, y, 10, h);
+  const f = fitText(ctx, sc.s.heading.replace(/\n/g, ' '), { family: FAM, weight: 900, maxW: w - 190, maxLines: 2, sizes: [44, 40, 36, 32, 28] });
+  ctx.font = `900 ${f.size}px "${FAM}"`; ctx.fillStyle = INK; ctx.textBaseline = 'middle';
+  const dy = (1 - eo(flip)) * h * 0.9;               // 새 글이 아래에서 올라온다
+  f.lines.forEach((l, k) => ctx.fillText(l, x + 34, y + h / 2 + (k - (f.lines.length - 1) / 2) * f.size * 1.18 + dy));
+  ctx.fillStyle = '#fff'; ctx.font = `800 22px "${FAM}"`; ctx.textAlign = 'center';
+  ctx.fillText('LIVE', x + w - 45, y + h / 2);
+  ctx.restore();
+}
+
+// 자막: 스트랩 위, 반투명 잉크 상자
+function sub(ctx, c, t) {
+  const { s } = sceneAt(c, t); const hit = subAt(s, t); if (!hit) return;
+  const a = ss(hit.lt / 0.1) * (1 - ss((hit.lt - (hit.dur - 0.08)) / 0.08));
+  ctx.save(); ctx.globalAlpha = a; ctx.font = `800 46px "${FAM}"`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const lines = wrap(ctx, hit.u.text, SAFE_W - 60), lh = 62, bh = lines.length * lh + 26, y0 = SAFE.bottom - 280 - bh;
+  ctx.fillStyle = 'rgba(8,16,26,.86)'; ctx.fillRect(SAFE.left, y0, SAFE_W, bh);
+  ctx.fillStyle = GOLD; ctx.fillRect(SAFE.left, y0, SAFE_W, 5);
+  ctx.fillStyle = '#fff'; lines.forEach((l, k) => ctx.fillText(l, (SAFE.left + SAFE.right) / 2, y0 + 13 + lh * (k + 0.5)));
+  ctx.restore();
+}
+
+function draw(ctx, c, t) {
+  const sc = sceneAt(c, t);
+  backdrop(ctx, t);
+  bug(ctx, c, sc);
+  card(ctx, sc.s, sc.lt, SAFE.top + 110, SAFE.bottom - 440);
+  strap(ctx, c, sc);
+  sub(ctx, c, t);
+  // 장면 전환: 포인트색 줄이 카드 위를 쓸고 간다
+  const wp = seg(sc.lt, 0, 0.22);
+  if (sc.i > 0 && wp < 1) { ctx.fillStyle = RED; ctx.fillRect(0, SAFE.top + 110 + (SAFE.bottom - 440 - SAFE.top - 110) * wp - 5, W, 10); }
+  const fo = seg(t, c.duration - 0.5, c.duration);
+  if (fo > 0) { ctx.fillStyle = `rgba(13,22,32,${fo})`; ctx.fillRect(0, 0, W, H); }
+}
+
+start({ fonts: [
+  { family: FAM, weight: 600, url: 'fonts/Pretendard-Regular.otf' },
+  { family: FAM, weight: 700, url: 'fonts/Pretendard-Bold.otf' },
+  { family: FAM, weight: 800, url: 'fonts/Pretendard-ExtraBold.otf' },
+  { family: FAM, weight: 900, url: 'fonts/Pretendard-ExtraBold.otf' },
+], draw });
+</script></body></html>

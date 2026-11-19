@@ -84,7 +84,7 @@ class Settings:
     reels_audio: str = "auto"  # auto=배경음악 합성, none=무음, 그 외=음원 파일/폴더 경로
     reels_fps: int = 30
     reels_engine: str = "classic"  # classic=카드 이미지를 넘기는 기존 릴스, lemo=스타일 영상(내레이션·믹싱, lemo-opuscar 렌더 도구)
-    reels_style: str = "auto"  # lemo 엔진일 때 auto=주제에 맞게 고름, 또는 caption-news | chalkboard | swiss-motion
+    reels_style: str = "auto"  # lemo 엔진일 때 auto=주제에 맞게 고름, 또는 caption-news | chalkboard | swiss-motion | news-package | whiteboard | blueprint
     reels_voice: str = "ko-KR-SunHiNeural"  # 한국어 여성 아나운서 내레이션
     reels_voice_rate: str = "+0%"
     reels_seconds_per_slide: float | None = None  # None이면 글자 수 기준 자동

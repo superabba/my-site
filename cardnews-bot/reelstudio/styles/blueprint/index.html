@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#0a3566}canvas{display:block;width:1080px;height:1920px}</style>
+</head><body><canvas id="c"></canvas>
+<script type="module">
+// 청사진 도면 스타일 (lemo-opuscar의 Blueprint 문법을 세로 화면에 맞춘 것):
+// 파란 도면 위에 흰 선으로만 그린다 — 치수선, 번호 말풍선, 지시선. 포인트색(노랑)은 가장 중요한 수치 하나에만.
+// 모든 선은 그어지는 순서가 있고(왼쪽→오른쪽, 위→아래), 선이 다 그어진 뒤에 글자가 켜진다.
+import { W, H, SAFE, SAFE_W, clamp, lerp, seg, ss, eo, eio, wrap, fitText, rollNumber, sceneAt, subAt, start } from '/styles/common.js';
+
+const FAM = 'Pretendard';
+const SHEET1 = '#0b3a6e', SHEET2 = '#0e4d93', LINE = '#e8f1ff', DIM = 'rgba(232,241,255,.55)', FAINT = 'rgba(232,241,255,.10)', YEL = '#ffd24a';
+
+function sheet(ctx, t) {
+  const g = ctx.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, SHEET1); g.addColorStop(1, SHEET2);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.lineWidth = 1.5;
+  for (let x = 0; x <= W; x += 40) { ctx.strokeStyle = x % 200 === 0 ? 'rgba(232,241,255,.20)' : FAINT; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 0; y <= H; y += 40) { ctx.strokeStyle = y % 200 === 0 ? 'rgba(232,241,255,.20)' : FAINT; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  // 도면 테두리(이중선) + 모서리 눈금
+  ctx.strokeStyle = LINE; ctx.lineWidth = 3; ctx.strokeRect(SAFE.left - 24, SAFE.top - 30, SAFE_W + 48, SAFE.bottom - SAFE.top + 40);
+  ctx.lineWidth = 1.5; ctx.strokeRect(SAFE.left - 14, SAFE.top - 20, SAFE_W + 28, SAFE.bottom - SAFE.top + 20);
+}
+
+// 표제란(도면 맨 아래 칸): 제목, 도면 번호, 작성자
+function titleBlock(ctx, c, sc, y, h) {
+  const x = SAFE.left - 14, w = SAFE_W + 28;
+  ctx.strokeStyle = LINE; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h);
+  ctx.beginPath(); ctx.moveTo(x + w * 0.64, y); ctx.lineTo(x + w * 0.64, y + h); ctx.moveTo(x + w * 0.64, y + h / 2); ctx.lineTo(x + w, y + h / 2); ctx.stroke();
+  ctx.fillStyle = DIM; ctx.font = `600 20px "${FAM}"`; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText('TITLE', x + 14, y + 8);
+  const f = fitText(ctx, c.title.replace(/\n/g, ' '), { family: FAM, weight: 800, maxW: w * 0.64 - 40, maxLines: 2, sizes: [34, 30, 27, 24] });
+  ctx.fillStyle = LINE; ctx.font = `800 ${f.size}px "${FAM}"`; ctx.textBaseline = 'alphabetic';
+  f.lines.forEach((l, k) => ctx.fillText(l, x + 14, y + 36 + f.size + k * f.size * 1.15));
+  ctx.fillStyle = DIM; ctx.font = `600 20px "${FAM}"`; ctx.textBaseline = 'top';
+  ctx.fillText('SHEET', x + w * 0.64 + 14, y + 8); ctx.fillText('DRAWN BY', x + w * 0.64 + 14, y + h / 2 + 8);
+  ctx.fillStyle = LINE; ctx.font = `800 28px "${FAM}"`; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(`${String(sc.s.index).padStart(2, '0')} / ${String(c.scenes.filter(q => q.kind !== 'card').length).padStart(2, '0')}`, x + w * 0.64 + 14, y + h / 2 - 10);
+  ctx.fillText((c.channel || '경제주막').split('·')[0].trim(), x + w * 0.64 + 14, y + h - 10);
+}
+
+// 치수선: 양끝 화살표와 보조선, 가운데 수치 (포인트색)
+function dimension(ctx, x1, x2, y, label, p, size) {
+  const e = eio(clamp(p)); if (e <= 0) return;
+  const xe = x1 + (x2 - x1) * e;
+  ctx.strokeStyle = YEL; ctx.fillStyle = YEL; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(x1, y - 26); ctx.lineTo(x1, y + 26); ctx.moveTo(x2, y - 26); ctx.lineTo(x2, y + 26); ctx.stroke();  // 보조선(끝 막대)
+  ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(xe, y); ctx.stroke();
+  const ar = (x, d) => { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + d * 26, y - 9); ctx.lineTo(x + d * 26, y + 9); ctx.closePath(); ctx.fill(); };
+  ar(x1, 1); if (e > 0.98) ar(x2, -1);
+  if (e > 0.5) {                                     // 수치는 선 한가운데, 선을 끊고 쓴다
+    ctx.font = `900 ${size}px "${FAM}"`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const tw = ctx.measureText(label).width, cx = (x1 + x2) / 2;
+    ctx.fillStyle = SHEET1; ctx.fillRect(cx - tw / 2 - 16, y - size * 0.62, tw + 32, size * 1.24);
+    ctx.fillStyle = YEL; ctx.fillText(label, cx, y + 4);
+  }
+}
+
+function body(ctx, c, sc, top, bottom) {
+  const { s, lt } = sc, x = SAFE.left + 10, w = SAFE_W - 20;
+  let y = top;
+  // 장면 이름표: 번호 말풍선 + 짧은 선
+  const kind = s.kind === 'cover' ? 'PLAN  개요' : s.kind === 'summary' || s.kind === 'cta' ? 'NOTE  정리' : 'DETAIL  세부';
+  const a0 = eo(seg(lt, 0, 0.3));
+  ctx.save(); ctx.globalAlpha = a0; ctx.strokeStyle = LINE; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(x + 32, y + 32, 32 * a0, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = LINE; ctx.font = `800 36px "${FAM}"`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(s.index), x + 32, y + 34);
+  ctx.textAlign = 'left'; ctx.font = `700 26px "${FAM}"`; ctx.fillStyle = DIM; ctx.fillText(kind, x + 84, y + 34);
+  ctx.restore();
+  y += 110;
+  // 핵심 수치: 치수선 위에 노랑으로
+  const key = (s.highlight || '').trim();
+  if (key) {
+    const f = fitText(ctx, key, { family: FAM, weight: 900, maxW: w - 160, maxLines: 1, sizes: [120, 108, 96, 84, 72, 60] });
+    dimension(ctx, x, x + w, y + f.size * 0.6, rollNumber(key, eo(seg(lt, 0.3, 1.1))), seg(lt, 0.15, 0.8), f.size);
+    y += f.size * 1.2 + 30;
+  }
+  // 제목
+  const hf = fitText(ctx, s.heading.replace(/\n/g, ' '), { family: FAM, weight: 800, maxW: w, maxLines: 3, sizes: [78, 72, 66, 60, 54, 48] });
+  const lh = hf.size * 1.2;
+  const ls = 0.35;                                    // 제목 윗선이 먼저 그어진다
+  ctx.strokeStyle = LINE; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w * eio(seg(lt, ls - 0.1, ls + 0.4)), y); ctx.stroke();
+  y += 18;
+  ctx.font = `800 ${hf.size}px "${FAM}"`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  hf.lines.forEach((l, k) => { const q = eo(seg(lt, ls + 0.2 + k * 0.12, ls + 0.5 + k * 0.12)); if (q <= 0) return; ctx.save(); ctx.globalAlpha = q; ctx.fillStyle = '#fff'; ctx.fillText(l, x + (1 - q) * -30, y + hf.size * 0.9 + k * lh); ctx.restore(); });
+  y += hf.lines.length * lh + 24;
+  // 항목: 번호 말풍선 + 지시선 + 설명 (아래로 차례로 그려진다)
+  const items = (s.bullets && s.bullets.length) ? s.bullets : null;
+  const t1 = ls + 0.9;
+  if (items) {
+    const step = Math.min(118, (bottom - y) / items.length);
+    items.forEach((b, k) => {
+      const q = eio(seg(lt, t1 + k * 0.25, t1 + 0.4 + k * 0.25)); if (q <= 0) return;
+      const yy = y + k * step + 40;
+      ctx.save(); ctx.strokeStyle = LINE; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(x + 26, yy, 26, 0, Math.PI * 2 * Math.min(1, q * 1.6)); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + 52, yy); ctx.lineTo(x + 52 + 56 * q, yy); ctx.stroke();
+      if (q > 0.6) {
+        ctx.globalAlpha = (q - 0.6) / 0.4; ctx.fillStyle = LINE; ctx.font = `800 28px "${FAM}"`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(k + 1), x + 26, yy + 2);
+        const f = fitText(ctx, b, { family: FAM, weight: 700, maxW: w - 140, maxLines: 2, sizes: [40, 36, 32, 28] });
+        ctx.font = `700 ${f.size}px "${FAM}"`; ctx.textAlign = 'left';
+        f.lines.forEach((l, j) => ctx.fillText(l, x + 124, yy + (j - (f.lines.length - 1) / 2) * f.size * 1.2 + 2));
+      }
+      ctx.restore();
+    });
+  } else if (s.body) {
+    let bs = 44, bl;
+    for (; bs >= 30; bs -= 2) { ctx.font = `600 ${bs}px "${FAM}"`; bl = wrap(ctx, s.body, w - 50); if (y + bl.length * bs * 1.5 <= bottom) break; }
+    const rp = eio(seg(lt, t1 - 0.1, t1 + 0.4));       // 왼쪽에 세로 기준선
+    ctx.strokeStyle = DIM; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x + 8, y); ctx.lineTo(x + 8, y + bl.length * bs * 1.5 * rp); ctx.stroke();
+    ctx.fillStyle = '#d8e6fb'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    bl.forEach((l, k) => { const q = eo(seg(lt, t1 + k * 0.12, t1 + 0.3 + k * 0.12)); ctx.save(); ctx.globalAlpha = q; ctx.fillText(l, x + 40, y + bs * 1.1 + k * bs * 1.5); ctx.restore(); });
+  }
+}
+
+function sub(ctx, c, t) {
+  const { s } = sceneAt(c, t); const hit = subAt(s, t); if (!hit) return;
+  const a = ss(hit.lt / 0.1) * (1 - ss((hit.lt - (hit.dur - 0.08)) / 0.08));
+  ctx.save(); ctx.globalAlpha = a; ctx.font = `800 46px "${FAM}"`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const lines = wrap(ctx, hit.u.text, SAFE_W - 70), lh = 60, bh = lines.length * lh + 28, y0 = SAFE.bottom - 200 - bh;
+  ctx.fillStyle = 'rgba(6,24,52,.88)'; ctx.fillRect(SAFE.left - 4, y0, SAFE_W + 8, bh);
+  ctx.strokeStyle = LINE; ctx.lineWidth = 2; ctx.strokeRect(SAFE.left - 4, y0, SAFE_W + 8, bh);
+  ctx.fillStyle = '#fff'; lines.forEach((l, k) => ctx.fillText(l, (SAFE.left + SAFE.right) / 2, y0 + 14 + lh * (k + 0.5)));
+  ctx.restore();
+}
+
+function draw(ctx, c, t) {
+  const sc = sceneAt(c, t);
+  sheet(ctx, t);
+  const tbH = 130, tbY = SAFE.bottom - tbH - 6;
+  body(ctx, c, sc, SAFE.top + 16, tbY - 300);
+  titleBlock(ctx, c, sc, tbY, tbH);
+  sub(ctx, c, t);
+  // 장면 전환: 흰 주사선이 위에서 아래로 도면을 다시 그린다
+  const wp = seg(sc.lt, 0, 0.3);
+  if (sc.i > 0 && wp < 1) { const yy = SAFE.top + (SAFE.bottom - SAFE.top) * wp; ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fillRect(SAFE.left - 24, yy, SAFE_W + 48, 4); }
+  const fo = seg(t, c.duration - 0.5, c.duration);
+  if (fo > 0) { ctx.fillStyle = `rgba(10,53,102,${fo})`; ctx.fillRect(0, 0, W, H); }
+}
+
+start({ fonts: [
+  { family: FAM, weight: 600, url: 'fonts/Pretendard-Regular.otf' },
+  { family: FAM, weight: 700, url: 'fonts/Pretendard-Bold.otf' },
+  { family: FAM, weight: 800, url: 'fonts/Pretendard-ExtraBold.otf' },
+  { family: FAM, weight: 900, url: 'fonts/Pretendard-ExtraBold.otf' },
+], draw });
+</script></body></html>

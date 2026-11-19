@@ -1355,3 +1355,24 @@ def test_cross_avoid_is_dropped_when_no_style_would_be_left():
     assert with_cross_avoid(("caption-news",), "swiss-motion", usable) == ("caption-news", "swiss-motion")
     assert with_cross_avoid(("caption-news", "chalkboard"), "swiss-motion", usable) == ("caption-news", "chalkboard")
     assert with_cross_avoid(("caption-news",), None, usable) == ("caption-news",)
+
+
+def test_every_style_has_a_page_and_the_routine_list_matches():
+    from cardbot import validate_content
+    for name, st in lemoreel.STYLES.items():
+        assert (lemoreel.STUDIO / "styles" / (st.page or name) / "index.html").exists(), name
+    assert set(validate_content.STYLES) == {n for n, st in lemoreel.STYLES.items() if not st.beats}
+    assert len(validate_content.STYLES) == 6
+
+
+def test_new_styles_are_chosen_for_their_topics():
+    topic = TopicIdea(title="x", keyword="k", angle="a", hook="h", why_now="w", score=1, risk="")
+
+    def card(text):
+        from cardbot.llm import Slide
+        return CardNews(slides=[Slide(kind="cover", heading=text, body="", highlight=""),
+                                Slide(kind="cta", heading="저장", body="", highlight="")],
+                        caption="c", hashtags=[], threads_text="t", sources=[])
+    assert lemoreel.heuristic_style(topic, card("청년 계좌 가입 요건과 납입 한도 단계")) == "blueprint"
+    assert lemoreel.heuristic_style(topic, card("왜 오르는지 원리를 쉽게 설명")) == "whiteboard"
+    assert lemoreel.heuristic_style(topic, card("오늘의 브리핑 핵심 정리 한눈에")) == "news-package"

@@ -211,7 +211,7 @@ def main(argv=None):
 
     x = sub.add_parser("reel", help="초안 폴더의 릴스를 스타일 영상(내레이션·믹싱 포함)으로 다시 만들기")
     x.add_argument("folder")
-    x.add_argument("--style", default="auto", help="auto(주제에 맞게) | caption-news | chalkboard | swiss-motion")
+    x.add_argument("--style", default="auto", help="auto(주제에 맞게) | caption-news | chalkboard | swiss-motion | news-package | whiteboard | blueprint")
     x.set_defaults(fn=cmd_reel)
 
     x = sub.add_parser("ingest", help="루틴이 올린 원고(content/)를 초안으로 만든다 (CONTENT_SOURCE=routine, LLM 없음)")
