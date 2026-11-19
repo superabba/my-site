@@ -1362,7 +1362,7 @@ def test_every_style_has_a_page_and_the_routine_list_matches():
     for name, st in lemoreel.STYLES.items():
         assert (lemoreel.STUDIO / "styles" / (st.page or name) / "index.html").exists(), name
     assert set(validate_content.STYLES) == {n for n, st in lemoreel.STYLES.items() if not st.beats}
-    assert len(validate_content.STYLES) == 6
+    assert len(validate_content.STYLES) == 8
 
 
 def test_new_styles_are_chosen_for_their_topics():
@@ -1376,3 +1376,5 @@ def test_new_styles_are_chosen_for_their_topics():
     assert lemoreel.heuristic_style(topic, card("청년 계좌 가입 요건과 납입 한도 단계")) == "blueprint"
     assert lemoreel.heuristic_style(topic, card("왜 오르는지 원리를 쉽게 설명")) == "whiteboard"
     assert lemoreel.heuristic_style(topic, card("오늘의 브리핑 핵심 정리 한눈에")) == "news-package"
+    assert lemoreel.heuristic_style(topic, card("모르면 손해 보는 함정과 오해, 놓치기 쉬운 실수")) == "halftone-dossier"
+    assert lemoreel.heuristic_style(topic, card("신청 순서와 단계별 절차, 먼저 다음 마지막")) == "transit-map"

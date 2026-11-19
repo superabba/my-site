@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#f4f1e8}canvas{display:block;width:1080px;height:1920px}</style>
+</head><body><canvas id="c"></canvas>
+<script type="module">
+// 지하철 노선도 스타일 (lemo-opuscar의 Transit Map 문법을 세로 화면에 맞춘 것):
+// 종이 위에 노선이 8방향으로만(수직·45°) 그어지고, 정거장마다 흰 원, 환승역은 검은 테두리 캡슐.
+// 장면 하나 = 정거장 하나. 노선 끝의 빛나는 펜촉이 다음 정거장까지 선을 그리며 가고, 지도는 지금 정거장을 따라 이동한다.
+import { W, H, SAFE, SAFE_W, clamp, lerp, seg, ss, eo, eio, back, wrap, fitText, rollNumber, sceneAt, subAt, start } from '/styles/common.js';
+
+const FAM = 'Pretendard';
+const PAPER = '#f4f1e8', INK = '#16181d', LINE = '#e8412e', LINE2 = '#1a73c8', LINE3 = '#1fa05b', GREY = 'rgba(22,24,29,.5)', WATER = '#bcd9ee';
+const STEP = 300, JOG = 150, MAPTOP = SAFE.top + 170, FOCUS = SAFE.top + 330;   // 정거장 간격, 좌우 꺾임 폭, 지도 윗선, 현재 정거장이 놓일 높이
+const CX = SAFE.left + SAFE_W * 0.5;
+
+// 정거장 k의 좌표(지도 좌표). 짝수는 왼쪽, 홀수는 오른쪽으로 번갈아 비껴 서 있다.
+const stX = k => CX + (k % 2 ? JOG / 2 : -JOG / 2);
+const stY = k => k * STEP;
+
+// 정거장 k → k+1 경로: 아래로 조금 → 45° 대각선 → 아래로 조금 (8방향 규칙)
+function route(k) {
+  const x0 = stX(k), y0 = stY(k), x1 = stX(k + 1), y1 = stY(k + 1), dx = x1 - x0, d = Math.abs(dx);
+  const vy = (y1 - y0 - d) / 2;
+  return [[x0, y0], [x0, y0 + vy], [x1, y0 + vy + d], [x1, y1]];
+}
+function strokePath(ctx, pts, p) {                  // 꼭짓점 목록을 p(0~1)만큼만 긋는다
+  let total = 0; const len = [];
+  for (let i = 1; i < pts.length; i++) { const l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); len.push(l); total += l; }
+  let left = total * clamp(p), last = pts[0];
+  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length && left > 0; i++) {
+    const l = len[i - 1], f = Math.min(1, left / l);
+    last = [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f];
+    ctx.lineTo(last[0], last[1]); left -= l;
+  }
+  ctx.stroke(); return last;
+}
+
+function paper(ctx, cam) {
+  ctx.fillStyle = PAPER; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(22,24,29,.06)'; ctx.lineWidth = 2;               // 연한 격자 (지도와 함께 움직임)
+  for (let x = 0; x <= W; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = -(cam % 60); y <= H; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+}
+
+function decor(ctx, cam) {                          // 배경 노선(다른 색 두 개)과 강(물)
+  ctx.save(); ctx.translate(0, -cam);
+  ctx.fillStyle = WATER; ctx.beginPath(); ctx.moveTo(W, 400); ctx.lineTo(SAFE.right - 120, 700); ctx.lineTo(SAFE.right - 40, 1500); ctx.lineTo(W, 1800); ctx.closePath(); ctx.fill();
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 16; ctx.globalAlpha = 0.9;
+  ctx.strokeStyle = LINE2; ctx.beginPath(); ctx.moveTo(SAFE.left + 640, -200); ctx.lineTo(SAFE.left + 640, 360); ctx.lineTo(SAFE.left + 330, 670); ctx.lineTo(SAFE.left + 330, 2300); ctx.stroke();
+  ctx.strokeStyle = LINE3; ctx.beginPath(); ctx.moveTo(-40, 900); ctx.lineTo(SAFE.left + 120, 900); ctx.lineTo(SAFE.left + 480, 1260); ctx.lineTo(W + 40, 1260); ctx.stroke();
+  ctx.restore();
+}
+
+function stationLabel(ctx, k, n, scene, current, a, cam) {
+  const x = stX(k), y = stY(k) - cam + FOCUS - 0;
+  ctx.save(); ctx.globalAlpha = a;
+  const right = k % 2 === 0;                          // 왼쪽 정거장은 오른쪽으로, 오른쪽 정거장은 왼쪽으로 이름을 단다
+  const txt = (scene.heading || '').replace(/\n/g, ' ');
+  const size = current ? 40 : 30;
+  ctx.font = `${current ? 900 : 700} ${size}px "${FAM}"`;
+  const room = right ? SAFE.right - (x + 46) - 36 : (x - 46) - SAFE.left - 36;       // 화면 밖으로 나가지 않게 남은 폭 안에서
+  const maxW = Math.min(current ? 420 : 300, room); const lines = wrap(ctx, txt, maxW).slice(0, current ? 3 : 1);
+  const w = Math.max(...lines.map(l => ctx.measureText(l).width)) + 36, h = lines.length * size * 1.25 + 24;
+  const lx = right ? x + 46 : x - 46 - w, ly = y - h / 2;
+  ctx.fillStyle = '#fff'; ctx.strokeStyle = INK; ctx.lineWidth = current ? 6 : 3;
+  ctx.beginPath(); const r = 14; ctx.moveTo(lx + r, ly); ctx.arcTo(lx + w, ly, lx + w, ly + h, r); ctx.arcTo(lx + w, ly + h, lx, ly + h, r); ctx.arcTo(lx, ly + h, lx, ly, r); ctx.arcTo(lx, ly, lx + w, ly, r); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = INK; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  lines.forEach((l, j) => ctx.fillText(l, lx + 18, ly + 12 + size * 1.25 * (j + 0.5)));
+  ctx.restore();
+}
+
+function station(ctx, k, current, p, cam) {         // 흰 원(일반)과 캡슐(현재=환승역) + 번호
+  const x = stX(k), y = stY(k) - cam + FOCUS;
+  if (p <= 0) return;
+  ctx.save(); ctx.translate(x, y); const s = current ? 1 + (1 - back(clamp(p))) * 0.4 : 1; ctx.scale(s, s);
+  ctx.fillStyle = '#fff'; ctx.strokeStyle = INK; ctx.lineWidth = current ? 9 : 6;
+  if (current) { ctx.beginPath(); ctx.roundRect(-26, -26, 52, 52, 26); ctx.fill(); ctx.stroke(); }
+  else { ctx.beginPath(); ctx.arc(0, 0, 17, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+  ctx.fillStyle = INK; ctx.font = `900 ${current ? 30 : 20}px "${FAM}"`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(k + 1), 0, 2);
+  ctx.restore();
+}
+
+function map(ctx, c, sc) {
+  const ns = c.scenes.filter(s => s.kind !== 'card'); const n = ns.length;
+  const idx = clamp(sc.s.index - 1, 0, n - 1);
+  const arrive = eio(seg(sc.lt, 0, 0.7));                           // 장면 시작 때 지도가 다음 정거장으로 미끄러진다
+  const cam = lerp(Math.max(0, idx - 1) * STEP, idx * STEP, idx === 0 ? 1 : arrive);
+  paper(ctx, cam);
+  ctx.save(); ctx.beginPath(); ctx.rect(0, SAFE.top + 135, W, SAFE.bottom - 700 - SAFE.top - 135 + 24); ctx.clip();   // 지도는 제목 줄 아래·정보 카드 위 창 안에서만 보인다
+  decor(ctx, cam);
+  ctx.save(); ctx.translate(0, FOCUS - cam); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (let k = 0; k < n - 1; k++) {                                 // 앞으로 갈 길: 연한 점선, 지나온 길: 진한 선
+    const pts = route(k), done = k < idx - 0 ? 1 : k === idx - 1 ? arrive : 0;
+    ctx.setLineDash([16, 18]); ctx.lineWidth = 10; ctx.strokeStyle = 'rgba(22,24,29,.22)'; strokePath(ctx, pts, 1);
+    ctx.setLineDash([]);
+    if (k < idx) { ctx.lineWidth = 22; ctx.strokeStyle = LINE; const tip = strokePath(ctx, pts, k === idx - 1 ? arrive : 1); if (k === idx - 1 && arrive < 1) { ctx.fillStyle = '#fff'; ctx.shadowColor = LINE; ctx.shadowBlur = 26; ctx.beginPath(); ctx.arc(tip[0], tip[1], 14, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0; } }
+  }
+  ctx.restore();
+  for (let k = 0; k < n; k++) {
+    if (Math.abs(k - idx) > 3) continue;
+    const cur = k === idx, vis = k <= idx;
+    station(ctx, k, cur, cur ? seg(sc.lt, 0.3, 0.8) : vis ? 1 : 0.0001, cam);
+    stationLabel(ctx, k, n, ns[k], cur, cur ? eo(seg(sc.lt, 0.45, 0.85)) : vis ? 0.9 : 0.35, cam);
+  }
+  ctx.restore();
+}
+
+function card(ctx, sc, top, bottom) {                 // 아래 정보 카드: 노선 번호 띠 + 큰 수치 + 설명/항목
+  const { s, lt } = sc, x = SAFE.left, w = SAFE_W, p = eo(seg(lt, 0.2, 0.7));
+  ctx.save(); ctx.globalAlpha = clamp(p * 1.4); ctx.translate(0, (1 - p) * 60);
+  ctx.fillStyle = '#fff'; ctx.strokeStyle = INK; ctx.lineWidth = 6; ctx.beginPath(); ctx.roundRect(x, top, w, bottom - top, 28); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = LINE; ctx.beginPath(); ctx.roundRect(x + 24, top + 22, 120, 44, 22); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = `900 26px "${FAM}"`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(`${s.index}번 역`, x + 84, top + 45);
+  let y = top + 92;
+  const key = (s.highlight || '').trim();
+  if (key) {
+    const f = fitText(ctx, key, { family: FAM, weight: 900, maxW: w - 70, maxLines: 1, sizes: [120, 104, 92, 80, 68, 58] });
+    ctx.font = `900 ${f.size}px "${FAM}"`; ctx.fillStyle = LINE; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText(rollNumber(key, eo(seg(lt, 0.3, 1.0))), x + 36, y + f.size * 0.85); y += f.size * 0.85 + 36;
+  }
+  const items = (s.bullets && s.bullets.length) ? s.bullets : null;
+  ctx.textBaseline = 'middle';
+  if (items) {
+    const step = Math.min(88, (bottom - 20 - y) / items.length);
+    items.forEach((b, k) => {
+      const q = eo(seg(lt, 0.5 + k * 0.18, 0.75 + k * 0.18)); if (q <= 0) return;
+      ctx.save(); ctx.globalAlpha = q; const yy = y + k * step + step / 2;
+      ctx.fillStyle = [LINE, LINE2, LINE3][k % 3]; ctx.beginPath(); ctx.arc(x + 54, yy, 22, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = `900 24px "${FAM}"`; ctx.textAlign = 'center'; ctx.fillText(String(k + 1), x + 54, yy + 1);
+      const f = fitText(ctx, b, { family: FAM, weight: 700, maxW: w - 150, maxLines: 2, sizes: [38, 34, 30, 27] });
+      ctx.font = `700 ${f.size}px "${FAM}"`; ctx.fillStyle = INK; ctx.textAlign = 'left';
+      f.lines.forEach((l, j) => ctx.fillText(l, x + 96, yy + (j - (f.lines.length - 1) / 2) * f.size * 1.18));
+      ctx.restore();
+    });
+  } else if (s.body) {
+    let bs = 40, bl;
+    for (; bs >= 28; bs -= 2) { ctx.font = `600 ${bs}px "${FAM}"`; bl = wrap(ctx, s.body, w - 80); if (y + bl.length * bs * 1.45 <= bottom - 16) break; }
+    ctx.fillStyle = INK; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    bl.forEach((l, k) => { const q = eo(seg(lt, 0.5 + k * 0.12, 0.8 + k * 0.12)); ctx.save(); ctx.globalAlpha = q; ctx.fillText(l, x + 36, y + bs * 1.05 + k * bs * 1.45); ctx.restore(); });
+  }
+  ctx.restore();
+}
+
+function head(ctx, c, sc) {                            // 맨 위: 노선 이름표
+  const x = SAFE.left, y = SAFE.top - 8, n = c.scenes.filter(s => s.kind !== 'card').length;
+  ctx.fillStyle = LINE; ctx.beginPath(); ctx.roundRect(x, y, 78, 78, 18); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = `900 44px "${FAM}"`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('1', x + 39, y + 41);
+  const f = fitText(ctx, c.title.replace(/\n/g, ' '), { family: FAM, weight: 900, maxW: SAFE_W - 110, maxLines: 2, sizes: [38, 34, 30, 27] });
+  ctx.fillStyle = INK; ctx.textAlign = 'left'; ctx.font = `900 ${f.size}px "${FAM}"`;
+  f.lines.forEach((l, k) => ctx.fillText(l, x + 98, y + 39 + (k - (f.lines.length - 1) / 2) * f.size * 1.2));
+  ctx.fillStyle = GREY; ctx.font = `700 24px "${FAM}"`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(`전 ${n}역 · 지금 ${sc.s.index}번째 정거장`, x, y + 118);
+}
+
+function sub(ctx, c, t) {
+  const { s } = sceneAt(c, t); const hit = subAt(s, t); if (!hit) return;
+  const a = ss(hit.lt / 0.1) * (1 - ss((hit.lt - (hit.dur - 0.08)) / 0.08));
+  ctx.save(); ctx.globalAlpha = a; ctx.font = `800 48px "${FAM}"`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const lines = wrap(ctx, hit.u.text, SAFE_W - 70), lh = 64, bh = lines.length * lh + 30, y0 = SAFE.bottom - 36 - bh;
+  ctx.fillStyle = INK; ctx.beginPath(); ctx.roundRect(SAFE.left, y0, SAFE_W, bh, 22); ctx.fill();
+  ctx.fillStyle = '#fff'; lines.forEach((l, k) => ctx.fillText(l, (SAFE.left + SAFE.right) / 2, y0 + 15 + lh * (k + 0.5)));
+  ctx.restore();
+}
+
+function draw(ctx, c, t) {
+  const sc = sceneAt(c, t);
+  map(ctx, c, sc);
+  head(ctx, c, sc);
+  card(ctx, sc, SAFE.bottom - 700, SAFE.bottom - 250);
+  sub(ctx, c, t);
+  const fo = seg(t, c.duration - 0.5, c.duration);
+  if (fo > 0) { ctx.fillStyle = `rgba(244,241,232,${fo})`; ctx.fillRect(0, 0, W, H); }
+}
+
+start({ fonts: [
+  { family: FAM, weight: 600, url: 'fonts/Pretendard-Regular.otf' },
+  { family: FAM, weight: 700, url: 'fonts/Pretendard-Bold.otf' },
+  { family: FAM, weight: 800, url: 'fonts/Pretendard-ExtraBold.otf' },
+  { family: FAM, weight: 900, url: 'fonts/Pretendard-ExtraBold.otf' },
+], draw });
+</script></body></html>

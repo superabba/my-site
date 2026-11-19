@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#e9dcc0}canvas{display:block;width:1080px;height:1920px}</style>
+</head><body><canvas id="c"></canvas>
+<script type="module">
+// 복고 인쇄 사건 파일 스타일 (lemo-opuscar의 Halftone Dossier 문법을 세로 화면에 맞춘 것):
+// 크림색 기록 용지, 겹쳐 찍은 하프톤 점, 판이 살짝 어긋난 굵은 제목, 쾅 찍히는 고무 도장.
+// 영상은 '사건 파일'이고 장면 하나가 증거 하나다. 잉크는 빨강·파랑·검정 세 가지뿐.
+import { W, H, SAFE, SAFE_W, clamp, lerp, seg, ss, eo, eio, back, mulberry, wrap, fitText, rollNumber, sceneAt, subAt, start } from '/styles/common.js';
+
+const FAM = 'Pretendard';
+const PAPER = '#efe3c6', PAPER2 = '#e6d6b2', INK = '#1d1b19', RED = '#d4283a', BLUE = '#245a99', GREY = 'rgba(29,27,25,.55)';
+
+// 하프톤 점 무늬는 한 번만 그려 두고 타일로 쓴다 (프레임마다 계산하지 않는다)
+function dotTile(color, step, rad) {
+  const c = new OffscreenCanvas(step * 2, step * 2), g = c.getContext('2d');
+  g.fillStyle = color;
+  for (const [x, y] of [[step / 2, step / 2], [step * 1.5, step * 1.5]]) { g.beginPath(); g.arc(x, y, rad, 0, Math.PI * 2); g.fill(); }
+  return c;
+}
+const dotsRed = dotTile(RED, 22, 6.5), dotsBlue = dotTile(BLUE, 22, 6.5);
+const grain = (() => { const c = new OffscreenCanvas(256, 256), g = c.getContext('2d'), r = mulberry(11);
+  for (let i = 0; i < 1800; i++) { g.fillStyle = `rgba(80,60,30,${0.03 + r() * 0.07})`; g.fillRect(r() * 256, r() * 256, 1 + r() * 2, 1 + r() * 2); } return c; })();
+
+function paper(ctx) {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, PAPER); g.addColorStop(1, PAPER2);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = ctx.createPattern(grain, 'repeat'); ctx.fillRect(0, 0, W, H);
+  // 가장자리 얼룩
+  const v = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.75);
+  v.addColorStop(0, 'rgba(120,80,30,0)'); v.addColorStop(1, 'rgba(120,80,30,.22)');
+  ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
+}
+
+// 하프톤 코너: 점이 한쪽으로 갈수록 커지는 느낌은 마스크로 (원형 그라데이션 안에서만 보이게)
+function halftoneCorner(ctx, pattern, cx, cy, r, alpha, p) {
+  ctx.save(); ctx.globalCompositeOperation = 'multiply';
+  ctx.beginPath(); ctx.arc(cx, cy, r * p, 0, Math.PI * 2); ctx.clip();
+  ctx.globalAlpha = alpha; ctx.fillStyle = ctx.createPattern(pattern, 'repeat'); ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+  ctx.restore();
+}
+
+// 판이 어긋난 제목: 빨강 판이 약간 비껴 찍히고 그 위에 검정 판
+function misreg(ctx, lines, size, x, y, lh, lt, t0) {
+  ctx.font = `900 ${size}px "${FAM}"`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  lines.forEach((l, k) => {
+    const q = eo(seg(lt, t0 + k * 0.1, t0 + 0.3 + k * 0.1)); if (q <= 0) return;
+    const yy = y + size * 0.9 + k * lh + (1 - q) * 30;
+    ctx.save(); ctx.globalAlpha = q;
+    ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = RED; ctx.fillText(l, x + 7, yy + 6);
+    ctx.fillStyle = INK; ctx.fillText(l, x, yy);
+    ctx.restore();
+  });
+}
+
+// 고무 도장: 쾅 하고 커졌다 자리를 잡고, 잉크가 고르지 않게 번진다
+function stamp(ctx, text, cx, cy, lt, t0, color, rot) {
+  const p = clamp((lt - t0) / 0.28); if (p <= 0) return;
+  const sc = 1 + (1 - back(p, 2.2)) * 0.9 + (p < 1 ? (1 - p) * 0.5 : 0);
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot); ctx.scale(sc, sc); ctx.globalCompositeOperation = 'multiply';
+  ctx.globalAlpha = clamp(p * 3) * 0.88;
+  ctx.font = `900 64px "${FAM}"`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const w = ctx.measureText(text).width + 70, h = 108;
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 9; ctx.strokeRect(-w / 2, -h / 2, w, h);
+  ctx.lineWidth = 3; ctx.strokeRect(-w / 2 + 14, -h / 2 + 14, w - 28, h - 28);
+  ctx.fillText(text, 0, 4);
+  // 도장 잉크가 군데군데 빠진 자국
+  const r = mulberry(text.length * 7);
+  ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = 0.5;
+  for (let i = 0; i < 40; i++) { ctx.beginPath(); ctx.arc((r() - 0.5) * w, (r() - 0.5) * h, 1.5 + r() * 4, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+}
+
+function header(ctx, c, sc) {
+  const x = SAFE.left, y = SAFE.top - 6;
+  // 서류철 탭
+  ctx.fillStyle = INK; ctx.beginPath(); ctx.moveTo(x, y + 62); ctx.lineTo(x + 20, y); ctx.lineTo(x + 360, y); ctx.lineTo(x + 392, y + 62); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = PAPER; ctx.font = `800 28px "${FAM}"`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(`CASE FILE  No.${String(sc.s.index).padStart(2, '0')}`, x + 34, y + 33);
+  ctx.fillStyle = GREY; ctx.font = `700 24px "${FAM}"`; ctx.textAlign = 'right';
+  ctx.fillText((c.channel || '경제주막').split('·')[0].trim() + ' 자료실', SAFE.right, y + 34);
+  ctx.fillStyle = INK; ctx.fillRect(x, y + 62, SAFE_W, 6);
+  // 증거 번호 칸: 장면 수만큼 칸이 있고 지나간 칸은 빨간 확인 표시
+  const n = c.scenes.filter(s => s.kind !== 'card').length, gw = (SAFE_W - (n - 1) * 8) / n;
+  for (let k = 0; k < n; k++) { ctx.fillStyle = k < sc.s.index - 1 ? RED : k === sc.s.index - 1 ? INK : 'rgba(29,27,25,.18)'; ctx.fillRect(x + k * (gw + 8), y + 80, gw, 10); }
+  return y + 110;
+}
+
+function body(ctx, sc, top, bottom) {
+  const { s, lt } = sc, x = SAFE.left + 6, w = SAFE_W - 12;
+  const label = s.kind === 'cover' ? 'EXHIBIT  개요' : s.kind === 'summary' || s.kind === 'cta' ? 'VERDICT  결론' : `EXHIBIT ${String.fromCharCode(64 + Math.min(26, s.index))}  증거`;
+  let y = top + 20;
+  ctx.fillStyle = BLUE; ctx.font = `800 30px "${FAM}"`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.globalAlpha = eo(seg(lt, 0, 0.2)); ctx.fillText(label, x, y + 26); ctx.globalAlpha = 1;
+  y += 56;
+  const key = (s.highlight || '').trim();
+  if (key) {                                         // 큰 수치: 점무늬 위에 얹힌 굵은 글씨
+    const f = fitText(ctx, key, { family: FAM, weight: 900, maxW: w, maxLines: 1, sizes: [190, 170, 150, 130, 112, 96, 80] });
+    const dots = eo(seg(lt, 0.05, 0.5));
+    halftoneCorner(ctx, dotsRed, x + w * 0.5, y + f.size * 0.45, f.size * 1.35 + 120, 0.55, dots);
+    misreg(ctx, [rollNumber(key, eo(seg(lt, 0.1, 0.9)))], f.size, x, y, f.size, lt, 0.1);
+    y += f.size * 1.02 + 30;
+  }
+  const hf = fitText(ctx, s.heading.replace(/\n/g, ' '), { family: FAM, weight: 900, maxW: w, maxLines: 3, sizes: key ? [74, 68, 62, 56, 50] : [100, 92, 84, 76, 68, 60, 52] });
+  const lh = hf.size * 1.14;
+  misreg(ctx, hf.lines, hf.size, x, y, lh, lt, 0.28);
+  y += hf.lines.length * lh + 22;
+  ctx.fillStyle = INK; ctx.fillRect(x, y, w * eio(seg(lt, 0.5, 0.9)), 6); y += 40;
+  const items = (s.bullets && s.bullets.length) ? s.bullets : null;
+  if (items) {                                       // 증거 목록: 네모 칸에 빨간 체크가 찍힌다
+    const step = Math.min(110, (bottom - y) / items.length);
+    items.forEach((b, k) => {
+      const q = eo(seg(lt, 0.7 + k * 0.22, 0.95 + k * 0.22)); if (q <= 0) return;
+      const yy = y + k * step;
+      ctx.save(); ctx.globalAlpha = q;
+      ctx.strokeStyle = INK; ctx.lineWidth = 5; ctx.strokeRect(x, yy + 8, 44, 44);
+      ctx.strokeStyle = RED; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(x + 8, yy + 30); ctx.lineTo(x + 20, yy + 44); ctx.lineTo(x + 56, yy - 6); ctx.stroke();
+      const f = fitText(ctx, b, { family: FAM, weight: 800, maxW: w - 80, maxLines: 2, sizes: [44, 40, 36, 32] });
+      ctx.font = `800 ${f.size}px "${FAM}"`; ctx.fillStyle = INK; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      f.lines.forEach((l, j) => ctx.fillText(l, x + 74, yy + 30 + (j - (f.lines.length - 1) / 2) * f.size * 1.15));
+      ctx.restore();
+    });
+  } else if (s.body) {
+    let bs = 46, bl;
+    for (; bs >= 32; bs -= 2) { ctx.font = `700 ${bs}px "${FAM}"`; bl = wrap(ctx, s.body, w - 10); if (y + bl.length * bs * 1.5 <= bottom) break; }
+    ctx.fillStyle = INK; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    bl.forEach((l, k) => { const q = eo(seg(lt, 0.7 + k * 0.12, 0.95 + k * 0.12)); ctx.save(); ctx.globalAlpha = q; ctx.fillText(l, x, y + bs * 1.05 + k * bs * 1.5); ctx.restore(); });
+  }
+}
+
+// 자막: 타자기로 찍은 검은 띠 (종이에 붙인 라벨 테이프 느낌)
+function sub(ctx, c, t) {
+  const { s } = sceneAt(c, t); const hit = subAt(s, t); if (!hit) return;
+  const a = ss(hit.lt / 0.1) * (1 - ss((hit.lt - (hit.dur - 0.08)) / 0.08));
+  ctx.save(); ctx.globalAlpha = a; ctx.font = `800 48px "${FAM}"`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  const lines = wrap(ctx, hit.u.text, SAFE_W - 64), lh = 64, bh = lines.length * lh + 30, y0 = SAFE.bottom - 40 - bh;
+  ctx.save(); ctx.translate(SAFE.left, y0); ctx.rotate(-0.006);
+  ctx.fillStyle = INK; ctx.fillRect(0, 0, SAFE_W, bh); ctx.fillStyle = RED; ctx.fillRect(0, 0, 12, bh);
+  ctx.fillStyle = PAPER; lines.forEach((l, k) => ctx.fillText(l, 38, 15 + lh * (k + 0.5)));
+  ctx.restore(); ctx.restore();
+}
+
+function draw(ctx, c, t) {
+  const sc = sceneAt(c, t);
+  paper(ctx);
+  halftoneCorner(ctx, dotsBlue, W - 20, H * 0.5, 420, 0.28, 1);   // 오른쪽 가장자리 파란 점무늬(고정)
+  halftoneCorner(ctx, dotsRed, 40, H - 360, 360, 0.20, 1);
+  const top = header(ctx, c, sc);
+  body(ctx, sc, top, SAFE.bottom - 300);
+  // 도장: 장면 종류마다 한 번 쾅 (표지는 '접수', 본문은 '확인', 마무리는 '종결')
+  const st = sc.s.kind === 'cover' ? '접수' : sc.s.kind === 'summary' || sc.s.kind === 'cta' ? '종결' : '확인';
+  stamp(ctx, st, SAFE.right - 150, SAFE.bottom - 400, sc.lt, Math.max(0.9, (sc.dur || 3) * 0.55), sc.s.kind === 'content' ? RED : BLUE, -0.2);
+  sub(ctx, c, t);
+  // 장면 전환: 종이가 위로 넘어가는 얇은 그림자 띠
+  const wp = seg(sc.lt, 0, 0.2);
+  if (sc.i > 0 && wp < 1) { const g = ctx.createLinearGradient(0, H * wp - 60, 0, H * wp + 20); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.35)'); ctx.fillStyle = g; ctx.fillRect(0, H * wp - 60, W, 80); }
+  const fo = seg(t, c.duration - 0.5, c.duration);
+  if (fo > 0) { ctx.fillStyle = `rgba(239,227,198,${fo})`; ctx.fillRect(0, 0, W, H); }
+}
+
+start({ fonts: [
+  { family: FAM, weight: 700, url: 'fonts/Pretendard-Bold.otf' },
+  { family: FAM, weight: 800, url: 'fonts/Pretendard-ExtraBold.otf' },
+  { family: FAM, weight: 900, url: 'fonts/Pretendard-ExtraBold.otf' },
+], draw });
+</script></body></html>

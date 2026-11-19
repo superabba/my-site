@@ -14,7 +14,7 @@ from pathlib import Path
 
 from .llm import BlogPost, CardNews, TopicIdea
 
-STYLES = ("caption-news", "chalkboard", "swiss-motion", "news-package", "whiteboard", "blueprint")  # 비트 스타일은 컷 구성이 달라 루틴 방식에서는 쓰지 않는다
+STYLES = ("caption-news", "chalkboard", "swiss-motion", "news-package", "whiteboard", "blueprint", "halftone-dossier", "transit-map")  # 비트 스타일은 컷 구성이 달라 루틴 방식에서는 쓰지 않는다
 IMG_RE = re.compile(r"^slide_(\d{2})\.jpg$")
 
 
