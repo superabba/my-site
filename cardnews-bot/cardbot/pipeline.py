@@ -12,6 +12,8 @@ from . import trends
 from .bgm import with_credit
 from .blog import caption_hashtags, has_blog, refresh_blog, save_blog
 from .hosting import make_host
+from .blog import retarget_post
+from .frames import frames_of
 from .llm import BaseWriter, CardNews, TopicIdea, instagram_caption, make_writer
 from .publishers import make_publishers
 from .reel import render_reel
@@ -129,11 +131,24 @@ class Pipeline:
         """릴스 영상 실패가 카드뉴스 제작을 막지 않도록 오류는 기록만 한다."""
         try:
             self.make_reel(folder)
+            self.try_capture_frames(folder)
             return True
         except Exception as e:
             log.error("릴스 영상 생성 실패: %s", e)
             (folder / "reel_error.txt").write_text(str(e), encoding="utf-8")
             return False
+
+    def try_capture_frames(self, folder: Path) -> list[Path]:
+        """릴스 영상에서 스레드·블로그용 장면 이미지(frame_NN.jpg)를 캡처한다. 실패하면 슬라이드를 대신 쓴다."""
+        from . import frames
+
+        try:
+            got = frames.capture_frames(folder)
+            log.info("릴스 장면 캡처 %d장", len(got))
+            return got
+        except Exception as e:
+            log.warning("릴스 장면 캡처 실패, 슬라이드를 대신 씁니다: %s", e)
+            return []
 
     # ----- 블로그 글 (네이버/티스토리 붙여넣기용) -----
     def make_blog(self, folder: Path) -> None:
@@ -141,7 +156,7 @@ class Pipeline:
         card = CardNews.model_validate_json((folder / "card.json").read_text(encoding="utf-8"))
         research = folder / "research.md"
         notes = research.read_text(encoding="utf-8") if research.exists() else ""
-        images = [p.name for p in sorted(folder.glob("slide_*.jpg"))]
+        images = [p.name for p in (frames_of(folder) or sorted(folder.glob("slide_*.jpg")))]
         log.info("블로그 글 작성: %s", topic.title)
         save_blog(folder, self._need_writer().write_blog(topic, notes, card, images))
         (folder / "blog_error.txt").unlink(missing_ok=True)
@@ -171,10 +186,12 @@ class Pipeline:
         # 스레드에는 영상이 없으니 붙이지 않는다. 직접 합성한 곡이면 아무것도 붙지 않는다.
         caption = with_credit(caption, folder, 2200)
 
-        images = sorted(folder.glob("slide_*.jpg"))
-        # 비ASCII URL은 Meta가 가져오지 못하므로(이전 버전에서 올린 경우) 다시 올린다
+        # 스레드·블로그에 쓸 이미지는 릴스 영상 캡처(frame_NN.jpg). 영상이 없으면 슬라이드를 쓴다
+        images = frames_of(folder) or (self.try_capture_frames(folder) if (folder / "reel.mp4").exists() else [])
+        images = images or sorted(folder.glob("slide_*.jpg"))
+        # 비ASCII URL은 Meta가 가져오지 못하므로(이전 버전에서 올린 경우) 다시 올린다. 파일이 바뀌었어도 다시 올린다
         urls = meta.get("image_urls") or []
-        if not urls or not all(u.isascii() for u in urls):
+        if not urls or not all(u.isascii() for u in urls) or [u.rsplit("/", 1)[-1] for u in urls] != [p.name for p in images]:
             host = host or make_host(self.s)
             meta["image_urls"] = host.upload(images, folder.name)
             meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2))
@@ -193,7 +210,13 @@ class Pipeline:
             meta["video_urls"] = host.candidates(video_url)
             meta["reel_cover_url"] = cover_url
             meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2))
-        assets = {k: meta.get(k) for k in ("image_urls", "video_urls", "reel_cover_url")}
+        # 인스타 카드 슬라이드(캐러셀)를 다시 켠 경우에만 슬라이드 원본도 올린다 (캡처는 세로 9:16이라 캐러셀 비율이 안 맞는다)
+        if (any(p.name == "instagram" for p in pending) and images and images[0].name.startswith("frame_")
+                and not meta.get("slide_urls")):
+            host = host or make_host(self.s)
+            meta["slide_urls"] = host.upload(sorted(folder.glob("slide_*.jpg")), folder.name)
+            meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2))
+        assets = {k: meta.get(k) for k in ("image_urls", "slide_urls", "video_urls", "reel_cover_url")}
         # 유튜브는 로컬 파일을 직접 올리고, 제목·태그가 따로 필요하다
         assets["video_path"] = str(reel) if reel.exists() else None
         assets["title"] = topic.title
@@ -299,8 +322,10 @@ class Pipeline:
             self.try_make_reel(folder)
         blog_file = content_dir / "blog.json"
         if self.s.blog_enabled and blog_file.exists():
-            images = [p.name for p in sorted(folder.glob("slide_*.jpg"))]
-            save_blog(folder, normalize_blog(BlogPost.model_validate_json(blog_file.read_text(encoding="utf-8")), images))
+            images = [p.name for p in (frames_of(folder) or sorted(folder.glob("slide_*.jpg")))]
+            post = BlogPost.model_validate_json(blog_file.read_text(encoding="utf-8"))
+            retarget_post(post, folder)  # 루틴이 쓴 slide_NN.jpg 는 릴스 캡처 frame_NN.jpg 로
+            save_blog(folder, normalize_blog(post, images))
         return folder
 
     def ingest_all(self, root: Path) -> list[Path]:

@@ -777,7 +777,16 @@ def make_reel(card: CardNews, topic: TopicIdea, folder: Path, writer, fonts_dir:
         first = next(s for s in tl.content["scenes"] if s["kind"] != "card")
         render_cover(job, td, min(1.2, first["t1"] - 0.1), cover)
     (folder / "music.json").write_text(json.dumps(music_info, ensure_ascii=False), encoding="utf-8")
+    # 블로그·스레드용 장면 캡처 시각: 컷마다 첫 장면의 내레이션이 70% 읽힌 때 (자막·글씨가 거의 나온 화면)
+    seen: set = set()
+    frames: list[float] = []
+    for sc in tl.content["scenes"]:
+        if sc["kind"] == "card" or sc["index"] in seen:
+            continue
+        seen.add(sc["index"])
+        frames.append(round(sc["voice_t0"] + 0.7 * (sc["voice_t1"] - sc["voice_t0"]), 2))
     info = {"style": st.name, "label": st.label, "reason": plan.reason, "duration": tl.duration, "fps": fps, "rate": used_rate,
+            "frames": frames,
             "music": music_info, "narration": [s["narration"] for s in tl.content["scenes"] if s["narration"]],
             "cards": [s["card"] for s in tl.content["scenes"] if s["kind"] == "card"]}
     (folder / "reel_plan.json").write_text(json.dumps(info, ensure_ascii=False, indent=2), encoding="utf-8")

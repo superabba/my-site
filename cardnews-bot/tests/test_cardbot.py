@@ -1258,3 +1258,65 @@ def test_instagram_in_platforms_variable_is_stripped_unless_enabled(monkeypatch,
     assert Settings.load().platforms == ["reels", "threads", "youtube"]
     monkeypatch.setenv("INSTAGRAM_CAROUSEL", "true")
     assert Settings.load().platforms == ["instagram", "reels", "threads", "youtube"]
+
+
+# ---------------------------------------------------------------- 스레드·블로그 이미지는 릴스 영상 캡처
+
+def _make_video(path, seconds=6):
+    import subprocess
+
+    from cardbot.frames import _ffmpeg
+    subprocess.run([_ffmpeg(), "-y", "-v", "error", "-f", "lavfi", "-i", f"testsrc=s=270x480:d={seconds}:r=10",
+                    "-pix_fmt", "yuv420p", str(path)], check=True)
+
+
+def test_capture_frames_uses_plan_times_and_falls_back_to_even_split(tmp_path):
+    from cardbot import frames
+    _make_video(tmp_path / "reel.mp4")
+    (tmp_path / "reel_plan.json").write_text(json.dumps({"frames": [1.0, 2.5, 4.0]}))
+    got = frames.capture_frames(tmp_path)
+    assert [p.name for p in got] == ["frame_01.jpg", "frame_02.jpg", "frame_03.jpg"]
+    (tmp_path / "reel_plan.json").unlink()
+    for i in range(1, 5):
+        (tmp_path / f"slide_{i:02d}.jpg").write_bytes(b"x")
+    assert len(frames.capture_frames(tmp_path)) == 4          # 슬라이드 수만큼 고르게
+    assert frames.capture_frames(tmp_path / "nope") == []       # 영상이 없으면 빈 목록
+
+
+def test_retarget_slide_names_to_frames():
+    from cardbot.frames import retarget
+    assert retarget("slide_02.jpg", 5) == "frame_02.jpg"
+    assert retarget("slide_07.jpg", 5) == "frame_05.jpg"         # 캡처가 적으면 마지막 캡처
+    assert retarget("frame_03.jpg", 5) == "frame_03.jpg" and retarget("", 5) == ""
+
+
+def test_publish_uses_frames_for_threads_and_blog(tmp_path, monkeypatch):
+    from cardbot.blog import image_urls
+    s = Settings()
+    s.output_dir, s.data_dir = tmp_path / "out", tmp_path
+    s.fonts_dir = Path(__file__).parent.parent / "fonts"
+    s.output_dir.mkdir()
+    s.platforms = ["threads"]
+    monkeypatch.setattr("cardbot.pipeline.trends.collect", lambda s: [])
+    p = Pipeline(s, writer=FakeWriter(), store=Store(tmp_path / "db.sqlite"))
+    folder = p.make(p.recommend()[0][0], [])
+    _make_video(folder / "reel.mp4")
+    (folder / "reel_plan.json").write_text(json.dumps({"frames": [1.0, 3.0, 5.0]}))
+    seen = {}
+
+    class Host:
+        def upload(self, files, name):
+            seen.setdefault("uploaded", []).append([f.name for f in files])
+            return [f"https://cdn/{name}/{f.name}" for f in files]
+
+    class Pub(FakePub):
+        def publish(self, assets, text):
+            seen["threads_images"] = assets["image_urls"]
+            return super().publish(assets, text)
+
+    meta = p.publish(folder, publishers=[Pub("threads")], host=Host())
+    assert seen["uploaded"] == [["frame_01.jpg", "frame_02.jpg", "frame_03.jpg"]]      # 슬라이드는 올리지 않는다
+    assert [u.rsplit("/", 1)[-1] for u in seen["threads_images"]] == ["frame_01.jpg", "frame_02.jpg", "frame_03.jpg"]
+    assert set(image_urls(folder)) == {"frame_01.jpg", "frame_02.jpg", "frame_03.jpg"}  # 블로그·네이버 루틴이 읽는 주소
+    post = json.loads((folder / "published.json").read_text())
+    assert all("slide_" not in u for u in post["image_urls"])
