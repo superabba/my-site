@@ -106,6 +106,12 @@ class Pipeline:
         # 알 수 없는 이름(오타 등)은 고정으로 치지 않는다. 같은 초안을 다시 만들 때는 그 초안의 기록을 빼고 센다.
         avoid = () if forced in lemoreel.STYLES else tuple(
             self.store.recent_reel_styles(lemoreel.RECENT_WINDOW, exclude_folder=folder.name))
+        if forced not in lemoreel.STYLES and self.s.style_cross_avoid:
+            # 같은 계정에 올라가는 청년 카드뉴스가 최근에 쓴 스타일도 피한다 (쓸 스타일이 안 남으면 포기)
+            from . import stylefeed
+
+            usable = tuple(n for n, st in lemoreel.STYLES.items() if not st.beats)
+            avoid = stylefeed.with_cross_avoid(avoid, stylefeed.other_repo_style("cardnews"), usable)
         writer = self.writer
         plan_file = folder / "reel.json"
         if plan_file.exists():  # 루틴 방식: 원고에 적힌 내레이션을 그대로 쓴다 (LLM 없음)

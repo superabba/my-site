@@ -1320,3 +1320,38 @@ def test_publish_uses_frames_for_threads_and_blog(tmp_path, monkeypatch):
     assert set(image_urls(folder)) == {"frame_01.jpg", "frame_02.jpg", "frame_03.jpg"}  # 블로그·네이버 루틴이 읽는 주소
     post = json.loads((folder / "published.json").read_text())
     assert all("slide_" not in u for u in post["image_urls"])
+
+
+# ---------------------------------------------------------------- 같은 계정의 다른 저장소가 쓴 스타일도 피한다
+
+def _fake_remote(tmp_path, folders):
+    import subprocess
+    r = tmp_path / "remote"
+    r.mkdir()
+    run = lambda *a: subprocess.run(["git", "-C", str(r), *a], check=True, capture_output=True)  # noqa: E731
+    run("init", "-q", "-b", "drafts")
+    for name, style in folders.items():
+        (r / name).mkdir(parents=True)
+        (r / name / "reel_plan.json").write_text(json.dumps({"style": style}))
+    run("add", "-A")
+    run("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "x")
+    return str(r)
+
+
+def test_latest_style_reads_newest_recent_folder(tmp_path):
+    from datetime import datetime, timezone
+    from cardbot import stylefeed
+    url = _fake_remote(tmp_path, {"20261115-1357-a": "chalkboard", "20261116-1100-b": "swiss-motion",
+                                  "20261101-1000-old": "caption-news"})
+    now = datetime(2026, 11, 16, 12, tzinfo=timezone.utc)
+    assert stylefeed.latest_style(url, "drafts", "", now=now) == "swiss-motion"
+    assert stylefeed.latest_style(url, "drafts", "", now=datetime(2026, 12, 1, tzinfo=timezone.utc)) is None  # 너무 오래됨
+    assert stylefeed.latest_style(str(tmp_path / "nope"), "drafts", "") is None                             # 못 읽으면 건너뜀
+
+
+def test_cross_avoid_is_dropped_when_no_style_would_be_left():
+    from cardbot.stylefeed import with_cross_avoid
+    usable = ("caption-news", "chalkboard", "swiss-motion")
+    assert with_cross_avoid(("caption-news",), "swiss-motion", usable) == ("caption-news", "swiss-motion")
+    assert with_cross_avoid(("caption-news", "chalkboard"), "swiss-motion", usable) == ("caption-news", "chalkboard")
+    assert with_cross_avoid(("caption-news",), None, usable) == ("caption-news",)
