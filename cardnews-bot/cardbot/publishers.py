@@ -177,7 +177,7 @@ class InstagramPublisher:
         self.api = GraphClient(base, token, sleep)
 
     def publish(self, assets: dict, caption: str) -> PublishResult:
-        image_urls = assets["image_urls"]
+        image_urls = assets.get("slide_urls") or assets["image_urls"]  # 카드 슬라이드(4:5). 릴스 캡처(9:16)는 캐러셀 비율이 안 맞는다
         if not 2 <= len(image_urls) <= 10:
             raise PublishError("인스타그램 캐러셀은 2~10장이어야 합니다")
         children = []

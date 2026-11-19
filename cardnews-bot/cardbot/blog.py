@@ -71,7 +71,7 @@ def _paragraphs(text: str) -> str:
 
 
 def image_urls(folder: Path) -> dict[str, str]:
-    """게시할 때 올린 슬라이드의 공개 URL (published.json), 파일 이름 → URL."""
+    """게시할 때 올린 이미지(릴스 캡처 frame_NN.jpg, 영상이 없으면 슬라이드)의 공개 URL (published.json), 파일 이름 → URL."""
     try:
         meta = json.loads((folder / "published.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -160,7 +160,20 @@ def guide(post: BlogPost, folder_name: str) -> str:
 """
 
 
+def retarget_post(post: BlogPost, folder: Path) -> None:
+    """릴스 캡처(frame_NN.jpg)가 있으면 글의 사진 이름 slide_NN.jpg 를 캡처 이름으로 바꾼다 (제자리 수정)."""
+    from .frames import frames_of, retarget
+
+    n = len(frames_of(folder))
+    if not n:
+        return
+    for sec in post.sections:
+        if sec.image:
+            sec.image = retarget(sec.image, n)
+
+
 def save_blog(folder: Path, post: BlogPost) -> None:
+    retarget_post(post, folder)
     caption = folder / "caption.txt"
     # 글 맨 아래에 인스타 캡션과 같은 해시태그를 붙인다 (사람이 고친 캡션도 반영)
     hashtags = caption_hashtags(caption.read_text(encoding="utf-8")) if caption.exists() else []
