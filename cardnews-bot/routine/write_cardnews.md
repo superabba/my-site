@@ -78,7 +78,7 @@ git show origin/cardbot-data:data/signals.json   # collected_at 과 signals[].li
 {"style": "chalkboard", "reason": "신청 요건을 차근차근 짚는 안내형 주제",
  "lines": [{"slide": 1, "text": "고향사랑기부, 연말 전에 {세액공제}부터 확인하세요."}, {"slide": 2, "text": "…"}]}
 ```
-- `style`: `caption-news`(새 제도·속보·한 줄 결론) / `chalkboard`(방법·절차·오해와 진실) / `swiss-motion`(숫자·금리·비교). 직전 두 영상과 같으면 자동으로 다른 스타일로 바뀝니다 (`git show origin/cardbot-data:output/<폴더>/reel_plan.json` 의 `style` 로 확인 가능).
+- `style`: `caption-news`(새 제도·속보·한 줄 결론) / `chalkboard`(방법·절차·오해와 진실) / `swiss-motion`(숫자·금리·비교) / `news-package`(방송 뉴스 브리핑: 오늘의 이슈·핵심 사실 정리) / `whiteboard`(화이트보드 설명: 왜·어떻게·원리) / `blueprint`(청사진 도면: 단계·요건·한도·절차). 직전 두 영상과 같으면 자동으로 다른 스타일로 바뀝니다 (`git show origin/cardbot-data:output/<폴더>/reel_plan.json` 의 `style` 로 확인 가능).
 - `lines` 는 슬라이드마다 **정확히 한 줄**(slide 1부터 슬라이드 수까지). 한 줄은 공백 포함 50자 안팎(최대 70자), 합니다체나 해요체 하나로 통일해 뉴스 앵커처럼 차분하게.
 - 줄마다 핵심 어구(숫자·키워드 2~8자) 하나를 `{중괄호}`로 감쌉니다. 화면 글을 그대로 읽지 말고 숫자는 한 번 더 짚습니다. 이모지·괄호·해시태그 금지. 숫자는 '15만 원', '3.5퍼센트'처럼 씁니다.
 

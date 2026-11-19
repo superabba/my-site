@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<link rel="stylesheet" href="/node_modules/@fontsource/gaegu/700.css">
+<style>html,body{margin:0;background:#e9e6df}canvas{display:block;width:1080px;height:1920px}</style>
+</head><body><canvas id="c"></canvas>
+<script type="module">
+// 화이트보드 설명 스타일 (lemo-opuscar의 Whiteboard Explainer 문법을 세로 화면에 맞춘 것):
+// 반짝이는 하얀 보드 하나에 마커로 글이 '써지는' 설명. 손은 없고 마커가 떠다니며 그림자를 남긴다.
+// 마커 색은 세 가지뿐 — 검정(내용), 파랑(수치·과정), 주황(가장 중요한 것) — 의미를 영상 내내 지킨다.
+import { W, H, SAFE, SAFE_W, clamp, lerp, seg, ss, eo, eio, wrap, fitText, rollNumber, mulberry, sceneAt, subAt, start } from '/styles/common.js';
+
+const HAND = 'Gaegu', FAM = 'Pretendard';
+const BOARD1 = '#fbfaf6', BOARD2 = '#eeece4', BLACK = '#23262c', BLUE = '#2a5cb3', ORANGE = '#d97757';
+
+// 보드: 따뜻한 흰색 + 지워진 흔적(고스트) + 천천히 흐르는 창 반사광
+const ghosts = (() => { const r = mulberry(7), out = []; for (let i = 0; i < 26; i++) out.push({ x: r() * W, y: r() * H, w: 80 + r() * 220, a: r() * 3 - 1.5, k: Math.floor(r() * 3) }); return out; })();
+function board(ctx, t) {
+  const g = ctx.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, BOARD1); g.addColorStop(1, BOARD2);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.save(); ctx.globalAlpha = 0.07; ctx.strokeStyle = '#6a7fa6'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+  for (const gh of ghosts) {
+    ctx.beginPath();
+    if (gh.k === 0) { ctx.moveTo(gh.x, gh.y); ctx.quadraticCurveTo(gh.x + gh.w / 2, gh.y + gh.a * 40, gh.x + gh.w, gh.y + gh.a * 10); }
+    else if (gh.k === 1) ctx.ellipse(gh.x, gh.y, gh.w / 4, gh.w / 5, gh.a, 0, Math.PI * 1.85);
+    else { ctx.moveTo(gh.x, gh.y); ctx.lineTo(gh.x + gh.w * 0.6, gh.y + gh.a * 20); ctx.lineTo(gh.x + gh.w * 0.45, gh.y + gh.a * 20 - 18); }
+    ctx.stroke();
+  }
+  ctx.restore();
+  const sx = ((t * 38) % (W + 900)) - 700;            // 창 반사광: 비스듬한 흰 띠
+  ctx.save(); ctx.globalAlpha = 0.5; const sg = ctx.createLinearGradient(sx, 0, sx + 260, 0);
+  sg.addColorStop(0, 'rgba(255,255,255,0)'); sg.addColorStop(0.5, 'rgba(255,255,255,.55)'); sg.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = sg; ctx.beginPath(); ctx.moveTo(sx + 300, 0); ctx.lineTo(sx + 560, 0); ctx.lineTo(sx + 260, H); ctx.lineTo(sx, H); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  // 보드 테두리와 아래 받침대
+  ctx.fillStyle = '#c9c6bd'; ctx.fillRect(0, 0, W, 14); ctx.fillRect(0, H - 14, W, 14); ctx.fillRect(0, 0, 14, H); ctx.fillRect(W - 14, 0, 14, H);
+}
+
+// 마커 소품: 흰 몸통, 색 띠, 펠트 촉. 쓰는 지점을 따라다니고 그림자를 남긴다.
+function marker(ctx, x, y, color, lift) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(-0.62);
+  ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.fillRect(10 + lift * 14, 30 + lift * 14, 28, 150);  // 그림자(들릴수록 멀어짐)
+  ctx.fillStyle = '#fff'; ctx.fillRect(-14, 10, 28, 150);
+  ctx.fillStyle = color; ctx.fillRect(-14, 56, 28, 26);
+  ctx.fillStyle = '#d9d7d0'; ctx.fillRect(-14, 128, 28, 32);
+  ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(-9, 10); ctx.lineTo(9, 10); ctx.lineTo(4, -12); ctx.lineTo(-4, -12); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+// 글줄이 왼쪽에서 오른쪽으로 '써지는' 효과: 쓴 곳까지만 보이게 자르고, 마커가 그 끝을 따라간다.
+function writeLines(ctx, lines, size, weight, x, y0, lh, color, lt, t0, per, fam, track) {
+  ctx.font = `${weight} ${size}px "${fam}"`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  let cur = t0, last = null;
+  lines.forEach((l, k) => {
+    const w = ctx.measureText(l).width, dur = Math.max(0.3, per * l.length), p = clamp((lt - cur) / dur);
+    if (p > 0) {
+      ctx.save(); ctx.beginPath(); ctx.rect(x - 6, y0 + k * lh - size * 1.1, (w + 12) * eio(p), lh + size * 0.4); ctx.clip();
+      ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = color; ctx.fillText(l, x + (Math.sin(k * 3.1) * 2), y0 + k * lh + Math.sin(k * 1.7) * 2);
+      ctx.restore();
+      if (p < 1 || (lt - cur) < dur + 0.25) last = { x: x + w * eio(p), y: y0 + k * lh, p };
+    }
+    cur += dur + 0.12;
+  });
+  if (track) track.last = last; return cur;
+}
+
+// 핵심 어구에 손으로 그린 동그라미(주황)가 한 번 돈다
+function circle(ctx, x, y, w, h, p, color) {
+  if (p <= 0) return;
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.globalAlpha = 0.9;
+  ctx.beginPath();
+  const n = 60, a0 = -2.3, total = Math.PI * 2 * 1.08 * clamp(p);
+  for (let i = 0; i <= n * clamp(p); i++) {
+    const a = a0 + (i / n) * Math.PI * 2 * 1.08, rr = 1 + 0.03 * Math.sin(a * 2.3);
+    const px = x + w / 2 + Math.cos(a) * (w / 2 + 18) * rr, py = y + h / 2 + Math.sin(a) * (h / 2 + 12) * rr;
+    i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+  }
+  ctx.stroke(); ctx.restore();
+}
+
+function scene(ctx, c, sc) {
+  const { s, lt } = sc, track = {};
+  const x = SAFE.left + 6, w = SAFE_W - 12;
+  let y = SAFE.top + 130, tcur = 0.1, mcolor = BLACK;
+  // 윗줄: 쪽 번호와 채널 (파란 마커로 작게)
+  ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = BLUE; ctx.font = `700 34px "${HAND}"`; ctx.textAlign = 'left';
+  ctx.fillText(`${String(s.index).padStart(2, '0')} / ${String(c.scenes.filter(q => q.kind !== 'card').length).padStart(2, '0')}   ${c.channel || '경제주막'}`, x, y); ctx.restore();
+  y += 80;
+  // 큰 수치(핵심 어구): 주황으로 크게 쓰고 동그라미
+  const key = (s.highlight || '').trim();
+  if (key) {
+    const f = fitText(ctx, key, { family: HAND, weight: 700, maxW: w, maxLines: 1, sizes: [180, 160, 140, 120, 100, 84] });
+    const txt = rollNumber(key, eo(seg(lt, 0.1, 1.0)));
+    ctx.font = `700 ${f.size}px "${HAND}"`; const kw = ctx.measureText(key).width;
+    tcur = writeLines(ctx, [txt], f.size, 700, x, y + f.size * 0.8, f.size, ORANGE, lt, 0.1, 0.05, HAND, track);
+    circle(ctx, x, y + f.size * 0.1, kw, f.size * 0.85, eio(seg(lt, tcur - 0.1, tcur + 0.5)), ORANGE);
+    if (track.last) mcolor = ORANGE;
+    y += f.size * 0.8 + 70;
+  }
+  // 제목: 검정으로 크게 한 줄씩 써진다
+  const hf = fitText(ctx, s.heading.replace(/\n/g, ' '), { family: HAND, weight: 700, maxW: w, maxLines: 3, sizes: [100, 90, 82, 74, 66, 58] });
+  const lh = hf.size * 1.16;
+  const tr2 = {};
+  tcur = writeLines(ctx, hf.lines, hf.size, 700, x, y + hf.size * 0.85, lh, BLACK, lt, tcur, 0.045, HAND, tr2);
+  if (tr2.last) { track.last = tr2.last; mcolor = BLACK; }
+  y += hf.lines.length * lh + 20;
+  // 밑줄: 파란 마커가 제목 아래를 긋는다
+  const up = eio(seg(lt, tcur - 0.05, tcur + 0.35));
+  if (up > 0) { ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.strokeStyle = BLUE; ctx.lineWidth = 9; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + w * 0.3, y + 8, x + w * 0.6 * up, y - 2 * up); ctx.stroke(); ctx.restore(); }
+  y += 56;
+  // 본문/체크 목록
+  const items = (s.bullets && s.bullets.length) ? s.bullets : null;
+  if (items) {
+    items.forEach((b, k) => {
+      const f = fitText(ctx, b, { family: HAND, weight: 700, maxW: w - 96, maxLines: 2, sizes: [60, 54, 50, 46, 42] });
+      const lh2 = f.size * 1.12, yy = y + k * Math.max(112, lh2 * f.lines.length + 36);
+      const ck = eio(seg(lt, tcur + 0.15 + k * 0.5, tcur + 0.5 + k * 0.5));
+      if (ck > 0) {                                  // 파란 체크가 쓱
+        ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.strokeStyle = BLUE; ctx.lineWidth = 9; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.beginPath(); ctx.moveTo(x, yy + 8); ctx.lineTo(x + 24 * Math.min(1, ck * 2), yy + 8 + 28 * Math.min(1, ck * 2));
+        if (ck > 0.5) ctx.lineTo(x + 24 + 52 * (ck - 0.5) * 2, yy + 36 - 62 * (ck - 0.5) * 2);
+        ctx.stroke(); ctx.restore();
+      }
+      const t2 = {};
+      writeLines(ctx, f.lines, f.size, 700, x + 90, yy + f.size * 0.7, lh2, BLACK, lt, tcur + 0.2 + k * 0.5, 0.03, HAND, t2);
+      if (t2.last) { track.last = t2.last; mcolor = BLACK; }
+    });
+  } else if (s.body) {
+    let bs = 54, bl;
+    for (; bs >= 38; bs -= 2) { ctx.font = `700 ${bs}px "${HAND}"`; bl = wrap(ctx, s.body, w); if (y + bl.length * bs * 1.25 <= SAFE.bottom - 300) break; }
+    const t2 = {};
+    writeLines(ctx, bl, bs, 700, x, y + bs * 0.8, bs * 1.25, BLACK, lt, tcur + 0.2, 0.03, HAND, t2);
+    if (t2.last) { track.last = t2.last; mcolor = BLACK; }
+  }
+  if (track.last) {                                   // 떠다니는 마커 (쓰는 동안만 보이고, 끝나면 보드 밖으로 빠진다)
+    const lift = 0.4 + 0.6 * (1 - track.last.p);
+    marker(ctx, track.last.x + 8, track.last.y - 12, mcolor, lift);
+  }
+}
+
+// 자막: 마커 글씨 같은 둥근 흰 라벨, 짧은 주황 대시
+function sub(ctx, c, t) {
+  const { s } = sceneAt(c, t); const hit = subAt(s, t); if (!hit) return;
+  const a = ss(hit.lt / 0.1) * (1 - ss((hit.lt - (hit.dur - 0.08)) / 0.08));
+  ctx.save(); ctx.globalAlpha = a; ctx.font = `700 52px "${HAND}"`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const lines = wrap(ctx, hit.u.text, SAFE_W - 70), lh = 64, bh = lines.length * lh + 34, y0 = SAFE.bottom - 40 - bh;
+  ctx.fillStyle = 'rgba(255,255,255,.93)'; ctx.shadowColor = 'rgba(0,0,0,.18)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 6;
+  const r = 22, xx = SAFE.left, ww = SAFE_W;
+  ctx.beginPath(); ctx.moveTo(xx + r, y0); ctx.arcTo(xx + ww, y0, xx + ww, y0 + bh, r); ctx.arcTo(xx + ww, y0 + bh, xx, y0 + bh, r); ctx.arcTo(xx, y0 + bh, xx, y0, r); ctx.arcTo(xx, y0, xx + ww, y0, r); ctx.fill();
+  ctx.shadowColor = 'transparent'; ctx.fillStyle = ORANGE; ctx.fillRect(xx + ww / 2 - 40, y0 + bh - 14, 80, 6);
+  ctx.fillStyle = BLACK; lines.forEach((l, k) => ctx.fillText(l, (SAFE.left + SAFE.right) / 2, y0 + 18 + lh * (k + 0.5) - 4));
+  ctx.restore();
+}
+
+function draw(ctx, c, t) {
+  const sc = sceneAt(c, t);
+  board(ctx, t);
+  // 장면이 바뀔 때 지우개가 보드를 쓸고 간다: 앞 장면 글씨는 이미 지워진 채 시작
+  scene(ctx, c, sc);
+  const wp = seg(sc.lt, 0, 0.3);
+  if (sc.i > 0 && wp < 1) { ctx.save(); ctx.globalAlpha = 0.9 * (1 - wp); ctx.fillStyle = BOARD1; ctx.fillRect(0, 0, W, H * (1 - wp)); ctx.restore(); }
+  sub(ctx, c, t);
+  const fo = seg(t, c.duration - 0.5, c.duration);
+  if (fo > 0) { ctx.fillStyle = `rgba(251,250,246,${fo})`; ctx.fillRect(0, 0, W, H); }
+}
+
+start({ fonts: [
+  { family: FAM, weight: 700, url: 'fonts/Pretendard-Bold.otf' },
+  { family: HAND, weight: 700, css: true },
+], draw });
+</script></body></html>
