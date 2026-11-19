@@ -247,3 +247,6 @@ Actions KST 15:05   auto → 오늘 초안을 인스타·스레드·유튜브에
 - `routine` 이면 워크플로가 LLM API 키를 실행 환경에 넘기지 않는다 (API 없이 돌아가는 것을 보장).
 - 원고 형식 확인: `python -m cardbot.validate_content content/<폴더>` (pydantic·requests 만 필요).
 - 스타일은 직전 두 편과 다르게 자동 조정되고, 비트 스타일은 쓰지 않는다. 30시간 넘은 초안은 늦게 올리지 않는다.
+
+### 인스타 카드 슬라이드는 올리지 않음
+인스타그램 **카드 슬라이드(캐러셀) 게시는 꺼져 있습니다.** 릴스·스레드·유튜브 쇼츠는 그대로 올라갑니다. `PLATFORMS` 변수에 `instagram` 이 들어 있어도 무시되며, 다시 올리려면 저장소 Variables 에 `INSTAGRAM_CAROUSEL=true` 를 넣으세요. (스레드는 같은 슬라이드를 캐러셀로 올립니다.)

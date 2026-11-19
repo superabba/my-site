@@ -77,7 +77,9 @@ class Settings:
     public_dir: str = ""
 
     # 플랫폼
-    platforms: list[str] = field(default_factory=lambda: ["instagram", "reels", "threads"])
+    # 인스타 카드 슬라이드(캐러셀, "instagram")는 기본으로 올리지 않는다. 다시 켜려면 INSTAGRAM_CAROUSEL=true
+    platforms: list[str] = field(default_factory=lambda: ["reels", "threads"])
+    instagram_carousel: bool = False
     reels_audio: str = "auto"  # auto=배경음악 합성, none=무음, 그 외=음원 파일/폴더 경로
     reels_fps: int = 30
     reels_engine: str = "classic"  # classic=카드 이미지를 넘기는 기존 릴스, lemo=스타일 영상(내레이션·믹싱, lemo-opuscar 렌더 도구)
@@ -148,6 +150,10 @@ class Settings:
         plats = _env("PLATFORMS")
         if plats:
             s.platforms = [p.strip().lower() for p in plats.split(",") if p.strip()]
+        s.instagram_carousel = _bool("INSTAGRAM_CAROUSEL", False)
+        if "instagram" in s.platforms and not s.instagram_carousel:
+            # PLATFORMS 변수에 instagram 이 들어 있어도 카드 슬라이드는 올리지 않는다 (릴스·스레드·유튜브는 그대로)
+            s.platforms = [p for p in s.platforms if p != "instagram"]
         fixed = _env("REELS_SECONDS_PER_SLIDE", "auto").lower()
         s.reels_seconds_per_slide = None if fixed == "auto" else max(0.5, float(fixed))
         s.reels_audio = _env("REELS_AUDIO", s.reels_audio)
