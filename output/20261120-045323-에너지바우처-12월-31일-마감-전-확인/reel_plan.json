@@ -1,0 +1,34 @@
+{
+  "style": "news-package",
+  "label": "방송 뉴스 패키지",
+  "reason": "신청 요건과 절차를 차근차근 짚는 안내형 주제",
+  "duration": 44.45139583333332,
+  "fps": 30,
+  "rate": "+0%",
+  "frames": [
+    3.38,
+    8.37,
+    13.65,
+    20.47,
+    26.97,
+    32.69,
+    38.23,
+    42.6
+  ],
+  "music": {
+    "mood": "warm",
+    "track": "warm/kevin-macleod-backed-vibes-clean.m4a",
+    "credit": "🎵 Backed Vibes Clean - Kevin MacLeod (CC BY 3.0, 편집) http://freemusicarchive.org/music/Kevin_MacLeod/Jazz_Sampler/Backed_Vibes_Clean_1973"
+  },
+  "narration": [
+    "한파 오기 전, 난방비 지원 12월 31일 마감입니다.",
+    "에너지바우처는 냉난방 비용을 돕는 제도이고 신청해야 받습니다.",
+    "소득 기준과 세대원 특성 기준, 두 가지를 모두 충족해야 합니다.",
+    "노인, 영유아, 장애인, 임산부, 중증질환자가 있는 세대원 특성을 확인하세요.",
+    "주민센터 방문이나 복지로 온라인으로 12월 31일까지 신청할 수 있습니다.",
+    "올해는 여름과 겨울 구분 없이 내년 5월 말까지 사용할 수 있습니다.",
+    "급여 수급 여부, 세대원 특성, 마감일 순서로 점검해 보세요.",
+    "저장해 두고, 필요한 이웃에게 공유해 주세요."
+  ],
+  "cards": []
+}
