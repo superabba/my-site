@@ -1336,7 +1336,8 @@ def test_publish_uses_frames_for_threads_and_blog(tmp_path, monkeypatch):
     assert [u.rsplit("/", 1)[-1] for u in seen["threads_images"]] == ["frame_01.jpg", "frame_02.jpg", "frame_03.jpg"]
     assert set(image_urls(folder)) == {"blog_01.jpg", "blog_02.jpg", "blog_03.jpg"}      # 블로그·네이버 루틴이 읽는 주소
     from PIL import Image
-    assert all(Image.open(p).size == (1080, 1080) for p in folder.glob("blog_*.jpg")) and n >= 1
+    sizes = [Image.open(p).size for p in sorted(folder.glob("blog_*.jpg"))]
+    assert sizes[0] == (1080, 1080) and all(z == (1080, 1350) for z in sizes[1:]) and n >= 1  # 첫 장 1:1(피드 썸네일), 나머지 4:5
     post = json.loads((folder / "published.json").read_text())
     assert all("slide_" not in u and "frame_" not in u for u in post["image_urls"])
 
@@ -1397,3 +1398,25 @@ def test_new_styles_are_chosen_for_their_topics():
     assert lemoreel.heuristic_style(topic, card("오늘의 브리핑 핵심 정리 한눈에")) == "news-package"
     assert lemoreel.heuristic_style(topic, card("모르면 손해 보는 함정과 오해, 놓치기 쉬운 실수")) == "halftone-dossier"
     assert lemoreel.heuristic_style(topic, card("신청 순서와 단계별 절차, 먼저 다음 마지막")) == "transit-map"
+
+
+def test_blog_crops_keep_text_area_wide_and_hero_square():
+    """블로그 이미지: 첫 장 1:1, 나머지 4:5 (세로 캡처에서 글자 있는 구간만 가로 꽉 차게)."""
+    from PIL import Image, ImageDraw
+    from cardbot.frames import content_crop, hero_crop
+
+    im = Image.new("RGB", (1080, 1920), (20, 30, 60))
+    d = ImageDraw.Draw(im)
+    for y in range(300, 900, 60):          # 글자 대신 줄무늬: 위쪽 구간에만 내용
+        d.rectangle((80, y, 1000, y + 30), fill=(255, 255, 255))
+    body = content_crop(im)
+    assert body.size == (1080, 1350)
+    top = hero_crop(im)
+    assert top.size == (1080, 1080)
+    # 내용이 모인 구간(300~900)이 잘리지 않고 안에 있다 → 위쪽이 거의 흰 줄로 채워짐
+    assert sum(1 for x, y in [(500, 330), (500, 450), (500, 570)] if top.getpixel((x, y - _top_off(im))) [0] > 200) >= 1
+
+
+def _top_off(im):
+    from cardbot.frames import _best_window
+    return _best_window(im, 1080)[0]

@@ -374,9 +374,9 @@ def test_save_blog_images_captures_video_frames_with_subtitles(tmp_path):
     names = save_blog_images(video, [{"media": str(ai), "start": 0, "dur": 2},
                                      {"media": None, "start": 2, "dur": 2}], tmp_path / "blog")
     assert names == ["scene_01.jpg", "scene_02.jpg"]
-    for n in ("cover.jpg", *names):  # 영상 화면 그대로(9:16 세로 전체), 폭만 1080
+    for n, h in (("cover.jpg", 1080), *[(x, 1350) for x in names]):  # 표지 1:1, 장면 4:5 (글자 구간만 자름)
         with Image.open(tmp_path / "blog" / n) as im:
-            assert im.width == 1080 and abs(im.height / im.width - 320 / 180) < 0.02
+            assert im.size == (1080, h)
     with Image.open(tmp_path / "blog" / "scene_01.jpg") as im:
         assert im.getpixel((540, 960))[:3] != (200, 120, 60)  # 그림 원본이 아니라 영상 화면
 
