@@ -264,7 +264,7 @@ class ThreadsPublisher:
         self.api = GraphClient(base, token, sleep)
 
     def publish(self, assets: dict, text: str) -> PublishResult:
-        image_urls = assets["image_urls"]
+        image_urls = assets.get("threads_image_urls") or assets["image_urls"]  # 릴스 영상 캡처(세로). 없으면 블로그용 이미지
         if not 2 <= len(image_urls) <= 20:
             raise PublishError("스레드 캐러셀은 2~20장이어야 합니다")
         children = []
