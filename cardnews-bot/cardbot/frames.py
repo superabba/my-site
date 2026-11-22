@@ -97,8 +97,71 @@ def square_fit(img, size: int = BLOG_SIZE):
     return bg
 
 
+BLOG_W = 1080
+BLOG_H = 1350  # 4:5 - 영상 캡처(1080x1920)에서 글자가 있는 부분만 가로 꽉 차게 잘라 읽기 쉽게
+HERO_OUTSIDE_MAX = 0.22  # 정사각형 창 밖에 남는 글자·그림 비율이 이 이하일 때만 정사각형으로 자른다
+
+
+def _row_energy(img):
+    """줄(가로 한 줄)마다 그림이 얼마나 '있는지' - 이웃 픽셀 차이의 합. 빈 배경은 0 에 가깝다."""
+    import numpy as np
+    from PIL import ImageOps
+
+    g = np.asarray(ImageOps.grayscale(img.resize((270, max(1, round(270 * img.height / img.width))))), dtype=np.float32)
+    dx = np.abs(np.diff(g, axis=1)).sum(axis=1)
+    dy = np.abs(np.diff(g, axis=0)).sum(axis=1)
+    e = dx[:-1] + dy
+    e = np.append(e, e[-1:])
+    return e / max(1, g.shape[1])
+
+
+def _best_window(img, h_px: int):
+    """세로 길이 h_px 짜리 창을 위아래로 밀어 글자·그림이 가장 많이 들어오는 자리를 찾는다. (top, 창 밖 비율) 반환."""
+    import numpy as np
+
+    e = _row_energy(img)
+    n = len(e)
+    win = max(1, round(h_px * n / img.height))
+    if win >= n:
+        return 0, 0.0
+    c = np.concatenate([[0.0], np.cumsum(e)])
+    sums = c[win:] - c[:-win]
+    k = int(np.argmax(sums))
+    total = float(c[-1]) or 1.0
+    return round(k * img.height / n), 1.0 - float(sums[k]) / total
+
+
+def content_crop(img, width: int = BLOG_W, height: int = BLOG_H):
+    """세로로 긴 캡처를 width x height 로 자른다 (가로는 그대로, 글자가 모인 세로 구간만). 가로·정사각형 그림은 그대로 맞춘다."""
+    from PIL import Image, ImageOps
+
+    img = ImageOps.exif_transpose(img).convert("RGB")
+    if img.height / img.width <= height / width + 0.02:
+        return square_fit(img, width) if abs(img.width / img.height - 1) > 0.02 and img.width >= img.height else img.resize((width, round(width * img.height / img.width)), Image.LANCZOS)
+    scaled = img.resize((width, round(img.height * width / img.width)), Image.LANCZOS)
+    top, _ = _best_window(scaled, height)
+    return scaled.crop((0, top, width, top + height))
+
+
+def hero_crop(img, size: int = BLOG_W):
+    """블로그 첫 사진: 네이버 피드가 1:1 로 잘라 보여 주므로 정사각형. 글자가 모인 구간이 정사각형 안에 들어오면 그 구간을 가로 꽉 차게 자르고,
+    아니면 (잘릴 수 있으면) 그림 전체를 정사각형 안에 넣는다."""
+    from PIL import ImageOps
+
+    img = ImageOps.exif_transpose(img).convert("RGB")
+    if abs(img.width / img.height - 1) < 0.02:
+        return square_fit(img, size)
+    if img.height > img.width:
+        scaled = img.resize((size, round(img.height * size / img.width)))
+        top, outside = _best_window(scaled, size)
+        if outside <= HERO_OUTSIDE_MAX:
+            return scaled.crop((0, top, size, top + size))
+    return square_fit(img, size)
+
+
 def make_blog_images(folder: Path) -> list[Path]:
-    """블로그용 정사각형 이미지 blog_NN.jpg. 릴스 캡처(frame_*.jpg)가 있으면 그것을, 없으면 슬라이드를 정사각형에 맞춘다."""
+    """블로그용 이미지 blog_NN.jpg. 릴스 캡처(frame_*.jpg)가 있으면 그것을, 없으면 슬라이드를 쓴다.
+    첫 장은 1:1(네이버 피드 썸네일이 안 잘리게), 나머지는 글자 있는 부분만 자른 4:5."""
     from PIL import Image
 
     src = frames_of(folder) or sorted(folder.glob("slide_*.jpg"))
@@ -108,7 +171,7 @@ def make_blog_images(folder: Path) -> list[Path]:
     for i, p in enumerate(src, 1):
         dest = folder / f"blog_{i:02d}.jpg"
         with Image.open(p) as im:
-            square_fit(im).save(dest, "JPEG", quality=90, optimize=True)
+            (hero_crop(im) if i == 1 else content_crop(im)).save(dest, "JPEG", quality=90, optimize=True)
         out.append(dest)
     return out
 
