@@ -1,0 +1,219 @@
+{
+ "theme": "직장인 재테크",
+ "topic": {
+  "topic": "예금자보호 한도 1억 원, 한 금융회사에 몰아 두기 전 확인",
+  "keyword": "예금자보호 한도",
+  "angle": "금융회사별 합산과 보호 제외 상품",
+  "why": "직장인이 비상금을 모을 때 꼭 필요한 상시 기본기"
+ },
+ "title": "예금자보호 1억, 한 곳에 몰아 두면?",
+ "mood": "calm",
+ "caption": "예금자보호 한도는 금융회사별로 원금과 이자를 합쳐 1억 원이에요. 가입 전에 합산 기준과 보호 제외 상품을 확인하세요.",
+ "hashtags": [
+  "예금자보호",
+  "비상금",
+  "직장인재테크",
+  "파킹통장",
+  "재테크기초"
+ ],
+ "visual_style": "cinematic documentary photograph, soft teal and warm amber lighting",
+ "scenes": [
+  {
+   "narration": "이거 모르고 시작하면… 나중에 다 고쳐야 됩니다.",
+   "headline": "시작 전 점검",
+   "keywords": "money safe box, lock",
+   "image_prompt": "Extreme close-up of a brass safe lock with coins spilling out, dramatic scale contrast, low angle, light streaks, no text",
+   "motion": "push_in",
+   "chart": null
+  },
+  {
+   "narration": "비상금과 월급을 한 금융회사에만 몰아 두는 습관이에요.",
+   "headline": "한 곳에 몰빵?",
+   "keywords": "eggs one basket",
+   "image_prompt": "Large foreground wicker basket full of golden coins, small distant bank building in the background, high angle looking down, diagonal composition",
+   "motion": "pull_out",
+   "chart": null
+  },
+  {
+   "narration": "예금자보호 한도는 금융회사별로 원금과 이자를 합쳐 1억 원이에요.",
+   "headline": "보호 한도 1억",
+   "keywords": "deposit protection limit",
+   "image_prompt": "Low angle looking up at a tall stack of coins forming a column, soft morning light, large foreground object, small distant skyline",
+   "motion": "tilt_up",
+   "chart": {
+    "type": "stat",
+    "badge": "예금자보호",
+    "left_label": "보호 한도",
+    "left": "1억 원",
+    "right_label": "계산 기준",
+    "right": "금융회사별"
+   }
+  },
+  {
+   "narration": "같은 곳의 예금과 적금은 전부 합쳐서 계산돼요.",
+   "headline": "전부 합산",
+   "keywords": "savings passbooks stack",
+   "image_prompt": "Diagonal composition of several passbooks and coins sliding across a wooden desk, motion blur, warm light",
+   "motion": "pan_right",
+   "chart": null
+  },
+  {
+   "narration": "한 은행에 1억 2천만 원이 있으면 1억 원까지만 보호돼요.",
+   "headline": "넘으면 제외",
+   "keywords": "limit exceeded bar",
+   "image_prompt": "High angle looking down at a tall stack of coins toppling over a line on a table, falling coins, motion blur",
+   "motion": "tilt_down",
+   "chart": {
+    "type": "compare",
+    "badge": "한 은행 기준 예시",
+    "bars": [
+     {
+      "name": "예치금",
+      "value": 12000,
+      "display": "1억 2천만"
+     },
+     {
+      "name": "보호액",
+      "value": 10000,
+      "display": "1억"
+     }
+    ]
+   }
+  },
+  {
+   "narration": "펀드나 증권사 CMA 같은 실적배당형은 보호 대상이 아니에요.",
+   "headline": "보호 제외 상품",
+   "keywords": "investment risk chart",
+   "image_prompt": "Wind-blown papers flying above a dark desk with a small distant city at night, dramatic contrast of bright and dark, large foreground paper",
+   "motion": "pan_left",
+   "chart": null
+  },
+  {
+   "narration": "가입 전에 보호 여부부터 확인하고, 저장해 두세요.",
+   "headline": "가입 전 확인",
+   "keywords": "checklist bank app",
+   "image_prompt": "Calm still composition of a notebook with a pen and a cup of tea on a bright desk, soft window light, small plant in the corner",
+   "motion": "push_in",
+   "chart": {
+    "type": "flow",
+    "badge": "요약",
+    "nodes": [
+     {
+      "title": "은행 A",
+      "desc": "1억 원까지"
+     },
+     {
+      "title": "은행 B",
+      "desc": "따로 1억 원"
+     },
+     {
+      "title": "펀드·CMA",
+      "desc": "보호 제외"
+     }
+    ],
+    "cta": "저장해 두세요"
+   }
+  }
+ ],
+ "facts": "금융위원회 보도·FAQ(https://www.fsc.go.kr/po020201/84975, 2025년 7월 22일 게시): 2025년 9월 1일부터 예금자보호 한도가 1인당 금융기관별로 원금과 이자를 합쳐 1억 원이다. 9월 1일 이전에 가입한 예·적금도 포함된다. 같은 금융기관에서 보유한 모든 예·적금의 원금과 이자는 합산하며(예: 한 은행에 3천만·4천만·5천만 원이면 총 1억 2천만 원 중 1억 원만 보호), 다른 금융기관은 기관별로 각각 1억 원씩 보호된다. 은행·저축은행·보험사·농협·수협 지역조합·신협·새마을금고·산림조합 등이 보호 금융기관이다. 외화예금도 원화 환산 후 1억 원까지 보호된다. DC형·IRP 퇴직연금 중 예금으로 운용되는 적립금, 연금저축신탁·보험은 일반 예금과 별도로 각 1억 원씩 보호된다. 퇴직연금과 ISA는 예금 등 보호상품으로 운용되는 부분만 보호된다. 펀드 등 금융투자상품, 실적배당형 상품, 증권사 CMA, 후순위채권은 보호되지 않는다. 이자는 약정이율과 예금보험공사 또는 중앙회가 정한 이율 중 낮은 쪽을 적용한다. 이자소득세 15.4%(소득세 14%+지방소득세 1.4%)는 일반 예금 이자의 원천징수세율로 알려져 있다(2차 자료).",
+ "sources": [
+  "https://www.fsc.go.kr/po020201/84975",
+  "https://kbthink.com/content/tam-dcp-cms/main/asset-management/wealth-manage-tip/kbthink-original/202502/deposit-insurance.html"
+ ],
+ "blog": {
+  "titles": [
+   "예금자보호 한도 1억 원, 한 은행에 몰아 두면 생기는 일",
+   "비상금 통장 만들기 전 예금자보호 한도 확인법",
+   "예금자보호 1억 원, 금융회사별 합산 기준 총정리",
+   "월급통장과 파킹통장, 예금자보호 어디까지 될까"
+  ],
+  "main_keyword": "예금자보호 한도",
+  "sub_keywords": [
+   "예금자보호",
+   "비상금 통장",
+   "파킹통장",
+   "금융회사별 합산",
+   "CMA 보호"
+  ],
+  "meta_description": "예금자보호 한도는 금융회사별로 원금과 이자를 합쳐 1억 원입니다. 한 은행에 몰아 둘 때 생기는 일과 가입 전 확인 방법을 정리했습니다.",
+  "intro": "월급을 모아 비상금 통장이나 파킹통장에 넣어 두는 분이 많습니다. 그런데 모은 돈이 한 금융회사에 쌓이기 시작하면 예금자보호 한도를 꼭 알아 두어야 합니다. 이 글에서는 예금자보호 한도의 기준과 확인 방법을 차근차근 정리합니다. 특히 월급을 받는 통장, 비상금 통장, 적금 통장을 모두 한 은행에서 쓰고 있다면 내 잔액이 한도 안에 있는지 한 번쯤 계산해 볼 필요가 있습니다. 어렵지 않으니 천천히 따라와 주세요.",
+  "sections": [
+   {
+    "heading": "예금자보호 한도는 얼마일까",
+    "body": "금융위원회 자료에 따르면 2025년 9월 1일부터 예금자보호 한도는 1인당, 금융기관별로 원금과 이자를 합쳐 1억 원입니다. 9월 1일 이전에 가입한 예·적금도 같은 기준이 적용됩니다. 즉 이전에 5천만 원으로 알고 계셨다면 지금은 기준이 달라졌다는 점을 기억하세요. 한도는 은행 예금뿐 아니라 보호 금융기관에서 원금이 보장되는 상품 전반에 적용되는 개념입니다. 보호 금액은 원금과 이자를 합쳐 판단하므로, 잔액이 한도에 가깝다면 이자까지 더한 금액으로 계산하는 습관이 필요합니다.",
+    "image": "scene_03.jpg",
+    "experience_hint": "본인이 쓰는 은행이 어디인지, 예전 한도로 알고 있었는지 한 문장 덧붙여 보세요."
+   },
+   {
+    "heading": "같은 금융회사의 예금은 모두 합산됩니다",
+    "body": "한도는 상품별이 아니라 금융회사별로 계산합니다. 같은 은행에 입출금통장, 파킹통장, 예금, 적금이 따로 있어도 원금과 이자를 모두 합쳐서 봅니다. 예를 들어 한 은행에 3천만 원, 4천만 원, 5천만 원을 나눠 넣었다면 합계 1억 2천만 원 가운데 1억 원까지만 보호됩니다. 상품을 나눈다고 한도가 늘어나지는 않는다는 뜻입니다. 입출금통장에 월급이 들어오고 일부를 같은 은행 적금으로 옮기는 직장인이 많은데, 이 경우에도 모두 한 금융회사의 합계로 묶인다는 점을 기억하세요. 잔액이 한도보다 훨씬 적다면 걱정할 일은 아니지만, 이사 보증금이나 목돈이 잠시 들어오는 시기에는 일시적으로 한도를 넘을 수도 있습니다.",
+    "image": "scene_04.jpg",
+    "experience_hint": "여러 통장을 한 곳에 두고 있다면 합계를 직접 계산해 본 경험을 적어도 좋습니다."
+   },
+   {
+    "heading": "다른 금융회사는 각각 계산합니다",
+    "body": "서로 다른 금융기관에 넣어 둔 돈은 기관별로 각각 1억 원까지 보호됩니다. 은행, 저축은행, 보험사, 농협·수협 지역조합, 신협, 새마을금고 등이 보호 금융기관에 포함됩니다. 외화예금도 원화로 환산해 1억 원까지 보호됩니다. 큰 금액을 모으는 단계라면 금융회사를 나누는 것이 하나의 방법이지만, 금리와 편의성도 함께 비교해야 합니다. 단, 금융회사를 나누면 관리해야 할 통장이 늘어나 만기와 금리를 놓치기 쉽습니다. 앱에서 한눈에 볼 수 있는 방법을 만들어 두면 도움이 됩니다.",
+    "image": "scene_05.jpg",
+    "experience_hint": "금융회사를 나눠 쓰고 있다면 그 이유를 한 문장으로 적어 보세요."
+   },
+   {
+    "heading": "보호되지 않는 상품도 있습니다",
+    "body": "운용 실적에 따라 지급액이 달라지는 상품은 보호 대상이 아닙니다. 펀드 같은 금융투자상품, 실적배당형 상품, 증권사 CMA, 후순위채권이 여기에 해당합니다. 파킹통장이라는 이름이 붙어 있어도 실제 상품이 예금인지 투자상품인지는 상품설명서에서 확인해야 합니다. 이름만 보고 판단하지 마세요. 같은 증권사 계좌라도 예금으로 보호되는 부분과 그렇지 않은 부분이 나뉠 수 있어, 계좌 안에 어떤 상품이 들어 있는지를 확인하는 것이 중요합니다.",
+    "image": "scene_06.jpg",
+    "experience_hint": "상품설명서에서 직접 확인해 본 경험이 있다면 짧게 덧붙여 보세요."
+   },
+   {
+    "heading": "퇴직연금과 연금저축은 따로 계산됩니다",
+    "body": "DC형·IRP 퇴직연금 중 예금으로 운용되는 적립금과 연금저축신탁·보험은 같은 기관 안에서도 일반 예금과 별도로 각 1억 원씩 보호됩니다. 다만 퇴직연금과 ISA는 예금 등 보호상품으로 운용되는 부분만 보호되므로, 어떤 상품에 넣었는지에 따라 달라집니다.",
+    "image": "scene_07.jpg",
+    "experience_hint": "본인 연금 계좌의 운용 상품을 확인한 경험을 적어 보세요."
+   },
+   {
+    "heading": "가입 전에 확인할 체크리스트",
+    "body": "첫째, 지금 거래하는 금융회사별로 입출금통장·예금·적금 잔액을 모두 더해 보세요. 이자가 붙으면 합계가 늘어난다는 점도 감안해야 합니다. 둘째, 가입하려는 상품이 예금인지 펀드·CMA 같은 투자상품인지 상품설명서에서 확인하세요. 셋째, 금융회사가 예금자보호 대상 기관인지 확인하세요. 은행, 저축은행, 보험사, 신협, 새마을금고 등은 보호 금융기관으로 안내되어 있습니다. 넷째, 한도에 가까워졌다면 금융회사를 나누거나 상품 구성을 바꾸는 방법을 생각해 볼 수 있습니다. 이 글은 투자를 권유하는 내용이 아니라 기본 제도를 소개하는 것입니다.",
+    "image": "scene_07.jpg",
+    "experience_hint": "본인이 잔액을 합산해 본 방법이나 느낀 점을 한 문장 덧붙여 보세요."
+   }
+  ],
+  "faq": [
+   {
+    "question": "이자도 보호되나요?",
+    "answer": "원금과 이자를 합쳐 1억 원까지 보호됩니다. 이자는 약정이율과 예금보험공사 또는 중앙회가 정한 이율 중 낮은 쪽으로 계산합니다."
+   },
+   {
+    "question": "예전에 가입한 예금도 1억 원까지 보호되나요?",
+    "answer": "금융위원회 안내에 따르면 2025년 9월 1일 이전에 가입한 예·적금도 1억 원까지 보호됩니다."
+   },
+   {
+    "question": "증권사 CMA는 보호되나요?",
+    "answer": "증권사 CMA는 보호되지 않는 상품으로 안내되어 있습니다. 가입한 상품의 약관과 설명서를 꼭 확인하세요."
+   },
+   {
+    "question": "퇴직연금도 따로 1억 원이 보호되나요?",
+    "answer": "금융위원회 안내에 따르면 DC형·IRP 퇴직연금 중 예금으로 운용되는 적립금은 일반 예금과 별도로 1억 원까지 보호됩니다. 다만 투자상품으로 운용되는 부분은 보호되지 않습니다."
+   }
+  ],
+  "conclusion": "돈이 쌓일수록 어디에 두었는지가 중요해집니다. 오늘 쓰는 금융회사별로 잔액과 이자를 합쳐 보고, 1억 원에 가까워지면 분산이나 상품 구성을 점검해 보세요. 정확한 내용은 금융위원회와 예금보험공사의 공식 안내를 확인하시기 바랍니다.",
+  "sources": [
+   "금융위원회 https://www.fsc.go.kr/po020201/84975",
+   "KB금융 https://kbthink.com/content/tam-dcp-cms/main/asset-management/wealth-manage-tip/kbthink-original/202502/deposit-insurance.html"
+  ],
+  "tags": [
+   "예금자보호",
+   "예금자보호한도",
+   "비상금",
+   "비상금통장",
+   "파킹통장",
+   "직장인재테크",
+   "사회초년생",
+   "재테크기초",
+   "금융회사별합산",
+   "예금보험",
+   "CMA",
+   "퇴직연금",
+   "IRP",
+   "적금",
+   "저축"
+  ]
+ }
+}
