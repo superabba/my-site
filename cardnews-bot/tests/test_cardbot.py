@@ -365,9 +365,10 @@ def test_publish_reuploads_non_ascii_urls(tmp_path, monkeypatch):
             return [f"https://cdn/{public_folder(name)}/{f.name}" for f in files]
 
     meta = p.publish(folder, publishers=[FakePub("instagram")], host=Host())
-    assert Host.calls == 1 and all(u.isascii() for u in meta["image_urls"])
+    # 블로그용 정사각형 이미지 한 번 + 인스타 캐러셀용 슬라이드 원본 한 번
+    assert Host.calls == 2 and all(u.isascii() for u in meta["image_urls"]) and meta["slide_urls"][0].endswith("slide_01.jpg")
     p.publish(folder, publishers=[FakePub("instagram")], host=Host())  # ASCII면 다시 올리지 않음
-    assert Host.calls == 1
+    assert Host.calls == 2
 
 
 
@@ -1283,11 +1284,25 @@ def test_capture_frames_uses_plan_times_and_falls_back_to_even_split(tmp_path):
     assert frames.capture_frames(tmp_path / "nope") == []       # 영상이 없으면 빈 목록
 
 
-def test_retarget_slide_names_to_frames():
+def test_retarget_slide_and_frame_names_to_square_blog_images():
     from cardbot.frames import retarget
-    assert retarget("slide_02.jpg", 5) == "frame_02.jpg"
-    assert retarget("slide_07.jpg", 5) == "frame_05.jpg"         # 캡처가 적으면 마지막 캡처
-    assert retarget("frame_03.jpg", 5) == "frame_03.jpg" and retarget("", 5) == ""
+    assert retarget("slide_02.jpg", 5) == "blog_02.jpg" and retarget("frame_03.jpg", 5) == "blog_03.jpg"
+    assert retarget("slide_07.jpg", 5) == "blog_05.jpg"          # 이미지가 적으면 마지막 이미지
+    assert retarget("blog_03.jpg", 5) == "blog_03.jpg" and retarget("", 5) == ""
+
+
+def test_square_fit_never_crops_and_is_1080_square():
+    from PIL import Image
+    from cardbot.frames import square_fit
+    for size in ((1080, 1920), (1080, 1350), (1376, 768), (1000, 1000)):
+        im = Image.new("RGB", size, (200, 30, 30))
+        out = square_fit(im)
+        assert out.size == (1080, 1080)
+    tall = Image.new("RGB", (1080, 1920), (255, 255, 255))
+    tall.paste((0, 0, 255), (0, 0, 1080, 40))                    # 맨 위 띠
+    out = square_fit(tall)
+    assert out.getpixel((540, 6)) != out.getpixel((540, 1070))   # 위아래 끝은 배경이라 원본 띠가 잘려 나가지 않았다
+    assert out.getpixel((540, 0))[2] > out.getpixel((540, 0))[0]  # 파란 띠(원본 맨 위)가 보임
 
 
 def test_publish_uses_frames_for_threads_and_blog(tmp_path, monkeypatch):
@@ -1311,15 +1326,19 @@ def test_publish_uses_frames_for_threads_and_blog(tmp_path, monkeypatch):
 
     class Pub(FakePub):
         def publish(self, assets, text):
-            seen["threads_images"] = assets["image_urls"]
+            seen["threads_images"] = assets["threads_image_urls"]
             return super().publish(assets, text)
 
     meta = p.publish(folder, publishers=[Pub("threads")], host=Host())
-    assert seen["uploaded"] == [["frame_01.jpg", "frame_02.jpg", "frame_03.jpg"]]      # 슬라이드는 올리지 않는다
+    n = len(list(folder.glob("slide_*.jpg")))                                           # 블로그 이미지는 슬라이드 수 대신 캡처 수(3)
+    assert seen["uploaded"][0] == ["blog_01.jpg", "blog_02.jpg", "blog_03.jpg"]          # 블로그·네이버 루틴: 정사각형
+    assert seen["uploaded"][1] == ["frame_01.jpg", "frame_02.jpg", "frame_03.jpg"]       # 스레드: 세로 영상 캡처
     assert [u.rsplit("/", 1)[-1] for u in seen["threads_images"]] == ["frame_01.jpg", "frame_02.jpg", "frame_03.jpg"]
-    assert set(image_urls(folder)) == {"frame_01.jpg", "frame_02.jpg", "frame_03.jpg"}  # 블로그·네이버 루틴이 읽는 주소
+    assert set(image_urls(folder)) == {"blog_01.jpg", "blog_02.jpg", "blog_03.jpg"}      # 블로그·네이버 루틴이 읽는 주소
+    from PIL import Image
+    assert all(Image.open(p).size == (1080, 1080) for p in folder.glob("blog_*.jpg")) and n >= 1
     post = json.loads((folder / "published.json").read_text())
-    assert all("slide_" not in u for u in post["image_urls"])
+    assert all("slide_" not in u and "frame_" not in u for u in post["image_urls"])
 
 
 # ---------------------------------------------------------------- 같은 계정의 다른 저장소가 쓴 스타일도 피한다

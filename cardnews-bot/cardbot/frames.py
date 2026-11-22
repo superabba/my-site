@@ -16,7 +16,9 @@ from pathlib import Path
 log = logging.getLogger(__name__)
 
 FRAME_GLOB = "frame_*.jpg"
-SLIDE_NAME = re.compile(r"^slide_(\d+)\.jpg$")
+BLOG_GLOB = "blog_*.jpg"
+BLOG_SIZE = 1080  # 네이버 블로그 피드 썸네일이 정사각형이라 대표 사진이 잘리지 않도록 1:1 로 만든다
+SLIDE_NAME = re.compile(r"^(?:slide|frame)_(\d+)\.jpg$")
 
 
 def _ffmpeg() -> str:
@@ -77,9 +79,43 @@ def frames_of(folder: Path) -> list[Path]:
     return sorted(folder.glob(FRAME_GLOB))
 
 
+def blog_images_of(folder: Path) -> list[Path]:
+    return sorted(folder.glob(BLOG_GLOB))
+
+
+def square_fit(img, size: int = BLOG_SIZE):
+    """정사각형(1:1)에 그림을 통째로 넣는다. 세로·가로 그림은 흐리게 확대한 같은 그림을 뒤에 깔아 빈 곳을 채운다 (잘리는 곳 없음)."""
+    from PIL import Image, ImageEnhance, ImageFilter, ImageOps
+
+    img = ImageOps.exif_transpose(img).convert("RGB")
+    if abs(img.width / img.height - 1) < 0.02:
+        return img.resize((size, size), Image.LANCZOS)
+    bg = ImageOps.fit(img, (size, size), Image.LANCZOS).filter(ImageFilter.GaussianBlur(size // 22))
+    bg = ImageEnhance.Brightness(bg).enhance(0.72)
+    fg = ImageOps.contain(img, (size, size), Image.LANCZOS)
+    bg.paste(fg, ((size - fg.width) // 2, (size - fg.height) // 2))
+    return bg
+
+
+def make_blog_images(folder: Path) -> list[Path]:
+    """블로그용 정사각형 이미지 blog_NN.jpg. 릴스 캡처(frame_*.jpg)가 있으면 그것을, 없으면 슬라이드를 정사각형에 맞춘다."""
+    from PIL import Image
+
+    src = frames_of(folder) or sorted(folder.glob("slide_*.jpg"))
+    for old in folder.glob(BLOG_GLOB):
+        old.unlink()
+    out = []
+    for i, p in enumerate(src, 1):
+        dest = folder / f"blog_{i:02d}.jpg"
+        with Image.open(p) as im:
+            square_fit(im).save(dest, "JPEG", quality=90, optimize=True)
+        out.append(dest)
+    return out
+
+
 def retarget(name: str, count: int) -> str:
-    """slide_03.jpg → frame_03.jpg (캡처가 슬라이드보다 적으면 마지막 캡처)."""
+    """slide_03.jpg·frame_03.jpg → blog_03.jpg (정사각형 블로그 이미지가 더 적으면 마지막 것)."""
     m = SLIDE_NAME.match(name.strip())
     if not m or count < 1:
         return name
-    return f"frame_{min(int(m.group(1)), count):02d}.jpg"
+    return f"blog_{min(int(m.group(1)), count):02d}.jpg"
