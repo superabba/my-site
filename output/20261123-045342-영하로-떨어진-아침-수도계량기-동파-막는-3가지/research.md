@@ -1,0 +1,4 @@
+- 서울시 서울미디어허브 '수도계량기 동파 예방법 3가지' 등 (mediahub.seoul.go.kr/archives/2006118, 2012846)
+- 서울시 아리수본부 보도자료 (arisu.seoul.go.kr)
+- 데일리팝 '겨울철 수도계량기 동파 막는 방법' (dailypop.kr/news/articleView.html?idxno=55649)
+- 연합뉴스 '월요일 전국에 비·눈…영하권 출근길' (2026-11-22)
