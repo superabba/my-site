@@ -1,0 +1,34 @@
+{
+  "style": "blueprint",
+  "label": "청사진 도면",
+  "reason": "홈택스 이용 경로와 단계를 짚는 절차형 주제",
+  "duration": 39.703125,
+  "fps": 30,
+  "rate": "+0%",
+  "frames": [
+    3.0,
+    7.57,
+    12.19,
+    17.44,
+    22.36,
+    27.15,
+    33.36,
+    37.93
+  ],
+  "music": {
+    "mood": "warm",
+    "track": "warm/kevin-macleod-backed-vibes-clean.m4a",
+    "credit": "🎵 Backed Vibes Clean - Kevin MacLeod (CC BY 3.0, 편집) http://freemusicarchive.org/music/Kevin_MacLeod/Jazz_Sampler/Backed_Vibes_Clean_1973"
+  },
+  "narration": [
+    "1월에 놀라기 싫다면, 지금 10분만 투자해 보세요.",
+    "홈택스에서 연말정산 미리보기 메뉴를 찾아 들어갑니다.",
+    "1~9월 카드 사용액은 자동으로 불러와 보여줍니다.",
+    "부양가족이나 의료비 같은 항목을 바꿔 보면 예상 세액이 달라집니다.",
+    "올해는 교육비와 카드 소득공제 한도 등이 달라졌습니다.",
+    "결과는 참고용이니 1월 간소화 서비스에서 다시 확인하세요.",
+    "미리보기 실행, 지출 예상 입력, 부족한 공제 점검, 이 세 가지만 기억하세요.",
+    "저장해 두고 12월에 다시 확인해 보세요."
+  ],
+  "cards": []
+}
