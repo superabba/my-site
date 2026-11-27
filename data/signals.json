@@ -1,365 +1,365 @@
 {
- "collected_at": "2026-11-26T23:11:21+09:00",
+ "collected_at": "2026-11-27T23:08:46+09:00",
  "signals": [
   {
-   "keyword": "나인투식스",
-   "source": "google_trends",
-   "traffic": 5000,
-   "context": [
-    "\"피 철철 흘리고 구급차까지\" 박민영, 촬영 중 쓰러져…무슨 질환이길래 [헬스톡]",
-    "“정말 무섭더라…” 육성재, 마스크 쓰고 제작발표회 나온 사연",
-    "'나인 투 식스' 박민영, 불륜남 화재 사기 사이다 응징...첫방 3.6% [종합] - 머니투데이"
-   ],
-   "url": "https://www.fnnews.com/news/202611252205108656",
-   "line": "- [google_trends] 나인투식스 (규모: 5,000+) — \"피 철철 흘리고 구급차까지\" 박민영, 촬영 중 쓰러져…무슨 질환이길래 [헬스톡] / “정말 무섭더라…” 육성재, 마스크 쓰고 제작발표회 나온 사연 / '나인 투 식스' 박민영, 불륜남 화재 사기 사이다 응징...첫방 3.6% [종합] - 머니투데이"
-  },
-  {
-   "keyword": "weather tomorrow",
-   "source": "google_trends",
-   "traffic": 5000,
-   "context": [
-    "UAE weather: Red alert issued for fog; chance of rain in some areas",
-    "UAE weather forecast: Scattered showers in some island, coastal and western areas, with fog expected overnight",
-    "NCM: Fair skies with a chance of light rain"
-   ],
-   "url": "https://www.khaleejtimes.com/uae/weather/november-26-2026",
-   "line": "- [google_trends] weather tomorrow (규모: 5,000+) — UAE weather: Red alert issued for fog; chance of rain in some areas / UAE weather forecast: Scattered showers in some island, coastal and western areas, with fog expected overnight / NCM: Fair skies with a chance of light rain"
-  },
-  {
-   "keyword": "이데일리",
+   "keyword": "농협은행",
    "source": "google_trends",
    "traffic": 2000,
    "context": [
-    "수능 만점 최소 3명이라는데…모두 \"공개 싫다\" 이유가",
-    "수능 만점 받고도 숨는다…AI 부정행위 논란에 ‘쉬쉬’",
-    "꽁꽁 숨은 '수능 만점자'들…가채점 만점 최소 3명 \"신원 공개 거부\" - 머니투데이"
+    "씨지인사이드, NH농협은행 오픈이노베이션 최우수상 수상…금융상품 광고 Compliance AI 선보여",
+    "NH농협은행, 비정형데이터 품질 최고 등급…AI 경쟁력 강화",
+    "NH농협은행, 금융권 최초 비정형데이터 품질인증 최고등급 획득"
    ],
-   "url": "https://www.hankyung.com/article/202611261522H",
-   "line": "- [google_trends] 이데일리 (규모: 2,000+) — 수능 만점 최소 3명이라는데…모두 \"공개 싫다\" 이유가 / 수능 만점 받고도 숨는다…AI 부정행위 논란에 ‘쉬쉬’ / 꽁꽁 숨은 '수능 만점자'들…가채점 만점 최소 3명 \"신원 공개 거부\" - 머니투데이"
+   "url": "https://www.etnews.com/20261127000225",
+   "line": "- [google_trends] 농협은행 (규모: 2,000+) — 씨지인사이드, NH농협은행 오픈이노베이션 최우수상 수상…금융상품 광고 Compliance AI 선보여 / NH농협은행, 비정형데이터 품질 최고 등급…AI 경쟁력 강화 / NH농협은행, 금융권 최초 비정형데이터 품질인증 최고등급 획득"
   },
   {
-   "keyword": "삼성반도체",
+   "keyword": "파기 환송",
    "source": "google_trends",
    "traffic": 1000,
    "context": [
-    "삼성전자, 메모리 개발체제 일원화…시스템LSI 영업 강화",
-    "삼성전자, 올해 131명 임원 승진‥반도체 부문에서 70명 대거 발탁",
-    "삼성전자, M&A 조직 격상…미래 성장동력 확보에 힘 싣는다"
+    "윤석열 ‘계엄 국무회의 위증’ 무죄 확정…대법 “허위 진술 입증 부족”",
+    "법원 판단은 한결같았다 \"12·3 계엄은 내란\"",
+    "‘한덕수 파기환송’에 \"잘못됐다\" 46%, \"잘한 판결\" 31%"
    ],
-   "url": "https://news.kbs.co.kr/news/view.do?ncd=8723664",
-   "line": "- [google_trends] 삼성반도체 (규모: 1,000+) — 삼성전자, 메모리 개발체제 일원화…시스템LSI 영업 강화 / 삼성전자, 올해 131명 임원 승진‥반도체 부문에서 70명 대거 발탁 / 삼성전자, M&A 조직 격상…미래 성장동력 확보에 힘 싣는다"
+   "url": "https://news.kbs.co.kr/news/view.do?ncd=8723131",
+   "line": "- [google_trends] 파기 환송 (규모: 1,000+) — 윤석열 ‘계엄 국무회의 위증’ 무죄 확정…대법 “허위 진술 입증 부족” / 법원 판단은 한결같았다 \"12·3 계엄은 내란\" / ‘한덕수 파기환송’에 \"잘못됐다\" 46%, \"잘한 판결\" 31%"
   },
   {
-   "keyword": "김아현 주식 눈물",
-   "source": "google_trends",
-   "traffic": 1000,
-   "context": [
-    "삼성전자 레버리지 15% 폭락…생방송 중 눈물 보인 진행자",
-    "'명픽' 이광수도 정부 비판…\"증시 붕괴, 최소한 노력은 해야\" [지금이뉴스]",
-    "차트 보다가 울컥…\"주가 붕괴\" 주식 전문가들 줄줄이 눈물 - 머니투데이"
-   ],
-   "url": "https://www.edaily.co.kr/News/Read?newsId=03302966645649656&mediaCodeNo=257",
-   "line": "- [google_trends] 김아현 주식 눈물 (규모: 1,000+) — 삼성전자 레버리지 15% 폭락…생방송 중 눈물 보인 진행자 / '명픽' 이광수도 정부 비판…\"증시 붕괴, 최소한 노력은 해야\" [지금이뉴스] / 차트 보다가 울컥…\"주가 붕괴\" 주식 전문가들 줄줄이 눈물 - 머니투데이"
-  },
-  {
-   "keyword": "погода завтра",
-   "source": "google_trends",
-   "traffic": 1000,
-   "context": [
-    "Сильный снег и порывистый ветер ожидаются в Иркутской области 25 ноября",
-    "Прогноз погоды в Ангарске на пятницу, 27 ноября",
-    "Рабочая неделя завершится метелями и морозами в районах Приангарья"
-   ],
-   "url": "https://www.irk.ru/news/20261124/weather/",
-   "line": "- [google_trends] погода завтра (규모: 1,000+) — Сильный снег и порывистый ветер ожидаются в Иркутской области 25 ноября / Прогноз погоды в Ангарске на пятницу, 27 ноября / Рабочая неделя завершится метелями и морозами в районах Приангарья"
-  },
-  {
-   "keyword": "설인아",
+   "keyword": "굿파트너2",
    "source": "google_trends",
    "traffic": 500,
    "context": [
-    "설인아→연우 '무쇠소녀단3', 김동현도 기겁한 첫 훈련…\"이런 악마 같은 걸\" - 머니투데이",
-    "'무쇠소녀단3', 아파트 100층 높이 극한 훈련…쇼트트랙 도전 시작",
-    "설인아·금새록, 10kg 짊어지고 계단 3000개 뛴다 (무쇠소녀단3)"
+    "‘굿파트너2’ 장나라·박해진, 수임 경쟁 불붙었다…김혜윤의 위기 돌파는?",
+    "스튜디오앤뉴표 이혼쇼 '굿파트너2'…2회 순간 최고 10% 돌파",
+    "‘굿파트너2’ ‘라이어’, 금토극 경쟁 2라운드"
    ],
-   "url": "https://www.mt.co.kr/entertainment/2026/11/26/2026112617007254733",
-   "line": "- [google_trends] 설인아 (규모: 500+) — 설인아→연우 '무쇠소녀단3', 김동현도 기겁한 첫 훈련…\"이런 악마 같은 걸\" - 머니투데이 / '무쇠소녀단3', 아파트 100층 높이 극한 훈련…쇼트트랙 도전 시작 / 설인아·금새록, 10kg 짊어지고 계단 3000개 뛴다 (무쇠소녀단3)"
+   "url": "http://www.jemin.com/news/articleView.html?idxno=848665",
+   "line": "- [google_trends] 굿파트너2 (규모: 500+) — ‘굿파트너2’ 장나라·박해진, 수임 경쟁 불붙었다…김혜윤의 위기 돌파는? / 스튜디오앤뉴표 이혼쇼 '굿파트너2'…2회 순간 최고 10% 돌파 / ‘굿파트너2’ ‘라이어’, 금토극 경쟁 2라운드"
   },
   {
-   "keyword": "올림픽선수기자촌",
+   "keyword": "박정수",
    "source": "google_trends",
    "traffic": 200,
    "context": [
-    "[현장] 올선 재건축, 구의회 문턱도 못 갔다…주민들 “10일 내 답변하라” 법적 대응 예고",
-    "\"상가 쏙 빼고 짓자\" 올림픽선수촌 재건축에 송파구 제동, 내년 결판난다",
-    "올림픽선수기자촌 재건축 ‘현수막 맞불’…송파구 “상가 참여 의사 확인 후 절차 검토”"
+    "박정수, '25년 사실혼' 정을영과 웨딩화보 비화…\"흔쾌히 찍게 생겼나\"",
+    "‘25년째 사실혼’ 박정수, ‘정경호父’ ♥정을영에 “사랑해”..여전히 달달 (‘그사친’)",
+    "\"보톡스 맞아서 못 울어\" 박정수, 과거 폭로되자 버럭...유재석 뒷걸음질 '폭소'"
    ],
-   "url": "https://m.ekn.kr/view.php?key=20261126024275133",
-   "line": "- [google_trends] 올림픽선수기자촌 (규모: 200+) — [현장] 올선 재건축, 구의회 문턱도 못 갔다…주민들 “10일 내 답변하라” 법적 대응 예고 / \"상가 쏙 빼고 짓자\" 올림픽선수촌 재건축에 송파구 제동, 내년 결판난다 / 올림픽선수기자촌 재건축 ‘현수막 맞불’…송파구 “상가 참여 의사 확인 후 절차 검토”"
+   "url": "https://www.news1.kr/entertain/broadcast-tv/6367824",
+   "line": "- [google_trends] 박정수 (규모: 200+) — 박정수, '25년 사실혼' 정을영과 웨딩화보 비화…\"흔쾌히 찍게 생겼나\" / ‘25년째 사실혼’ 박정수, ‘정경호父’ ♥정을영에 “사랑해”..여전히 달달 (‘그사친’) / \"보톡스 맞아서 못 울어\" 박정수, 과거 폭로되자 버럭...유재석 뒷걸음질 '폭소'"
   },
   {
-   "keyword": "수디르만컵",
+   "keyword": "멸망전",
+   "source": "google_trends",
+   "traffic": 200,
+   "context": [
+    "SOOP, '2026 LoL 멸망전 시즌2' 27일 본선 개막",
+    "SOOP, 'LoL 멸망전' 자체 점수제 정식 도입",
+    "SOOP, ‘LoL 멸망전 시즌2’ 본선 개막⋯8개 팀 우승 경쟁"
+   ],
+   "url": "https://www.yna.co.kr/view/AKR20261127131700017",
+   "line": "- [google_trends] 멸망전 (규모: 200+) — SOOP, '2026 LoL 멸망전 시즌2' 27일 본선 개막 / SOOP, 'LoL 멸망전' 자체 점수제 정식 도입 / SOOP, ‘LoL 멸망전 시즌2’ 본선 개막⋯8개 팀 우승 경쟁"
+  },
+  {
+   "keyword": "박훈정",
+   "source": "google_trends",
+   "traffic": 200,
+   "context": [
+    "[컬처인사이드] 김명민, '슬픈 열대'로 7년 만의 스크린 복귀",
+    "[개봉영화] 박훈정의 누아르 액션, ‘슬픈 열대’…현실 스릴러, ‘완벽한 집’-‘고인아파트’",
+    "3년 만에 나온 '신작'…박훈정표 액션 느와르 '슬픈 열대'"
+   ],
+   "url": "https://www.ytn.co.kr/_ln/0106_202611271606442096",
+   "line": "- [google_trends] 박훈정 (규모: 200+) — [컬처인사이드] 김명민, '슬픈 열대'로 7년 만의 스크린 복귀 / [개봉영화] 박훈정의 누아르 액션, ‘슬픈 열대’…현실 스릴러, ‘완벽한 집’-‘고인아파트’ / 3년 만에 나온 '신작'…박훈정표 액션 느와르 '슬픈 열대'"
+  },
+  {
+   "keyword": "황교안",
+   "source": "google_trends",
+   "traffic": 200,
+   "context": [
+    "‘이석기 판례’로 황교안 징역 10년 구형…황, 13년 전 체포요청 당사자",
+    "특검, ‘SNS 내란선동 혐의’ 황교안 징역 10년 구형",
+    "특검, “윤석열 방해하는 한동훈 체포하라”던 황교안 ‘SNS 내란선동 혐의’로 징역 10년 구형"
+   ],
+   "url": "https://www.hani.co.kr/arti/society/society_general/1289471.html",
+   "line": "- [google_trends] 황교안 (규모: 200+) — ‘이석기 판례’로 황교안 징역 10년 구형…황, 13년 전 체포요청 당사자 / 특검, ‘SNS 내란선동 혐의’ 황교안 징역 10년 구형 / 특검, “윤석열 방해하는 한동훈 체포하라”던 황교안 ‘SNS 내란선동 혐의’로 징역 10년 구형"
+  },
+  {
+   "keyword": "강지영",
    "source": "google_trends",
    "traffic": 100,
    "context": [
-    "'꿈은 이뤄졌다'배드민턴 메이저대회 '수디르만컵' 한국서 열린다…2029년 대회 개최 확정, 한국 셔틀콕 오랜 숙원 해결 '쾌거'",
-    "'안세영 독주 견제하려는 것 아닌가' 15점제가 끝이 아니었다…BWF 대격변 공식발표! 세계선수권+국가대항전 싹 바뀐다→\"근거 없는 억측\"",
-    "[속보]'일장춘몽'해프닝으로 끝난 수디르만컵 한국 유치…BWF 공식발표에도, 전주시 \"체육관 건립 지연 등으로 개최 포기\""
+    "[방송소식] MBC라디오, 다음 달 1일 'FM4U 패밀리데이'",
+    "이문세·배철수·안영미, 하루 동안 자리 교체…'MBC FM4U 패밀리데이'",
+    "배철수 '별밤'→이상순 '안녕하세요' 듣는다…MBC FM4U '패밀리데이' 진행"
    ],
-   "url": "https://www.chosun.com/sports/sports_general/2026/11/26/HBRTQZLFMY2WEZBTG5QTOYRTGU/",
-   "line": "- [google_trends] 수디르만컵 (규모: 100+) — '꿈은 이뤄졌다'배드민턴 메이저대회 '수디르만컵' 한국서 열린다…2029년 대회 개최 확정, 한국 셔틀콕 오랜 숙원 해결 '쾌거' / '안세영 독주 견제하려는 것 아닌가' 15점제가 끝이 아니었다…BWF 대격변 공식발표! 세계선수권+국가대항전 싹 바뀐다→\"근거 없는 억측\" / [속보]'일장춘몽'해프닝으로 끝난 수디르만컵 한국 유치…BWF 공식발표에도, 전주시 \"체육관 건립 지연 등으로 개최 포기\""
+   "url": "https://www.yna.co.kr/view/AKR20261127082100005",
+   "line": "- [google_trends] 강지영 (규모: 100+) — [방송소식] MBC라디오, 다음 달 1일 'FM4U 패밀리데이' / 이문세·배철수·안영미, 하루 동안 자리 교체…'MBC FM4U 패밀리데이' / 배철수 '별밤'→이상순 '안녕하세요' 듣는다…MBC FM4U '패밀리데이' 진행"
   },
   {
-   "keyword": "박장범",
+   "keyword": "명서현",
    "source": "google_trends",
    "traffic": 100,
    "context": [
-    "KBS ‘BBQ 정·관계 티켓 로비’ 보도 막혔다…“초청 명단에 박장범 사장도”",
-    "국힘 충북도당 \"축구경기 공짜 관람 이강일, 명확히 해명하라\"",
-    "[사설] SNS로 해명했으니 취재 거부한다는 국회의원의 오만"
+    "‘이혼 결심’ 2년 뒤…정대세·명서현, 첫째와 13살 차 셋째 임신",
+    "정대세, 명서현 셋째 임신에 오열 \"노산이라 두렵지만\"",
+    "이혼 위기 고백했던 정대세 부부, 셋째 생겼다…\"뻥이지?\" 눈물 펑펑 - 머니투데이"
    ],
-   "url": "https://www.mediatoday.co.kr/news/articleView.html?idxno=338727",
-   "line": "- [google_trends] 박장범 (규모: 100+) — KBS ‘BBQ 정·관계 티켓 로비’ 보도 막혔다…“초청 명단에 박장범 사장도” / 국힘 충북도당 \"축구경기 공짜 관람 이강일, 명확히 해명하라\" / [사설] SNS로 해명했으니 취재 거부한다는 국회의원의 오만"
+   "url": "https://www.joongang.co.kr/article/25482351",
+   "line": "- [google_trends] 명서현 (규모: 100+) — ‘이혼 결심’ 2년 뒤…정대세·명서현, 첫째와 13살 차 셋째 임신 / 정대세, 명서현 셋째 임신에 오열 \"노산이라 두렵지만\" / 이혼 위기 고백했던 정대세 부부, 셋째 생겼다…\"뻥이지?\" 눈물 펑펑 - 머니투데이"
   },
   {
-   "keyword": "[단독] 현직 판사 \"집단행동 맞는지 걱정‥상당 부분 우리 잘못\" - MBC 뉴스",
+   "keyword": "두바이",
+   "source": "google_trends",
+   "traffic": 100,
+   "context": [
+    "\"두바이보다 아부다비\"…한국 AI 기업 중동 진출 전략 다시 짜야",
+    "\"韓기술에 UAE 투자 더해 에너지·식량 문제 해결\"",
+    "“아부다비·한국 40년 에너지 동맹…밸류체인 전반으로 협력 넓힐 것”"
+   ],
+   "url": "https://zdnet.co.kr/view/?no=20261127173207",
+   "line": "- [google_trends] 두바이 (규모: 100+) — \"두바이보다 아부다비\"…한국 AI 기업 중동 진출 전략 다시 짜야 / \"韓기술에 UAE 투자 더해 에너지·식량 문제 해결\" / “아부다비·한국 40년 에너지 동맹…밸류체인 전반으로 협력 넓힐 것”"
+  },
+  {
+   "keyword": "최민희 ‘당원 정지 2년’ 중징계에 “수용 하기 어렵다”…민주 내홍 격화 - 한겨레",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMid0FVX3lxTE1yRUVIVlBWZDdRR1d2SlhvRkcxX2hTMUFGNUZFcVNXeHI3OW1TbFAwb1MtQ1hCd2lHUnlDd2xoNTBxVU5aVUpyd3JCSFVudE1rZ1liU3QyZ1BoNEl2bmdwajlUOEZtdnNINVZCVUFNd2hnal9EM0gw0gF3QVVfeXFMTVg5TWtPcXl0UTNJbVF5LVhuNDNVMmpWNElkdFJOSUhmc3U5MlZZR29aWF9sQlZyYnJZOFpNMEdySFpvd0E4VUtibURtR2NIMTlqNWotbC1LWW5wZmlmWF9JMzlFOGJ5RFROcXJDVlRrVWEtQ1hOYWs?oc=5",
-   "line": "- [google_news] [단독] 현직 판사 \"집단행동 맞는지 걱정‥상당 부분 우리 잘못\" - MBC 뉴스 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMidEFVX3lxTFBITzBmeXE3bjMxcWJsZnVrNmtpSHZNMmx0aUljdTl0OWJDSmVIOHpqZnNKLXNheWo2a1dHR1Z0UHJZWUFJZy1PV0hKSEZfQTBhRnhDU29JaUZPRnlIdVRUaTUxbjdGLWpyWmV4NE45aEFmczgx?oc=5",
+   "line": "- [google_news] 최민희 ‘당원 정지 2년’ 중징계에 “수용 하기 어렵다”…민주 내홍 격화 - 한겨레 (규모: -)"
   },
   {
-   "keyword": "與추천 ‘조작 기소’ 특검 후보에 검찰 출신 이임성 변호사 - 조선일보",
+   "keyword": "강금실 국정원장 후보자, 재산 2억6천만원 신고…중국 고문 이력엔 “증빙 어렵다” - 경향신문",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMikAFBVV95cUxPamI3b1JtcnJ4aE5zei01Y01Lemp0dFNOeHpTdkZabGgycnhvNXBWcnpsX3huZ0dQaG4wZ2wwVWI3eWtHeFRJUjMxazE0UXpGWnRiLWxGcEg0MWFXZHlxNDlXZHVSb3ltZW5jcHBoejdicVdWcjlsMTJCVEZWS0treTkxUkpUZkI0UWpmT0hlNDA?oc=5",
-   "line": "- [google_news] 與추천 ‘조작 기소’ 특검 후보에 검찰 출신 이임성 변호사 - 조선일보 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMiWkFVX3lxTE9TMUFla0F5NmxyLXhnVmpzSlEwZVB4YUpXNkFXTm9iQk9BTm42U0tYd21wWGR0MDBzUlJVQWdfQUVSdk4yWEZRQkY5UVQ3OFp2blhVM1BZOEZmZ9IBX0FVX3lxTE1wZmVxMDNydkhnQk9pc2pOdmk4LVRjZjNhQ0JnbzRNRzNPbVlSdzd0Mld6akpUcnZSbXNuVVlwaFNQcVRYb0dJSEtjTnZfYUE5VHB5emEtTzBVdkpiNVVn?oc=5",
+   "line": "- [google_news] 강금실 국정원장 후보자, 재산 2억6천만원 신고…중국 고문 이력엔 “증빙 어렵다” - 경향신문 (규모: -)"
   },
   {
-   "keyword": "한국 보란듯 전술핵 과시한 김정은…접경지 배치 시사도 - 한겨레",
+   "keyword": "서영교·박홍근 뜻밖의 충돌‥\"답변 태도에 문제\" \"여기가 상원인가\" - MBC 뉴스",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMidEFVX3lxTE5uTlRQbDZtdk4tcV9fUmtKXzVTZkl1Y3ZBNllMczJIVUJfcGxnak41QmhxeTkxOGtRb3VzVWN3WHhJTG84TUtQcVRPQ2poYVJHUHI0UXBQdXB0RGlCUnRJX01XS3k2Qkd6TUV1MGlMN1FnTVZH?oc=5",
-   "line": "- [google_news] 한국 보란듯 전술핵 과시한 김정은…접경지 배치 시사도 - 한겨레 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMieEFVX3lxTE9WMDJEUjU5cjdlTWNJN2JVOW1ONWJZaFNvY1BpeFhoUnNJenFGc0V1NFBaVm1aYUpJYUh2Sk1Zdk5McWk3Y1Z1R2RDYVpfbnpHVFRpazhWSVFNc045eWlNeXplRkZPMGkwVnUzWHlxLXUwR1ZOYWl5ctIBeEFVX3lxTE45YWpKdGtXNHVlbFFVQ1R3T1hXMDN1aWs1TGpGY0lmVDdoalUxcFhrai1TelpSeUlXdnJkdlN0UGxwbEZDSUN1cGVaTm1kRjcwT055aVNUZjdZYmM1eVdxSGE1UFQxUjVSYzBNenlmTmtJSUoxTFh4RA?oc=5",
+   "line": "- [google_news] 서영교·박홍근 뜻밖의 충돌‥\"답변 태도에 문제\" \"여기가 상원인가\" - MBC 뉴스 (규모: -)"
   },
   {
-   "keyword": "[속보]경찰, ‘AI 부정행위 자수’ 세무사시험 수석에 구속영장 신청 - 경향신문",
+   "keyword": "[속보] 철원 민통선 이북서 철책으로 이동 30대 탈북민 적발 - 강원도민일보",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMiWkFVX3lxTFBtdFlMOVl0MVB1bzBDNlJ2NnRQQndxbFVNTVgyNzNXcXkxb1V2WG1ISTR5T0FnYnhuWVZxbHRoWW05N3BoeFAyVEp6XzNta283Y1NGQ3JOSjJ6d9IBX0FVX3lxTE9tQUhIQUoxUGFadGZFMGs5cEYtcU83NTRzckV4V2x1SldHaXZUaWNIWWQ2WWpkYWoxMDh1dGI3TXM1MVE5WndSdjd4ZTk3QTU4WkE1S1VJMTdjaXI1VzVF?oc=5",
-   "line": "- [google_news] [속보]경찰, ‘AI 부정행위 자수’ 세무사시험 수석에 구속영장 신청 - 경향신문 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE5DVUp4dUhqVzk5S3VNbEw2Q3JObG1vTkkxNDk5a1RwWXgyZVlkTWRFcmNQTjlVbGFPZmlhNWlkRkZKdHd0cDllTlhqSU5uNnZKRDd2OWg0M2tPaUhsQmplbFRkRThPeWc?oc=5",
+   "line": "- [google_news] [속보] 철원 민통선 이북서 철책으로 이동 30대 탈북민 적발 - 강원도민일보 (규모: -)"
   },
   {
-   "keyword": "장동혁 “대법원장 탄핵 다음은 법관 탄압 될 것…이재명 재판 재개해야” - KBS 뉴스",
+   "keyword": "해외서도 ‘조희대 탄핵’ 우려... 국제변호사협회 연대 성명 - 조선일보",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE1BUHl0TE5NbDN3aEk4cTFMU05uMG1PZG4wTHVaWHRpUHBwRVY3RjFLcmhrcGw5Y24xTkg4U3Q3TVFKMVFCbjQtSVU3d2RmYzJ6OHpYa1dDN0xSR0k?oc=5",
-   "line": "- [google_news] 장동혁 “대법원장 탄핵 다음은 법관 탄압 될 것…이재명 재판 재개해야” - KBS 뉴스 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMihwFBVV95cUxPQ3UtOUlnM3lHNUpSS0JySm1mNzltaS1lRU5uY2pZcDBzMW9YWEF3VkJrLU9BVE1LVEc5VVZDLWVEM0JscU45MWt4M0xDUGY5ZTJzeEF3Zm1NQTdpak9MNks3TkNTSG0tOWlUcVEzRUhBNWJxc3EzUnptMnoxN0lUN1JsdGFPaFE?oc=5",
+   "line": "- [google_news] 해외서도 ‘조희대 탄핵’ 우려... 국제변호사협회 연대 성명 - 조선일보 (규모: -)"
   },
   {
-   "keyword": "[단독] ‘리트 만점자’ 책 공공도서관도 퇴출 수순…인기는 여전 - 한겨레",
+   "keyword": "이 대통령 “12·3 책임자에 합당한 책임 물을 때 완전한 내란 종식” - 한겨레",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMickFVX3lxTFBsZFVlM1EzRXZtVUhGYjZVR0JDRmNVbkpVbFkzalhwNFJGNWpCYnROejIwWHcwSGQ0blRiZ3hlWkhld3pXRFB4ZzFtd3d3M3F4U3JVQ0RNdkJ2YlpTZXMzVUs5amJrSC1QeHcyX1o4UlFPUQ?oc=5",
-   "line": "- [google_news] [단독] ‘리트 만점자’ 책 공공도서관도 퇴출 수순…인기는 여전 - 한겨레 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMia0FVX3lxTE16VlZfeWtELTdMU1Zhc2k3RlR5dW1VeTlaSXRHSmEtU2JkV3Z0UWtDanZLMzJaR2xrREpySjBEb3dLRl83Y242d2VIaE12N3dkak1tU3FVdVp4YXpBTEhtZ1lsYThqQ3E4R3dJ?oc=5",
+   "line": "- [google_news] 이 대통령 “12·3 책임자에 합당한 책임 물을 때 완전한 내란 종식” - 한겨레 (규모: -)"
   },
   {
-   "keyword": "미, 한국 3대 메가프로젝트 겨냥 “불합리한 관행”···관세 15% 방어는 했지만 통상 갈등 예고 - 경향신문",
+   "keyword": "헛도는 ‘정년 연장’ 논의…노동계 “65살 연장” 재계 “60살 퇴직 뒤 재고용” - 한겨레",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMiWkFVX3lxTE5OOTR3dW5SUjNqVW1Nbmt5V04xeVZPVmd5MllPNExndEFkc1RReF9BTUdEN1ZuUVExM3phWWhYWFhjQmJ1MXYtRXhWR09FdVltMVBFVzZYWm8yZ9IBX0FVX3lxTE1rMjdvb2xpQlF4NURwdjNBeGhMUDFybTQ4UVBSVjN4QmR0cUZHY0NtQnMwWndNaURXZ3B6RmpmS01TeTRLWDg0N0hHS29uNkNqV2dfcVVQQXRHYWM0MDVF?oc=5",
-   "line": "- [google_news] 미, 한국 3대 메가프로젝트 겨냥 “불합리한 관행”···관세 15% 방어는 했지만 통상 갈등 예고 - 경향신문 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMiZEFVX3lxTE5TQ1RBVGg3UFIyZmZhQzFEVG1nd2gyM3dlV1BEVDUwOUFLZi1aOWE2dE1mT2tCZnNjcjhMY2ZRVzhKMnI1blpDWWJxRXFJb2lxNUljbUlHYzlNbTdNOC1aV2NDTXo?oc=5",
+   "line": "- [google_news] 헛도는 ‘정년 연장’ 논의…노동계 “65살 연장” 재계 “60살 퇴직 뒤 재고용” - 한겨레 (규모: -)"
   },
   {
-   "keyword": "이종석 교체 배경에 ’中 대미공작’ 제안?⋯국정원 “전혀 사실 아냐“ - 연합뉴스TV",
+   "keyword": "'스시자로' 열풍인데‥일본에서는 부작용 우려 커져 - MBC 뉴스",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE5pdTJMYXVHNHVwSGxvMDJ5ZjVpTnduV250ZlVLUzJlVkVDb0Q5MFkzQjk0emdKTGQyVjZ6RnM2VDhlU2tPQnRUUHdSLUlLdG5WU3hEOERHYU81UTd5MTQxdWUzMHdRV00?oc=5",
-   "line": "- [google_news] 이종석 교체 배경에 ’中 대미공작’ 제안?⋯국정원 “전혀 사실 아냐“ - 연합뉴스TV (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMidEFVX3lxTE03a3Mzd0JCNG15dElMUWxLZ294R1dfU2VVZWRiLTZNdUQ5SmVndjM1VC1yUTR6Wlg5ZDVsdjRWR0FqRjByUFhNV040THpDS195OE5wZ3BySEJ0Q1Z2WW4xSlNyOG1yUlFuUmF6dzRnTzJ0RFhU0gF0QVVfeXFMUC1iakFQb1B2dHFadmo1SnN4U3FEc2tZSDFtRE5iaGRScFJPYnh6ZWVWd3pha1p0LTNFd3JSTG1XajUwUGpMZjlUUjFkcFJ5alNoTGtnaklNSEt6V3RfTnltWGZPWTYxdWg3RmYwSkE4ZnVQSDY?oc=5",
+   "line": "- [google_news] '스시자로' 열풍인데‥일본에서는 부작용 우려 커져 - MBC 뉴스 (규모: -)"
   },
   {
-   "keyword": "“고졸·9급이 죄지었나”…‘충주맨’ 김선태, 비하 발언에 분노 - 매일경제",
+   "keyword": "\"5개 역 가는데 40분\"…철도노조 준법투쟁 이틀째, 열차 지연 속출(종합) - 뉴스1",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMiVEFVX3lxTFBEd0w1dFQwUXRfS09QeHRWYzRjcTZ1MXlKN2NfM1ZMOG5MbGhIRjk1el8ySHMwenJEY0hkTXREcDBSLU1tM3lhN25wazlpVFRoU1k2Ug?oc=5",
-   "line": "- [google_news] “고졸·9급이 죄지었나”…‘충주맨’ 김선태, 비하 발언에 분노 - 매일경제 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMiW0FVX3lxTFA0NTM4T014enNJWmJMQWNfcmdCRkpySWpCX2Z3TU9QbkYtSjc1YVRwZUhTS1hSbkhpN09VcHFzUURiYVQ0UXdRdmlFRW9oRjFQT0dSbzhIYkhUSkE?oc=5",
+   "line": "- [google_news] \"5개 역 가는데 40분\"…철도노조 준법투쟁 이틀째, 열차 지연 속출(종합) - 뉴스1 (규모: -)"
   },
   {
-   "keyword": "외교부, 주한러시아대사관 고위급 불러…KADIZ 등 논의 - 연합뉴스TV",
+   "keyword": "화물차 적재함 밖 튀어나온 목조주택 지붕에 치여···퇴근길 이주노동자 2명 참변 - 경향신문",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTFA2clJFLW11T21xSjlZaVRBa2V6TTJxZU1NNnFucUxQdFBZMG5BVWV0dGdXWmJFVU1ZbUpPSEFOS3NKR0xISk1rcVVXYnlRb0Y5enpjc1ZjbnRLS2VWclhlQ0QyV2pWSk0?oc=5",
-   "line": "- [google_news] 외교부, 주한러시아대사관 고위급 불러…KADIZ 등 논의 - 연합뉴스TV (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMiWkFVX3lxTE4tM0hSRVRJWEZ3eE9sVkhlVUNlTEdxLXRSbGg0SHUxQnB4WThPdU4ybnYxQ3Q5ZGJWaGpmNEVzQ2ZwMTVnMDc4U3ZBWTh0SWZyeEJURXQzMEJ6Z9IBX0FVX3lxTE91T1ZReUxvSUhUcFVuUk1kRDl2cUlPYzV6cWtCcEVWWk85MXZzMXItcnVsNmc1b2QzRVJMVUJPeDVXbE9qbElRdG9KMUNFWmFOQjZIa255Y3dWSk9Gb1FN?oc=5",
+   "line": "- [google_news] 화물차 적재함 밖 튀어나온 목조주택 지붕에 치여···퇴근길 이주노동자 2명 참변 - 경향신문 (규모: -)"
   },
   {
-   "keyword": "\"정보 갱신하라\"..영국군, 냉전 후 처음 예비군에 소집대비 서한 - 마켓인",
+   "keyword": "\"르펜 벌써 대통령 된듯 오만\"…마크롱 발끈 - 연합뉴스",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTE1ZX09MWEVBUnktY0ZnZ2RGMVJvblhzbGFpcmpBSkVGdlo2M2ZqSnFIaGNMV3VVYnc0cC1hdjBGckY0aWpZR2FoWnFYZ2FEdXIzRmJDaGlPdjBjOXd3RlM5ZHMxNmJqLTFwQVU3SUdLYUtNUXM?oc=5",
-   "line": "- [google_news] \"정보 갱신하라\"..영국군, 냉전 후 처음 예비군에 소집대비 서한 - 마켓인 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE1hTmlxRjNUYkh0bEdoRk9TTjBobWVfVkdkdjNIWjhxTmQzak5RbWM4bTBtakJRTFl0MXdGR3l6TFprYkQ1MHZaalRKWThuMjdZaGItaUdqTFFoS2PSAWBBVV95cUxNR1JpWHY3b3VUYjJjMG53VW8tcG1STk5qZFlpSV9TVkpzNFg4UHpLTDFONE0zVWw0Skw5VFJQRVFHMW00eUtxQWZTZE0xYUFWRmd4VEVxeG03QUNSNDc3THQ?oc=5",
+   "line": "- [google_news] \"르펜 벌써 대통령 된듯 오만\"…마크롱 발끈 - 연합뉴스 (규모: -)"
   },
   {
-   "keyword": "우크라 정보당국 \"북한, 러 군사지원 일시 중단\" 주장 - 연합뉴스",
+   "keyword": "'1천178억원 뇌물죄'…中광시자치구 전 주석 사형 집행유예 - 연합뉴스",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE1iNFN3d3Y5aDFyazkxaVZ1YmRkZmxLQ2NtT1NNVzdid3VQUlItT2c3aUNzcmxSLUxhQ2RNSXZoRWItMlowWFlONVAyYjEyMjlMZXZfMjNRWDRyNlHSAWBBVV95cUxQaE5jMW5JbUFrdkg2TEhicHZZelRxYjlMSFNkb0RyYS1WLTVaQVJYZkZpUE9rdEdMY3JUblRPc2Y1eU5aUEFVMHozOTVrcVdRcHdnYUtnVE5aR1BwYl9JNDA?oc=5",
-   "line": "- [google_news] 우크라 정보당국 \"북한, 러 군사지원 일시 중단\" 주장 - 연합뉴스 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE54VmdaaXZzQnlNU0dLeHRQUTlaNEFWdExZbzdPWDgxc2dVNGlYMGFlM1NKVG1hMkJ3eWRWc0gyV2prWHN5NWxaVnJlaU5mUkZ0NmtFTW5vYnp2d0nSAWBBVV95cUxQUFhYT1NwZXRSNFJLazdnTmlVTUlZdjIyWkFXb25wX01SWTFqSXE2RmpMdXVrYkR3RXNUNnRIM1R3bDEyTy0wYWJjRkFNOTlDLWt6c2ZnYlZDZ3VzVVd0anQ?oc=5",
+   "line": "- [google_news] '1천178억원 뇌물죄'…中광시자치구 전 주석 사형 집행유예 - 연합뉴스 (규모: -)"
   },
   {
-   "keyword": "북한, 우크라이나 아동 관련 제재 반발에…스위스 외교관 추방 - BBC",
+   "keyword": "이란 측 \"우크라, 중동서 위장 작전…트럼프에 가치 입증 목적\" - 뉴스1",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMiXkFVX3lxTE9XV3BxZmFydlJOSFloMXN0RFZsZWowN2tsUEJDaE9qeWJEOWZDOXVLWnk5LVByUWJqenJtMktEN1B2aVR6MWtyb21maWxHam5KZTItYWFqN2puU3VEU1HSAWNBVV95cUxNZjFzRzg3M2hScFJwbTdvRmtZZDlvSlZtNERfeGZlakZ6SGJzTGdBQlVkcEhEbmlxdERhYTBrWXR2X3pmRVVsbjB3bC1OdmwxbVZjWGRLeWhYLUVXT1BFV3E5SU0?oc=5",
-   "line": "- [google_news] 북한, 우크라이나 아동 관련 제재 반발에…스위스 외교관 추방 - BBC (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMiYkFVX3lxTE14YV94MjJrVVpvYlMtclQyeV9laVo1THQ4R0hQY0xHUjNTYkhZMC1TaUZWVHNQM1ZtSVJtZkh2b0tTMDZsZ2l1U1RfSXExeG8tbjFNUk5fSGl4VFU5eHRYTzNR?oc=5",
+   "line": "- [google_news] 이란 측 \"우크라, 중동서 위장 작전…트럼프에 가치 입증 목적\" - 뉴스1 (규모: -)"
   },
   {
-   "keyword": "후티, 예멘 임시 수도 60㎞ 앞까지 진격…주민·NGO 등 탈출 준비 - 한겨레",
+   "keyword": "젤렌스키, 트럼프 ’푸틴은 친구’ 발언에 “히틀러와 친구라는 격“ - 연합뉴스TV",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTE4xalZQYjZFTWxKcUxmanh0M2pSNlRlSENOUFNjQVBvYkhJZFFaVl9CNjBHX2ZuT1dic0tIS3hlQUxCaEVZR0k5bG1ZaEYtSUJXeUhDR2ljaC1Td0RkR0NyWVhxNi02djQ3OUpEejk1a2hTZEk?oc=5",
-   "line": "- [google_news] 후티, 예멘 임시 수도 60㎞ 앞까지 진격…주민·NGO 등 탈출 준비 - 한겨레 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE44dWRDRV9Qai04NkJicnNkeEM1LVp1RzYzOUgyTDVEUHZ3OEkyemE3VEFYYVl2X2NFdGZKbDV3Y3d5SktjOWZtRUdrVTA5cEJvLUh3a1d5QVMyakhhakRuckY1T3JkTUE?oc=5",
+   "line": "- [google_news] 젤렌스키, 트럼프 ’푸틴은 친구’ 발언에 “히틀러와 친구라는 격“ - 연합뉴스TV (규모: -)"
   },
   {
-   "keyword": "\"반도체 호황發 소비 회복은 시간문제\"…금통위 내부선 회의론도 - 한국경제",
+   "keyword": "국민연금 적립금 석 달 만에 202조 원↓…1~3분기 수익률 13% - KBS 뉴스",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMiWkFVX3lxTE5uZ1BoZFJ0X3pYSG9xUUsxOEFQalBJQkhQb19TSlN6cUNsWFBIb3FNdlV4Ti1YandoOGZTaXdMWWdqbmRsYjdRekhhVjYtWElPSnVWODBXREhUUQ?oc=5",
-   "line": "- [google_news] \"반도체 호황發 소비 회복은 시간문제\"…금통위 내부선 회의론도 - 한국경제 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMiW0FVX3lxTFBZN00yRURyY1lYMGdqUFFYUnVJTGFjcmM2bkxSTnNnR0NCRlBmTTlZQmVxc09Sd0RPeWdUd0xsRnp5a0o1b1gtSWtWT0NTMlo3cFZlODJiTHlDQ3M?oc=5",
+   "line": "- [google_news] 국민연금 적립금 석 달 만에 202조 원↓…1~3분기 수익률 13% - KBS 뉴스 (규모: -)"
   },
   {
-   "keyword": "홈플러스 67개점 통째 인수 후보 나왔다… 부동산 디벨로퍼 컨소시엄 - Chosunbiz",
+   "keyword": "코스닥 급등 ‘매수 사이드카’…반도체 ‘주춤’, 로봇·바이오 ‘껑충’ - 한겨레",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMiigFBVV95cUxQTnVpY3gzWFRPQVR6dXJRLUEwNE40ZjF0TWc5Tm5NTVBXU3lBSVNZN1BOSUJGS3RoQlM3REVQOExpSjFtNkJJekc2WTA4TndnTGt2bmhub1lrRldsOHp2Y183N1pIMnBFNHZiSzlsdnMyTjlxYy1uYUdtZ0ZvWHBzX3JzN1VPN3pBY3fSAZ4BQVVfeXFMTmtINUFjS0VkWFhjdk1iTV9SQU1EY0Z3WlplODU4WndyQWxmV3gwTzl5RDVKUURWMFdRamc0SUYzMlc3ZXB0dGp6eXV3aE41d3htQk1BVmdzZGswaEtnTldSU0pfV2NGdXMySEQ5ZHV0Z184RzBJWTJ6QnNTUl9PUUlWeGY0Vjl0QUpTeEV3N01NT3U4ZXlMY2s2M0p0aWc?oc=5",
-   "line": "- [google_news] 홈플러스 67개점 통째 인수 후보 나왔다… 부동산 디벨로퍼 컨소시엄 - Chosunbiz (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE41QWI5R29NM0FVZmJDOElsWXdZVUIyd1k5bU40cXRnQlNLSmVtMHB3Ti1LYXRxZTVFUkFZSnBpaXlHYnNuNlJFLWJDemRabUQxMXVsX18yNDRiUy1MWTdweWNjZjh2dzQ?oc=5",
+   "line": "- [google_news] 코스닥 급등 ‘매수 사이드카’…반도체 ‘주춤’, 로봇·바이오 ‘껑충’ - 한겨레 (규모: -)"
   },
   {
-   "keyword": "증시 하락에 증안펀드 확대 요구 확산…시장 살릴 열쇠는 '투심' - 뉴스1",
+   "keyword": "SK하닉 주주환원도 '역대급'…엔비디아보다 '45조' 더 쏜다 - 한국경제",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMiX0FVX3lxTE1HYldxTTY3RkozMWZ6S1ZLd0RBZThTaVpKVzE1MlctaFhtZ3BLOTFuUGg5ZnIwanFDcktGWFJwTzhYQlduc0pESWlmUGxsT0todmc0VXowNlNRNGVqRDdn?oc=5",
-   "line": "- [google_news] 증시 하락에 증안펀드 확대 요구 확산…시장 살릴 열쇠는 '투심' - 뉴스1 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMiWkFVX3lxTFBVZ0lpY2NjVnZQYVR5aklMRmk5bldBZHR2NVR0d2t4MmNOUkw5NkdaWWZDR3B3TnQxWER0OXR3ZVJnT3FZS1dpejdvLW9qLXByYk1sRXVrMG9rUQ?oc=5",
+   "line": "- [google_news] SK하닉 주주환원도 '역대급'…엔비디아보다 '45조' 더 쏜다 - 한국경제 (규모: -)"
   },
   {
-   "keyword": "與유동수, 소비자 보호·사업자 책임 강화한 디지털자산법 발의 - 연합뉴스",
+   "keyword": "주가 17만원→13조원 뛴다?...머스크 \"스페이스X 팔지 마\" 자신감 - 머니투데이 - 머니투데이",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE94Ulo0enF1SF9DWUJOSzBiS21YVTI5NGJ0TExhaFozTmlLM0ttejJBSWw2TjV1TDE0RDdsbEtyaHllS1hMazNOc1lWZl81MHZiZ0E2VjhETWUxeVXSAWBBVV95cUxPMGdfQUhzeTJQdUttdmZOQmxoUXE0Q2dUVWtOVjA1ZTVVb3l5TW9RWTM2N05CbjdMTURHMC04T25BOEpYY2VaMXRkTnhuTi13WUdwOGNvRWtnNkhVazcxbUs?oc=5",
-   "line": "- [google_news] 與유동수, 소비자 보호·사업자 책임 강화한 디지털자산법 발의 - 연합뉴스 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE1lZkpTTDYwa3pzRUdjTE1EaFpwN0gzYzVpSHVuZE1jRHJ2Ym9ya3JQbGRMNV9nSno5YUNDVWd5bU9MclVfOE9COEw0aFVfeUM5aXRhTXpsNnJPdmVDQnpSbjF1LTZjT0lw0gFuQVVfeXFMUGhQV1I5TUVsbV9wcVh5Z1h0Nm8xREE1cGYzU1F0cEUwRmh6TXZvOFlIcnEyWWpLbFMxSmZmQ0FOMU1rcHdhSGxsOGF3TGdjT2FiQzh6SGNmeGJmeVU1dlFFdGxYUEpsMUJNSWw0Mnc?oc=5",
+   "line": "- [google_news] 주가 17만원→13조원 뛴다?...머스크 \"스페이스X 팔지 마\" 자신감 - 머니투데이 - 머니투데이 (규모: -)"
   },
   {
-   "keyword": "소행성 충돌 실험 흔적, 4년 만에 포착…\"경기장 크기 분화구 생겼다\" [우주로 간다] - 지디넷코리아",
+   "keyword": "단편필름 | 편지 | 영상미디어 | 현대자동차그룹 - Hyundai Motor Group",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE4wWU9yQ3R3RUJBR296dVh5U09kazNJeWJncjlCb0JBZnU3SkotQlZzMV9adGhnR1llRThUSl9Tb3VNbmh3MDMwcHpjRWltVk91ckJzdHNR?oc=5",
-   "line": "- [google_news] 소행성 충돌 실험 흔적, 4년 만에 포착…\"경기장 크기 분화구 생겼다\" [우주로 간다] - 지디넷코리아 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMiXEFVX3lxTFBCNFM4ZHZubTR3WTd5bkZXV1ZLM0NYTHNFeDVsNTBVc1hOYkszZ3NRWlhPSHdQVFJnUUFlNGJkb05mNWFUV0Y5dmNXSWNza1dkbFFaSURrbHMxS1Qy?oc=5",
+   "line": "- [google_news] 단편필름 | 편지 | 영상미디어 | 현대자동차그룹 - Hyundai Motor Group (규모: -)"
   },
   {
-   "keyword": "'차세대 동력 필요' 스마게, '로아 아버지' 금강선 도전에 쏠리는 눈 - 한국금융신문",
+   "keyword": "[오늘의 세계] NASA, 우주선과 충돌한 소행성 '거대 구덩이' 포착 - OBS경인TV",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMiekFVX3lxTE5nazFuMlhHendWOGJwSVZPRGwtY09VQzFVUFNOSFdneUQ5eEI0cFZzWGJQR2loR3RuaVVvOW9GZy1CM2RoaHhuaGJoamhYWmd6MkF5ZXpvRVp2VGMtZ0Y1cVEwU1l3TmczaS1PTHhQcmsxZFM3YjQwNHRn?oc=5",
-   "line": "- [google_news] '차세대 동력 필요' 스마게, '로아 아버지' 금강선 도전에 쏠리는 눈 - 한국금융신문 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMibkFVX3lxTE9TWXRLMTdROG1GTnpnQmgzQ25SVUV6VGVGUFYxeVBBS2ExbnhUdkM5SzZWVnRGOWJGQmZOeHozRU5BQ1ZfWHpzbkFjS2NwNFVjZlhtSEVsRDEzRWZrQ3dVQjdnS3l4NUtuaUYxbnZR?oc=5",
+   "line": "- [google_news] [오늘의 세계] NASA, 우주선과 충돌한 소행성 '거대 구덩이' 포착 - OBS경인TV (규모: -)"
   },
   {
-   "keyword": "GTA6 유출 파일로 AI 불법 PC판 시도 … 조기 출시되나 - 세이프타임즈",
+   "keyword": "가레나, ‘몬스터헌터 아웃랜더스’ 신규 모험가 ‘프레야’와 ‘스티리아’ 공개 - ACROFAN",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMib0FVX3lxTE5lVUhfOG5rM0FMODJLeHZFc0s5V1lOVGk2S0JGbm9LNnNUVW5ZTWZyMjF2ZUtxMHhIYzdMSHV4QmpGVGJ1bWJMaWZWdHRKVjVPYUJ1Y0JtZlhoVmFfSXktbmg4SVU4c0dpc0VJclpTUdIBc0FVX3lxTE9YYlktSWJMaktSaFFHMkdvVFBCQnhENmVqa3JwbWZSV2luT0FBU0pQTVBmS2kzT2I1ZlA5QTRiSGFLY25JM1BnQ2tHWnpmcTdJVkpoamJwU0pFOVpuaDhrdnRwUFI5bXRid3JVRlN2VHR3TWc?oc=5",
-   "line": "- [google_news] GTA6 유출 파일로 AI 불법 PC판 시도 … 조기 출시되나 - 세이프타임즈 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE1DWnM5Q2R5WklvUnV0UTBrUlFuMXBBRDlYSmNTWVpwR0g5UG1uVTZYZDk3M21kSXM0blY4XzMtblVWNmc5SFlBNDZlZWlfblRVUGl2SU92cVV0Rm8?oc=5",
+   "line": "- [google_news] 가레나, ‘몬스터헌터 아웃랜더스’ 신규 모험가 ‘프레야’와 ‘스티리아’ 공개 - ACROFAN (규모: -)"
   },
   {
-   "keyword": "『세상의 모든 지식』… 138억 년 우주의 역사를 담았다 - 미주중앙일보",
+   "keyword": "소원이 이루어지길…지구촌 밤하늘 수놓은 슈퍼문 - 연합뉴스",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMiYkFVX3lxTE9kc1BYdXpSaHlVSkdQWmRwZHIxVnRmd0d4QzFVd3NyaDRPbktDeFRidERGelFXTFJWVnNIOFUtNjlMZUYwRkdYNi1sUGRMRUs2S3ZaYTNjR0NhMnNuOU9Lc3BB?oc=5",
-   "line": "- [google_news] 『세상의 모든 지식』… 138억 년 우주의 역사를 담았다 - 미주중앙일보 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMiW0FVX3lxTFBjWnVxVm4zczVKMjhoU3pNampxUTlOUmhfbGNmNV8yS1pHdDNrYUhYTDlnZTk5UXBSdWJqeWNvTnVNNEQ1MGRhNzBSbnpZVTZoSlhiWlFMaTJIOWc?oc=5",
+   "line": "- [google_news] 소원이 이루어지길…지구촌 밤하늘 수놓은 슈퍼문 - 연합뉴스 (규모: -)"
   },
   {
-   "keyword": "사이다 종영 ‘재혼 황후‘, 신민아라 가능했던 ‘K-황후’의 품격 - YTN",
+   "keyword": "\"홍민기가 폭행·낙태 종용\" 전 연인, 실종…마포대교서 신호 끊겨 - 머니투데이 - 머니투데이",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMiXkFVX3lxTFA5cGUxSFlnc09WanJSZHN1UWQ1dmJ5UUdsYjBWY2RTNzQxVWlCSG9UQXkzcDQ0T2huS0oteUxOSktneWFlM25OOXRXSlJPaWJMSnlhX0J5LTZiVUs2UWc?oc=5",
-   "line": "- [google_news] 사이다 종영 ‘재혼 황후‘, 신민아라 가능했던 ‘K-황후’의 품격 - YTN (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMieEFVX3lxTE1tSDNyT2gtTmIyYUdkTmt2QnIxWGtxbXFDbkc1X1R6aXFlZ2gwYUg4czRlWjdZUVVGZm9nY3AtbW9scFF2b2Y2eE45OEZCNUxEWGk5N01HdTZHRGVtcnlobGgxMVBhcGNtYmRWcWhxY0ZkN0xWOFBBWtIBfkFVX3lxTE5OZGRxaGVLNWJqRE5sR3gyMHhmN3l6Rkt5WG94Skw1RjdseE9LNWJ3NXBCaVlsZnpQeXRXNlBvUE93b19FdkpXdFZwN0o0dHUtaERLR0dWZlFrZ3dvUl9nS0RyYlFlYWlTaUtaNUFzd0N4ay02VUwycThVSHR2dw?oc=5",
+   "line": "- [google_news] \"홍민기가 폭행·낙태 종용\" 전 연인, 실종…마포대교서 신호 끊겨 - 머니투데이 - 머니투데이 (규모: -)"
   },
   {
-   "keyword": "최예나, '5년 동거' 최성민과 갈라섰다 \"방 빼라 통보..각자의 삶 응원\"[핫피플] - 조선일보",
+   "keyword": "‘환승연애’ 김보현, 깜짝 결혼 발표..웨딩화보 공개 “돌아오는 봄에 식 올린다” - 조선일보",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMijwFBVV95cUxQaHZuOGRSS2ktMEJqN1luTWs5cThRN09Ga1hSMHVOMGFMd2d2VkRNX3FVeFhkd0FBX2hSeXRlMFFsVGE1eDhwRVhHUkgtNTVyQVJFTFd5QWlwS3dCNFd0elRUclFGYjJ4QTNSWjBDS1IyYnpJZlE4eTNKeC1iZXNRakk5SHhMMTNQUTRMZFJITQ?oc=5",
-   "line": "- [google_news] 최예나, '5년 동거' 최성민과 갈라섰다 \"방 빼라 통보..각자의 삶 응원\"[핫피플] - 조선일보 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMijwFBVV95cUxNN1FfUzAwLXlGcXNqTTZzcG9oNkVlcmlIdDcyTVNYSXhvWlI1d2JrXzIzSkdoMlF3b2xfQjN0dmE0eXVHajVFdWJCckJzeUsyVmQtMlU3amhURTNSelh4UVRDV1dIejlXa1AtZXY5M1Y1ZXRoVmtoMUN2SklqVFVBTlRvMHNobGFmV25HOHV5MA?oc=5",
+   "line": "- [google_news] ‘환승연애’ 김보현, 깜짝 결혼 발표..웨딩화보 공개 “돌아오는 봄에 식 올린다” - 조선일보 (규모: -)"
   },
   {
-   "keyword": "설인아→연우 '무쇠소녀단3', 김동현도 기겁한 첫 훈련…\"이런 악마 같은 걸\" - 머니투데이 - 머니투데이",
+   "keyword": "'제자 성폭행 혐의' 남경주 국민참여재판 시작...\"세상에 알리지 말라\" 편지도 - YTN",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTFB2bGVXOE83VTVjM2lRZ0N5VDhxVHVSV3NwUFQ3MVZDQnMyVWhSUXUyejgzUE5OS0N3RWRYdTJ1Z2R4UGxjV0NzMzl3b0Roaldrb1dOZDdGdEdlWXpvcXgzRlBMTnFtbk1zMGd0S0g5VWdhcE3SAXhBVV95cUxQc2VtZGN3Z0swY1QxZlU1dmNQZUZMX2NXWllVM1dtcUl3a3czQUQwMFRZVFJXYi1XYjJEcENUWGpjVWVHalVtODVpVnQwTE9FaFZDNUM4QldYMDU5cHNTeG9KS0ZsTjZVb05FMW5jM0NyWFhfd1pxRDg?oc=5",
-   "line": "- [google_news] 설인아→연우 '무쇠소녀단3', 김동현도 기겁한 첫 훈련…\"이런 악마 같은 걸\" - 머니투데이 - 머니투데이 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMiXkFVX3lxTFBqNDFXSF9EVGdnbzVsUzRKRXNhMFg5NDdCMkliVzJ0WUpPeHZyd3JIQmVDZUhfS2puWUpiR2tDb2pZdVZOaGpnb3JOellCT1dDN0F5TFBOMU85TWtwX2c?oc=5",
+   "line": "- [google_news] '제자 성폭행 혐의' 남경주 국민참여재판 시작...\"세상에 알리지 말라\" 편지도 - YTN (규모: -)"
   },
   {
-   "keyword": "맹승지, 의사 남친과 본격 결혼 준비 “예식장 예약” - 스포츠동아",
+   "keyword": "[속보] “철도노조 준법투쟁 2일차, 전철 445대 20분 이상 지연” - 매일경제",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMibkFVX3lxTE5xRTVPNHJKb28yS0FIc180WmdwVHIwN2twcHlkZTI3a29iNUZvWFdiVkdpZFNGZFB1SUI3Y0NzaDVlY0NVUGpCcEdodDBaTTVyeUVoMFJiV1EyN0w2bUxZVnh6ZjR0WGt0eXgzbXRR?oc=5",
-   "line": "- [google_news] 맹승지, 의사 남친과 본격 결혼 준비 “예식장 예약” - 스포츠동아 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMiVEFVX3lxTFBzOWdOeFpOc0VrUHhBYjFFVFZRR1R4OTJQOS02NHJzSERqSncxa3pvQzNrQzVYVzZVVFdqdUdPRjdiRFlaR1E4X3dIX1pzeW1IODZDNA?oc=5",
+   "line": "- [google_news] [속보] “철도노조 준법투쟁 2일차, 전철 445대 20분 이상 지연” - 매일경제 (규모: -)"
   },
   {
-   "keyword": "김도영, 2년 만에 또 MVP…허인서, 16년 만에 ‘포수 신인왕’ - 경향신문",
+   "keyword": "[AI상보] '실바 30점' GS칼텍스, 흥국생명 셧아웃 제압...5연승+선두 질주 - 뉴스핌",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMiWkFVX3lxTE0yeW1yOUo2dndmajZ4MlM1VjBJRDI4NXJyY25fS2FwU2pYTXRlcjhIRm1EUTRBRnFvOUtIem96LTV6M0tSUVloZnNjWmpoWlQ2UnpwcS03cEtwQdIBX0FVX3lxTE5pUzk2U010dVBuZnpiaFFwcFN6NDFNMm1WMVBVWk1MMzk1cTF2Ml9XeFd6a3F3N3lqVTl1WXZ4MUdWMkFyQ2pYY0xWdmJmMllSeUF2T0Y0S280eldSWG93?oc=5",
-   "line": "- [google_news] 김도영, 2년 만에 또 MVP…허인서, 16년 만에 ‘포수 신인왕’ - 경향신문 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMiXEFVX3lxTE1ZTGI3TVgwY1N1MW5mVXFYOEp6Ym1QNVNaMlZmakNJY09KbHNNN3NNUHJhNUdpUFEwaWpuWldlSUNzeXZwcXNmZVJIOVZickFmcVNzMjNaRkVQUy1V?oc=5",
+   "line": "- [google_news] [AI상보] '실바 30점' GS칼텍스, 흥국생명 셧아웃 제압...5연승+선두 질주 - 뉴스핌 (규모: -)"
   },
   {
-   "keyword": "홍성찬, 데이비스컵 남자 단식 8강서 로렌조 무세티 상대 - www.gukjenews.com",
+   "keyword": "‘포스팅 D-5’ 노시환 기적의 ML행 성사되나! 美 강정호 전 소속팀에 강력 추천 “우타 거포 ROH, 피츠버그와 잘 어울려” - 머니투데이 - 머니투데이",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMibkFVX3lxTE5RMkpyZ3BDekR2LXFFeUQwYkFyOGVHOHJfUGF5UTBfTXhxNzJlTVBGTHhPNXFXX0xSbXNYLXVsZy1VQmhmOEF3ckM4bHR4Q09EMFd3RS1nMVFoNDBRQy1va213WXZvb25YRHRjOFpn?oc=5",
-   "line": "- [google_news] 홍성찬, 데이비스컵 남자 단식 8강서 로렌조 무세티 상대 - www.gukjenews.com (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMiakFVX3lxTE5mRlFzak5meExtMm5ienRmNklyRFZUUll6b2h3V0dRdjlBaTVsaGRXa2N5QXhJd2loN0EwOG9XNjhwV0dFTC1zZTJ3bjhRaVNsMGVBYnRmSlI2T183aWNzZ0ZTaEtJTTRJRGfSAW9BVV95cUxPQkNzaXRmWHNNcVJ3bk9LZk9mcGlhNThZS1NmQk1VM1dIUGllNmFJVW1nZlJyaEdKdDRLUjcyQ0REampvbnd4ZmNIMlFsa2oxaWhkSDZUS2pXc0RKMkpfRjMwLWNjTXBFNWJoSGhMYU0?oc=5",
+   "line": "- [google_news] ‘포스팅 D-5’ 노시환 기적의 ML행 성사되나! 美 강정호 전 소속팀에 강력 추천 “우타 거포 ROH, 피츠버그와 잘 어울려” - 머니투데이 - 머니투데이 (규모: -)"
   },
   {
-   "keyword": "남자배구 삼성화재, 3년 18일 만에 V리그 선두 - YTN",
+   "keyword": "'MVP 완벽 부활' KIA 김도영..'7.5억' 이정후 6년 차 최고 연봉 넘을까 - KBC광주방송",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMiXkFVX3lxTE16TUw4ckNOaTZYblBZT1VVSUtJclc0OGhwUWJyUDdGUkhzYzU2ZWV2dXZyb3F6b1VSZllZOGs1Rm03Um5xTWdfMzVPelZId3RWeHRzR2pQd1VRYThfMUE?oc=5",
-   "line": "- [google_news] 남자배구 삼성화재, 3년 18일 만에 V리그 선두 - YTN (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMiYkFVX3lxTE5xa09ucFFvTEtyUkxZdkxiUHZreFptSU0zTmpzam95WmZ2WlEtU29BUXJUcnlaWFA4NTV6RW5mQl8yLW9mY1VlVWN2ajZHOVBraThNM1A2UUwxQkZtMzZYVlBn?oc=5",
+   "line": "- [google_news] 'MVP 완벽 부활' KIA 김도영..'7.5억' 이정후 6년 차 최고 연봉 넘을까 - KBC광주방송 (규모: -)"
   },
   {
-   "keyword": "홈런 20개 친 포수 허인서, KBO 신인상·수비상 동시 수상 - 한겨레",
+   "keyword": "FIFA·AFC 공동대표단, 12월 4∼5일 방한…축구협회장 선거 논의 - 중앙일보",
    "source": "google_news",
    "traffic": 0,
    "context": [],
-   "url": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTFBSVEY5djNGdzdpQkJoN1JaaVM1aW01cmJlZVQwT082S3FESlZkeHYxSndCcXNSNl90eDBudWFTcWxYcVpFem53VmVFZUsxSHpOaFlnUjNkYVpTUzdQeFFJd2FLSUxGVWc?oc=5",
-   "line": "- [google_news] 홈런 20개 친 포수 허인서, KBO 신인상·수비상 동시 수상 - 한겨레 (규모: -)"
+   "url": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE16Sk1qeWtpa0xzeFRLOThXakhmeldITkI1OGdOdVc4dEt2Y3p0NWVRNWI2d2NjNHNUWl82d1Y3YldkWVc0MU96dmI3WWxCa0lOZWVXR1ZR?oc=5",
+   "line": "- [google_news] FIFA·AFC 공동대표단, 12월 4∼5일 방한…축구협회장 선거 논의 - 중앙일보 (규모: -)"
   }
  ]
 }
