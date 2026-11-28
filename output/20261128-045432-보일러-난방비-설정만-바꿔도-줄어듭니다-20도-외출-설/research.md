@@ -1,0 +1,3 @@
+- 정책브리핑(korea.kr) '난방온도 20도 함께 절약하는 겨울 에너지' — 기후에너지환경부 겨울철 에너지절약 캠페인, 2025.12.18 (https://www.korea.kr/news/policyNewsView.do?newsId=148956664)
+- 정책브리핑(korea.kr) '알쏭달쏭 난방비 절약법 Q&A', 2017.12.06 (https://www.korea.kr/news/policyNewsView.do?newsId=148845570)
+- 위키트리 '보일러 외출모드 그만 누르세요… 난방비 아끼는 버튼은 따로 있어요' (https://www.wikitree.co.kr/articles/1174101)
