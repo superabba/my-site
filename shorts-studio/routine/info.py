@@ -4,9 +4,9 @@
   python3 shorts-studio/routine/info.py
 
 - 오늘의 테마: shorts/daily.py 의 THEMES 를 날짜로 돌린다 (SHORTS_THEMES 변수는 루틴에서 볼 수 없으니 기본 목록)
-- 최근 쇼츠 주제: shorts-records 브랜치 records/*.json (최근 30일)
-- 최근 카드뉴스 주제: cardbot-data 브랜치 data/cardbot.db (최근 7일)
-- 최근 청년 카드뉴스 주제: economypub-youth 저장소 drafts 브랜치 (최근 7일, 같은 계정에 올라가므로 겹치지 않게). 읽지 못하면 그렇다고 알린다
+- 최근 쇼츠 주제: shorts-records 브랜치 records/*.json (최근 RECENT_DAYS=60일)
+- 최근 카드뉴스 주제: cardbot-data 브랜치 data/cardbot.db (최근 60일)
+- 최근 청년 카드뉴스 주제: economypub-youth 저장소 drafts 브랜치 (최근 60일, 같은 계정에 올라가므로 겹치지 않게). 읽지 못하면 그렇다고 알린다
 - 대기 중인 원고: shorts-records 브랜치 inbox/
 """
 import ast
@@ -20,6 +20,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 KST = timezone(timedelta(hours=9))
+# 세 파이프라인(쇼츠·카드뉴스·청년)이 같은 네이버 블로그·유튜브 채널에 올라가므로 같은 주제를 되풀이하지 않게 보는 기간.
+# 짧은 간격의 비슷한 글(에너지바우처·IRP·연말정산 반복)이 네이버 유사문서·검색 누락의 원인 후보였다.
+RECENT_DAYS = 60
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
@@ -40,7 +43,7 @@ def themes():
 YOUTH_REPO = "https://github.com/superabba/economypub-youth.git"
 
 
-def youth_topics(now: datetime, days: int = 7):
+def youth_topics(now: datetime, days: int = RECENT_DAYS):
     """청년 카드뉴스 저장소(공개)의 drafts 브랜치에서 최근 시안 제목을 읽는다. 실패하면 None."""
     r = subprocess.run(["git", "fetch", "-q", "--depth=1", YOUTH_REPO, "drafts:refs/remotes/youth/drafts"],
                        capture_output=True, timeout=60)
@@ -72,8 +75,8 @@ def main():
     print()
 
     subprocess.run(["git", "fetch", "-q", "--depth=1", "origin", "shorts-records", "cardbot-data"], capture_output=True)
-    since = now - timedelta(days=30)
-    print("최근 30일 쇼츠 주제 (겹치지 않게):")
+    since = now - timedelta(days=RECENT_DAYS)
+    print(f"최근 {RECENT_DAYS}일 쇼츠 주제 (겹치지 않게):")
     names = git("ls-tree", "--name-only", "origin/shorts-records", "records/").split()
     shown = 0
     for n in names:
@@ -93,7 +96,7 @@ def main():
     if not shown:
         print("- (없음)")
 
-    print("\n최근 7일 카드뉴스 주제 (겹치지 않게):")
+    print(f"\n최근 {RECENT_DAYS}일 카드뉴스 주제 (겹치지 않게):")
     db = git("show", "origin/cardbot-data:data/cardbot.db", binary=True)
     topics = []
     if db:
@@ -102,14 +105,14 @@ def main():
             f.flush()
             try:
                 con = sqlite3.connect(f.name)
-                cut = (datetime.now() - timedelta(days=7)).isoformat()
+                cut = (datetime.now() - timedelta(days=RECENT_DAYS)).isoformat()
                 topics = [r[0] for r in con.execute("SELECT DISTINCT topic FROM posts WHERE created_at >= ?", (cut,)) if r[0]]
             except sqlite3.Error:
                 pass
     for t in topics or ["(없음)"]:
         print("-", t)
 
-    print("\n최근 7일 청년 카드뉴스 주제 (같은 계정에 올라가니 겹치지 않게 — 청년월세·청년미래적금 같은 청년 정책은 그쪽 몫):")
+    print(f"\n최근 {RECENT_DAYS}일 청년 카드뉴스 주제 (같은 계정에 올라가니 겹치지 않게 — 청년월세·청년미래적금 같은 청년 정책은 그쪽 몫):")
     try:
         yt = youth_topics(now)
     except (subprocess.SubprocessError, OSError):

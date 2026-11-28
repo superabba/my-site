@@ -25,7 +25,14 @@ git -c core.quotePath=false ls-tree --name-only origin/cardbot-data output/ | ta
 # 최근 14일 폴더의 topic.json 에서 title·keyword 를 읽는다
 git show "origin/cardbot-data:output/<폴더>/topic.json"
 ```
-- 최근 14일에 다룬 주제·키워드와 겹치면 제외합니다. 청년 정책 전용 계정(`economypub-youth`)의 소재(청년월세·청년미래적금 등)와도 겹치지 않게, 이 계정은 생활·경제·테크 쪽을 다룹니다.
+- **최근 60일**에 다룬 주제·키워드와 겹치면 제외합니다. 청년 정책 전용 계정(`economypub-youth`)의 소재(청년월세·청년미래적금 등)와도 겹치지 않게, 이 계정은 생활·경제·테크 쪽을 다룹니다.
+- 같은 네이버 블로그·유튜브 채널에 올라가는 **매일 쇼츠·청년 카드뉴스의 최근 60일 주제**도 확인해 같은 제도·상품은 고르지 않습니다 (읽지 못하면 보고에 적습니다):
+```bash
+git fetch -q --depth=1 origin shorts-records
+for f in $(git ls-tree --name-only origin/shorts-records records/ | tail -60); do git show origin/shorts-records:$f | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('created_at','')[:10],d.get('topic') or d.get('title'))"; done
+git fetch -q --depth=1 https://github.com/superabba/economypub-youth.git drafts:refs/remotes/youth/drafts
+for d in $(git ls-tree --name-only refs/remotes/youth/drafts | grep '^2026' | tail -60); do git show refs/remotes/youth/drafts:$d/topic.json 2>/dev/null | python3 -c "import json,sys;d=json.load(sys.stdin);print('$d'[:8],d.get('title'),'/',d.get('keyword'))"; done
+```
 - 과거 성과 (선택): `git show origin/cardbot-data:data/cardbot.db > /tmp/c.db` 후 `python3 -c "import sqlite3,json;[print(r) for r in sqlite3.connect('/tmp/c.db').execute(\"select topic,platform,metrics from posts where metrics!='{}' order by id desc limit 20\")]"` 로 조회수·저장·공유가 높았던 주제의 패턴을 참고합니다.
 
 ### 2. 트렌드 신호 읽기
@@ -40,6 +47,14 @@ git show origin/cardbot-data:data/signals.json   # collected_at 과 signals[].li
 - 첫 장만 보고 넘겨보고 싶은 궁금증(숫자, 반전, 손해/이득, 오해 바로잡기)을 만들 수 있다
 - 계정 니치와 맞고, 과거에 잘 된 게시물의 패턴과 닮았다
 - 저장하거나 공유할 이유가 있다
+
+**검색 수요 기준 (네이버 블로그 — 2026-11-28 추가, 위 기준보다 우선)**
+실측해 보니 네이버 블로그에서 조회가 나온 글은 **고유명사가 들어간 좁은 검색어**였습니다('티플러스 티플온 180GB' 437회, '하나 나라사랑카드 혜택' 399회, '부끄머니 하반기 15% 할인' 173회, '스타벅스 통신사 할인' 160회). 연말정산·에너지바우처·IRP 세액공제·신용점수처럼 넓은 상시 주제는 공공기관·큰 블로그·네이버 AI 브리핑이 첫 화면을 차지해 0~11회였습니다. 그래서:
+- 후보는 **[고유명사: 상품·카드·요금제·앱테크 이벤트·지자체·기관 서비스 이름] + [구체 조건·금액·기간·할인]** 조합을 우선합니다.
+- 넓은 상시 주제(연말정산, 에너지바우처, IRP·연금저축 세액공제, 신용점수, 예금자보호, 난방비 절약 등)는 그대로 쓰지 않습니다. 쓰려면 한 가지 상황의 질문으로 좁힙니다 (예: 'IRP 추가 납입 전 올해 납입액 확인하는 법').
+- 가능하면 고르기 전에 그 키워드를 네이버에서 검색해 봅니다. 블로그 첫 화면이 최근 1개월 안의 비슷한 글로 꽉 차 있으면 다른 각도나 다른 소재로 바꿉니다.
+- `blog.json` 의 `main_keyword` 는 사람들이 실제로 치는 검색어 그대로(2~5어절 롱테일)로, 위 기준에 맞는 것으로 정합니다.
+- 최근 60일 안에 카드뉴스·쇼츠·청년 중 어디서든 다룬 제도·상품은 다시 고르지 않습니다 (내용이 바뀐 경우만 예외, 보고에 이유를 적습니다).
 
 **피할 주제**: 사건·사고 피해자나 참사를 소비하는 내용, 특정 개인의 사생활·루머, 확인되지 않은 의혹, 정치적 편가르기, 근거 없는 의료·투자 조언. 투자 권유·특정 상품 추천·수익 약속은 쓰지 않습니다.
 
@@ -108,4 +123,4 @@ cd cardnews-bot && pip install -q pydantic requests && python -m cardbot.validat
 폴더 이름, 제목, 고른 스타일, 근거 출처를 한국어로 보고합니다. 올리지 못했으면 어떤 명령이 어떤 오류로 막혔는지 그대로 적습니다.
 
 ## 건너뛰지 않기
-하루도 건너뛰지 않습니다. 소식이 적은 날에도 상시 안내형(카드 혜택 점검, 구독료·통신비 줄이기, 환급금 조회, 연말정산 체크 등) 소재를 최근 14일에 안 다룬 것으로 골라 쓰세요. 검증이 실패하면 원인을 고치거나 더 안전한 주제로 바꿔 끝까지 올리고, 푸시가 기술적으로 불가능할 때만 이유를 보고하세요.
+하루도 건너뛰지 않습니다. 소식이 적은 날에도 위 '검색 수요 기준'을 지킵니다. 넓은 상시 주제로 채우지 말고, 고유명사형 상시 소재(특정 카드·요금제·앱테크 이벤트·지자체 지원 조건 정리 등) 중 최근 60일에 세 파이프라인 어디서도 안 다룬 것으로 골라 쓰세요. 검증이 실패하면 원인을 고치거나 더 안전한 주제로 바꿔 끝까지 올리고, 푸시가 기술적으로 불가능할 때만 이유를 보고하세요.
